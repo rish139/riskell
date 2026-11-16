@@ -1,0 +1,19 @@
+#!/bin/zsh
+# Try the guided installer safely, in one command: it runs against a throwaway home folder with no real build and no launch agent,
+# so nothing of yours is touched. When you finish (or quit), it shows what the installer would have written.
+#   scripts/try-installer
+root=${0:A:h:h}
+if [[ ! -t 0 || ! -t 1 ]]; then
+  echo "Run this in a normal terminal window (the installer needs a real terminal, not a pipe)."; exit 1
+fi
+echo "Building the installer (about 10 seconds the first time)..."
+(cd $root && swift build -c release --product riskell-setup 2>&1 | tail -1) || exit 1
+H=$(mktemp -d)
+HOME=$H $root/.build/release/riskell-setup --repo $root --no-build --no-launch
+echo
+echo "Your real setup was not touched. The installer wrote this into a throwaway folder:"
+for f in $H/.config/riskell/config.json $H/.config/riskell/layout.json; do
+  [[ -f $f ]] && { echo; echo "--- ${f#$H/}"; cat $f; }
+done
+[[ -z $(find $H -type f 2>/dev/null) ]] && echo "(nothing: you quit before installing)"
+rm -rf $H

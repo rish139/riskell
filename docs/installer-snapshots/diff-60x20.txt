@@ -1,0 +1,20 @@
+   riskell setup                  8 / 8   ● ● ● ● ● ● ● ◉
+   ──────────────────────────────────────────────────────
+
+   What would change
+   This is the plan. Nothing is written from this screen.
+
+   + wm              "auto"
+   + theme           "gruvbox-dark-medium"
+   + location        {"lat":53.549999999999997,"lon":10,"
+   + gestures        "system"
+   = layout.json     kept, your layout is unchanged
+   + launch agent    com.rish.riskell, written and starte
+   + risk            a link to scripts/risk
+
+   ⏎ or esc goes back to the review
+
+
+
+
+   ⏎ or esc back

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/rish139/riskell/main/schemas/riskell-extension.schema.json",
+  "title": "riskell extension manifest (riskell.json)",
+  "description": "Describes one extension: a pill, a theme, a preset, or a compiled reading / atom / behaviour. `risk ext validate` enforces this file plus source rules the schema cannot express.",
+  "type": "object",
+  "required": ["id", "kind", "name", "version", "license", "summary"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,38}$", "description": "Unique, lowercase letters, digits and hyphens." },
+    "kind": { "enum": ["pill", "theme", "preset", "reading", "atom", "behaviour"] },
+    "name": { "type": "string", "minLength": 1, "maxLength": 60 },
+    "version": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$", "description": "Semantic Versioning 2.0.0." },
+    "license": { "type": "string", "description": "An SPDX license identifier (https://spdx.org/licenses), or LicenseRef-… for a custom one." },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 140 },
+    "kit": { "type": "string", "pattern": "^\\^?\\d+\\.\\d+(\\.\\d+)?$", "description": "The RiskellKit versions it builds against, a SemVer range such as ^1.0." },
+    "module": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "description": "The Swift module, which is also the name of the package's library product." },
+    "entry": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "description": "The type in `module` that conforms to RiskellPackage." },
+    "atoms": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" }, "uniqueItems": true, "description": "The AtomMeta ids the package registers; placed in a layout as ext:<id>." },
+    "files": { "type": "array", "items": { "type": "string" }, "description": "For pill, theme and preset: the files copied into ~/.config/riskell/." },
+    "repository": { "type": "string", "format": "uri" },
+    "homepage": { "type": "string", "format": "uri" },
+    "authors": { "type": "array", "items": { "type": "string" } },
+    "keywords": { "type": "array", "items": { "type": "string" }, "maxItems": 10 },
+    "preview": { "type": "string", "description": "A path to a PNG shown in the registry." }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "enum": ["reading", "atom", "behaviour"] } }, "required": ["kind"] },
+      "then": { "required": ["kit", "module", "entry"] }
+    },
+    {
+      "if": { "properties": { "kind": { "enum": ["pill", "theme", "preset"] } }, "required": ["kind"] },
+      "then": { "required": ["files"] }
+    }
+  ]
+}

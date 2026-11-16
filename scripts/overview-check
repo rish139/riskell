@@ -1,0 +1,24 @@
+#!/bin/zsh
+# The overview at three scales on a scratch instance with fake workspaces (the `command` window-manager backend), as PNGs.
+#   scripts/overview-check [outdir]      default: a new folder under $TMPDIR; prints the three picture paths
+# Never touches your config, layout, bars or OmniWM's gaps (--no-reserve, its own event socket and scratch files). The overview briefly
+# covers part of the screen for a few seconds per scale. Expected: scales 1 (2268 wide) and 0.67 (1512 wide) look the same, 1.5 has a
+# larger find field, numbers and ring relative to the screen.
+root=${0:A:h:h}; bin=$root/.build/release/riskell
+[[ -x $bin ]] || { echo "overview-check: build first (swift build -c release)"; exit 1; }
+out=${1:-$(mktemp -d)}; mkdir -p $out; fx=$out/fixtures; mkdir -p $fx
+cat > $fx/state.sh <<'STATE'
+#!/bin/sh
+echo '{"spaces":[{"id":1,"focused":true,"windows":2},{"id":2,"windows":2},{"id":3,"windows":1},{"id":4,"windows":0}],"windows":[{"id":101,"pid":1,"app":"Notes","title":"Shopping list","space":1,"focused":true},{"id":102,"pid":2,"app":"Terminal","title":"build","space":1},{"id":103,"pid":3,"app":"Browser","title":"Docs","space":2},{"id":104,"pid":4,"app":"Editor","title":"main.swift","space":2},{"id":105,"pid":5,"app":"Music","title":"Playlist","space":3}]}'
+STATE
+chmod +x $fx/state.sh
+print -r -- "{\"theme\":\"gruvbox-dark-medium\",\"wm\":\"command\",\"wmCommand\":{\"state\":\"$fx/state.sh\"}}" > $fx/config.json
+print -r -- '{}' > $fx/layout.json      # a missing or empty layout loads the defaults
+for c in "2268x1473:notch=48,278 auto scale-1" "1512x982:notch=32,185 auto scale-0.67" "2268x1473:notch=48,278 1.5 scale-1.5"; do
+  set -- ${=c}; d=$out/$3; mkdir -p $d; sock=/tmp/rk-ovc-$$.sock      # a unix socket path must be under 104 characters
+  env=(RISKELL_CONFIG=$fx/config.json RISKELL_LAYOUT=$fx/layout.json RISKELL_FAKE_DISPLAY=$1 RISKELL_EVENT_SOCKET=$sock RISKELL_SNAP_DIR=$d)
+  [[ $2 != auto ]] && env+=(RISKELL_SCALE=$2)
+  env $env $bin --no-usage --no-reserve --no-claude --fake-usage --fake-media --snap $d --stay 12 > $d/log 2>&1 &
+  sleep 3.5; printf overview | nc -U -w1 $sock; sleep 3; printf overview-snap | nc -U -w1 $sock; sleep 1.5; printf overview | nc -U -w1 $sock
+  wait; rm -f $sock; echo "$d/overview.png"
+done

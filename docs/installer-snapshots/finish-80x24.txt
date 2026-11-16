@@ -1,0 +1,24 @@
+   riskell setup
+   ──────────────────────────────────────────────────────────────────────────
+
+   ✓ riskell is running
+   Settings live in ~/.config/riskell.
+
+   ✓ Build riskell            built in 41 s
+   ✓ Write config.json        merged 6 owned keys, your other keys are kept
+   ✓ Write layout.json        Classic layout written
+   ○ Trackpad gestures        left as they are
+   ✓ Link risk                ~/.local/bin/risk
+   ✓ Start the launch agent   written and started
+   ✓ Health check             running, socket up, no errors in the log
+
+   ctrl-alt-,    open the layout editor
+   risk status   check it
+   risk log 30   the recent log
+
+   Location Services: Wi-Fi names in the network card
+
+
+
+
+   ⏎ done   q quit

@@ -1,0 +1,32 @@
+
+
+   riskell setup                                                          7 / 8   ● ● ● ● ● ● ◉ ○
+   ──────────────────────────────────────────────────────────────────────────────────────────────
+
+   Scale
+   Auto fits the bars to each screen's notch or menu bar.
+
+   ○ Auto  recommended                                matches your screen
+   ● Custom                                     0.5 to 2.0, steps of 0.05
+
+       1.20    ███████████▁▁▁▁▁▁▁▁▁▁▁▁▁
+               0.50                2.00
+
+   Fine-tune spacing later with ctrl-alt-, in the layout editor.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   ↑↓ move   ←→ adjust   ⏎ continue   esc back

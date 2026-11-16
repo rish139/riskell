@@ -1,0 +1,29 @@
+name: CI
+
+# Manual while the RiskellKit repository is private: a workflow cannot fetch another private repository with its default token, so a
+# push would fail at "resolve dependencies". Switch `on:` back to `push` and `pull_request` when the kit repository is public.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # riskell targets macOS 14+ on Apple silicon (Package.swift); the runner is macOS 15.
+    runs-on: macos-15
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Build (release)
+        run: swift build -c release
+
+      - name: Extension tooling (the CLI and the example)
+        run: |
+          swift build -c release --product riskell-ext
+          .build/release/riskell-ext validate Examples/load-ext
+          (cd Examples/load-ext && swift build)
+
+      - name: Scrub check (no personal data in tracked files)
+        run: scripts/scrub-check.sh

@@ -1,0 +1,20 @@
+   [0;1;38;2;250;189;47mriskell[0m [0;2;38;2;132;122;110msetup[0m                                            [0m
+   [0;2;38;2;132;122;110m──────────────────────────────────────────────────────[0m   [0m
+                                                            [0m
+   [0;1mInstalling[0m                                               [0m
+   [0;2;38;2;132;122;110mBackups first. Running setup again is safe.[0m              [0m
+                                                            [0m
+   [0;1;38;2;184;187;38m✓[0m Build riskell            [0;2;38;2;132;122;110mbuilt in 41 s[0m                 [0m
+   [0;1;38;2;184;187;38m✓[0m Write config.json        [0;2;38;2;132;122;110mmerged 6 owned keys, your o[0m   [0m
+   [0;1;38;2;184;187;38m✓[0m Write layout.json        [0;2;38;2;132;122;110mkept your layout.json[0m         [0m
+   [0;2;38;2;132;122;110m○[0m Trackpad gestures        [0;2;38;2;132;122;110mleft as they are[0m              [0m
+   [0;1;38;2;184;187;38m✓[0m Link risk                [0;2;38;2;132;122;110m~/.local/bin/risk[0m             [0m
+   [0;1;38;2;184;187;38m✓[0m Start the launch agent   [0;2;38;2;132;122;110mrunning, socket up[0m            [0m
+   [0;38;2;250;189;47m⠋[0m Health check                                           [0m
+                                                            [0m
+   [0;38;2;250;189;47m███████▄[0m   [0;2;38;2;132;122;110m6 of 7 steps[0m                                  [0m
+                                                            [0m
+                                                            [0m
+                                                            [0m
+                                                            [0m
+   [0;2;38;2;132;122;110mworking...[0m                                               [0m

@@ -1,0 +1,32 @@
+
+
+   riskell setup                                                          5 / 8   ● ● ● ● ◉ ○ ○ ○
+   ──────────────────────────────────────────────────────────────────────────────────────────────
+
+   Usage
+   Both are off by default; each reads a login here.
+
+   ● Claude usage                                                            on
+       reads Claude Code's login from your keychain; nothing leaves your Mac
+       except the request to Anthropic
+
+   ● OpenCode usage                                                          on
+       reads the console of your OpenCode workspace from a browser profile on
+       this Mac
+
+     workspace   › wrk_•••••••••••••••••••▏
+     profiles    › ~/Library/Application Support/zen/Profiles
+
+
+
+
+
+
+
+
+
+
+
+
+
+   ↑↓ move   space toggle   ⏎ continue   esc back

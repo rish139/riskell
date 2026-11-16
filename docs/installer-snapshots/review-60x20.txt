@@ -1,0 +1,20 @@
+   riskell setup                  8 / 8   ● ● ● ● ● ● ● ◉
+   ──────────────────────────────────────────────────────
+
+   Review
+   Nothing is written until you choose Install.
+
+   Window mgr                 Bars
+   auto (OmniWM)              Classic, preset, flush
+   Theme                      Weather
+   Gruvbox dark, medium       Hamburg
+   Usage                      Gestures
+   off                        system
+   Scale
+   auto
+   ○ Replace my layout                         keep yours
+   ● Install                                            ⏎
+   ○ Show what would change
+   ○ Back
+
+   ↑↓ move   space toggle   ⏎ choose   esc back

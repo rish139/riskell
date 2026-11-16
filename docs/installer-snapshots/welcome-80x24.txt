@@ -1,0 +1,24 @@
+   riskell setup
+   ──────────────────────────────────────────────────────────────────────────
+
+   riskell v1.0
+
+   A bar that fits your Mac.
+   Nothing is written until you confirm.
+
+
+    ╭───────────────╮ ╭──────────╮ ╭───╮
+    │ 100% ▮▮▮▮▯    │ │ 02:41 PM │ │ ● │
+    ╰───────────────╯ ╰──────────╯ ╰───╯
+
+   ✓ macOS           15.2
+   ! chip            x86_64: not verified on Intel
+   ✓ swift           Swift 6.1, Command Line Tools
+   ✓ settings        new install, no config.json yet
+   ! launch agent    not loaded yet, starts on install
+   ✓ window manager  OmniWM running
+
+
+
+
+   ⏎ start   q quit

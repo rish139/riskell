@@ -1,0 +1,159 @@
+#!/bin/zsh
+# riskell control: runs the release build from this checkout as a launchd agent (starts at login, restarts if it dies).
+#   risk install     build, then start riskell now and at login
+#   risk uninstall   stop riskell and remove its launch agent
+#   risk dev         rebuild and restart the running agent (work on it live)
+#   risk restart   restart the agent (rebuilds first if the sources are newer than the running build)
+#   risk log [N]   follow the log, or print its last N lines
+#   risk status
+#   risk ext validate|new|add|remove|list   riskell extensions (add and remove rebuild and restart)
+#   risk wm status|omniwm|export|import   OmniWM helpers: start it if it is not running, save / restore each window's workspace number
+set -e
+root=${0:A:h:h}
+label=com.rish.riskell
+plist=$HOME/Library/LaunchAgents/$label.plist
+dom=gui/$(id -u)
+mkdir -p $HOME/.cache/riskell
+app=$root/.build/riskell.app    # the app bundle the agent runs: macOS only offers Location (Wi-Fi names) and Bluetooth to a process with a bundle identity
+
+write_plist() {
+cat > $plist <<PL
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>$label</string>
+  <key>ProgramArguments</key><array><string>$app/Contents/MacOS/riskell</string></array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>3</integer>
+  <key>ProcessType</key><string>Interactive</string>
+  <key>LimitLoadToSessionType</key><string>Aqua</string>
+  <key>StandardOutPath</key><string>$HOME/.cache/riskell/riskell.log</string>
+  <key>StandardErrorPath</key><string>$HOME/.cache/riskell/riskell.log</string>
+</dict></plist>
+PL
+}
+# The release binary is wrapped in a minimal app bundle (Info.plist: identity, no Dock icon, the Location / Bluetooth purpose strings) and signed
+# with the local "riskell-dev" certificate (see README), so both the keychain's "Always Allow" and the Location permission survive rebuilds.
+bundle() {
+  mkdir -p $app/Contents/MacOS
+  cp $root/.build/release/riskell $root/.build/release/libnowplaying.dylib $app/Contents/MacOS/
+  cat > $app/Contents/Info.plist <<IP
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleIdentifier</key><string>com.rish.riskell</string>
+  <key>CFBundleName</key><string>riskell</string>
+  <key>CFBundleExecutable</key><string>riskell</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>LSMinimumSystemVersion</key><string>14.0</string>
+  <key>LSUIElement</key><true/>
+  <key>NSLocationUsageDescription</key><string>macOS only shows Wi-Fi network names to apps allowed Location. riskell shows the name of your network and the ones nearby in the network card, and never reads or stores your position.</string>
+  <key>NSLocationAlwaysUsageDescription</key><string>macOS only shows Wi-Fi network names to apps allowed Location. riskell shows the name of your network and the ones nearby in the network card, and never reads or stores your position.</string>
+  <key>NSLocationAlwaysAndWhenInUseUsageDescription</key><string>macOS only shows Wi-Fi network names to apps allowed Location. riskell shows the name of your network and the ones nearby in the network card, and never reads or stores your position.</string>
+  <key>NSAudioCaptureUsageDescription</key><string>riskell reads the level of what is playing, only while the volume card is open, to draw its loudness chart and meters. It never records or stores audio.</string>
+  <key>NSBluetoothAlwaysUsageDescription</key><string>riskell lists your paired Bluetooth devices in the network card and connects or disconnects them when you click one.</string>
+</dict></plist>
+IP
+  codesign -f -s riskell-dev --identifier com.rish.riskell $app/Contents/MacOS/libnowplaying.dylib 2>/dev/null
+  codesign -f -s riskell-dev --identifier com.rish.riskell $app 2>/dev/null || echo "unsigned (no riskell-dev identity)"
+}
+stale() { [[ -n $(find $root/Sources $root/Package.swift -newer $app/Contents/MacOS/riskell -print -quit 2>/dev/null) || ! -e $app/Contents/MacOS/riskell ]]; }
+build() { (cd $root && swift build -c release 2>&1 | grep -E "error|Build complete" && bundle) }
+
+# --- OmniWM helpers (OmniWM is the window manager; it keeps one macOS Space and its own virtual workspaces) ---
+# export (window -> workspace number into $map), start, import (put each window back on its number).
+OMNI=/opt/homebrew/bin/omniwmctl
+JQ=$(command -v jq || ls /opt/homebrew/bin/jq /usr/local/bin/jq /usr/bin/jq 2>/dev/null | head -1)   # whichever jq is installed; checked in `risk wm`
+wm_label=com.rish.wm; wm_plist=$HOME/Library/LaunchAgents/$wm_label.plist
+map=$HOME/.cache/riskell/wm-windows.txt       # "<CG window id> <workspace number>" per line, plus "focus <n>"
+wm_now() { pgrep -xq OmniWM && echo omniwm || echo none; }
+wait_for() { local i; for i in {1..120}; do eval "$1" >/dev/null 2>&1 && return 0; sleep 0.5; done; return 1; }
+first_id() { awk '$1 != "focus" {print $1; exit}' $map; }
+focus_n() { awk '$1 == "focus" {print $2}' $map; }
+app_agent() {    # app_agent /Applications/X.app | off  -- OmniWM starts at login from this agent
+  launchctl bootout $dom/$wm_label 2>/dev/null || true; rm -f $wm_plist
+  [[ $1 == off ]] && return
+  cat > $wm_plist <<PL
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>$wm_label</string>
+  <key>ProgramArguments</key><array><string>/usr/bin/open</string><string>-a</string><string>$1</string></array>
+  <key>RunAtLoad</key><true/>
+  <key>LimitLoadToSessionType</key><string>Aqua</string>
+</dict></plist>
+PL
+  launchctl bootstrap $dom $wm_plist
+}
+
+# OmniWM (its CLI needs general.ipcEnabled = true in ~/.config/omniwm/settings.toml)
+omni_windows() { $OMNI query windows --fields id,window-id,workspace --format json; }
+export_omniwm() {
+  omni_windows | $JQ -r '.result.payload.windows[] | "\(.windowId) \(.workspace.number)"' > $map
+  echo "focus $($OMNI query workspaces --focused --fields number --format json | $JQ -r '.result.payload.workspaces[0].number')" >> $map
+}
+start_omniwm() {
+  app_agent /Applications/OmniWM.app
+  wait_for "$OMNI ping && { [[ -z '$(first_id)' ]] || omni_windows | $JQ -e --argjson w $(first_id) 'any(.result.payload.windows[]; .windowId == $w)'; }"
+}
+import_omniwm() {
+  local cg ws opaque
+  while read cg ws; do
+    [[ $cg == focus ]] && continue
+    opaque=$(omni_windows | $JQ -r --argjson w $cg '.result.payload.windows[] | select(.windowId == $w) | .id' | head -1)
+    [[ -n $opaque ]] && $OMNI window move-to-workspace $opaque $ws 2>/dev/null || true
+  done < $map
+  $OMNI command switch-workspace $(focus_n) 2>/dev/null || true
+}
+
+start_wm() {   # start OmniWM if it is not running, then put each window back on its saved workspace number
+  [[ $(wm_now) == omniwm ]] && { echo "omniwm is already running"; return; }
+  echo "starting omniwm (grant Accessibility / Input Monitoring if macOS asks)..."
+  start_omniwm || { echo "omniwm did not come up with your windows within 60 s; once it has, re-run: risk wm import"; exit 1; }
+  [[ -s $map ]] && import_omniwm
+  launchctl kickstart -k $dom/$label 2>/dev/null || true
+  echo "omniwm on. Window map: $map"
+}
+
+# Replaces the loaded agent with the one in $plist. `bootout` returns before the old agent is gone, and a `bootstrap` that comes too early
+# fails with "Input/output error" and leaves riskell not running: wait until the service has gone, and retry the bootstrap.
+reload() {
+  local i
+  launchctl bootout $dom/$label 2>/dev/null || true
+  for i in {1..20}; do launchctl print $dom/$label >/dev/null 2>&1 || break; sleep 0.5; done
+  for i in {1..6}; do launchctl bootstrap $dom $plist 2>/dev/null && return 0; sleep 1; done
+  launchctl bootstrap $dom $plist      # one more try, so that the error is shown
+}
+
+case $1 in
+  install)
+    build; write_plist
+    reload
+    echo "riskell running" ;;
+  uninstall)
+    launchctl bootout $dom/$label 2>/dev/null || true
+    rm -f $plist
+    echo "riskell stopped" ;;
+  dev)      build
+            if ! grep -qF "$app/Contents/MacOS/riskell" $plist 2>/dev/null; then write_plist; reload; echo "moved the agent into the app bundle"
+            else launchctl kickstart -k $dom/$label; fi
+            echo restarted ;;
+  restart)  if stale; then echo "the sources are newer than the running build: rebuilding first"; exec $0 dev; fi
+            launchctl kickstart -k $dom/$label; echo restarted ;;
+  log)      if [[ -n $2 ]]; then tail -n $2 $HOME/.cache/riskell/riskell.log; else tail -f $HOME/.cache/riskell/riskell.log; fi ;;
+  ext)      tool=$root/.build/release/riskell-ext      # validate | new | add | remove | list | sync: see docs/WRITING-EXTENSIONS.md
+            [[ -x $tool ]] || swift build -c release --product riskell-ext --package-path $root >/dev/null || exit 1
+            RISKELL_ROOT=$root $tool "${@:2}" || exit $?
+            [[ $2 == (add|remove) ]] && exec $0 dev ;;
+  status)   launchctl print $dom/$label 2>/dev/null | grep -E "state|pid|last exit" || echo "not loaded" ;;
+  wm)       [[ $2 == (omniwm|export|import) && ! -x ${JQ:-/nonexistent} ]] && { echo "risk: jq not found (brew install jq)"; exit 1; }
+            case $2 in
+              omniwm) start_wm ;;
+              export) export_omniwm; echo "saved $(grep -vc '^focus' $map) windows to $map" ;;
+              import) [[ $(wm_now) == omniwm ]] || { echo "omniwm is not running"; exit 1; }; import_omniwm; echo "windows placed" ;;
+              *) echo "window manager: $(wm_now)" ;;
+            esac ;;
+  *) sed -n 2,7p $0 ;;
+esac

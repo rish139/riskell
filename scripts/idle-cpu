@@ -1,0 +1,17 @@
+#!/bin/zsh
+# Idle CPU of a second riskell instance, for A/B comparisons.
+#   scripts/idle-cpu [label] [layout.json] [config.json]
+# Starts a scratch instance (never touches the running bar: --no-reserve, its own event socket), waits 10 s, then prints the CPU seconds it used
+# over the next 30 s. Run it three times per variant and compare the means; single runs are noisy by about +-0.04 s.
+root=${0:A:h:h}
+bin=$root/.build/release/riskell
+label=${1:-run}; layout=${2:-$HOME/.config/riskell/layout.json}; cfg=${3:-/dev/null}
+out=$(mktemp -d)
+RISKELL_CONFIG=$cfg RISKELL_LAYOUT=$layout $bin --no-usage --no-reserve --no-claude --fake-media --snap $out --stay 43 >/dev/null 2>&1 &
+pid=$!
+sleep 10
+t0=$(ps -o cputime= -p $pid | awk -F: '{print ($1*60)+$2}')
+sleep 30
+t1=$(ps -o cputime= -p $pid | awk -F: '{print ($1*60)+$2}')
+echo "$label: $(echo "$t1 - $t0" | bc) s cpu over 30 s"
+wait $pid 2>/dev/null; rm -rf $out

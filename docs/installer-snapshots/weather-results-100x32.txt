@@ -1,0 +1,32 @@
+
+
+   riskell setup                                                          4 / 8   ● ● ● ◉ ○ ○ ○ ○
+   ──────────────────────────────────────────────────────────────────────────────────────────────
+
+   Weather location
+   Only the city you type is sent, to open-meteo.com.
+
+   › Hamburg▏
+
+
+
+   ○ Hamburg                                   Hamburg, Germany
+   ○ Hamburg                            New York, United States
+   ○ Hamburg                                    Ontario, Canada
+   ○ Skip                                            no weather
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   type a city   ↑↓ choose   ⏎ continue   esc back

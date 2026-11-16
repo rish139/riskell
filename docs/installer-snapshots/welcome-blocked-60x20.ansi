@@ -1,0 +1,20 @@
+   [0;1;38;2;250;189;47mriskell[0m [0;2;38;2;132;122;110msetup[0m                                            [0m
+   [0;2;38;2;132;122;110m──────────────────────────────────────────────────────[0m   [0m
+                                                            [0m
+   [0;1;38;2;250;189;47mriskell[0m [0;2;38;2;132;122;110mv1.0[0m                                             [0m
+                                                            [0m
+   [0;1mA bar that fits your Mac.[0m                                [0m
+   [0;2;38;2;132;122;110mNothing is written until you confirm.[0m                    [0m
+                                                            [0m
+   [0;1;38;2;184;187;38m✓[0m macOS           [0;2;38;2;132;122;110m15.2[0m                                   [0m
+   [0;38;2;250;189;47m![0m chip            [0;2;38;2;132;122;110mx86_64: not verified on Intel[0m          [0m
+   [0;1;38;2;251;73;52m✗[0m swift           [0;1;38;2;251;73;52mmissing: run xcode-select --install[0m    [0m
+   [0;1;38;2;184;187;38m✓[0m settings        [0;2;38;2;132;122;110mnew install, no config.json yet[0m        [0m
+   [0;38;2;250;189;47m![0m launch agent    [0;2;38;2;132;122;110mnot loaded yet, starts on install[0m      [0m
+   [0;1;38;2;184;187;38m✓[0m window manager  [0;2;38;2;132;122;110mOmniWM running[0m                         [0m
+                                                            [0m
+                                                            [0m
+                                                            [0m
+                                                            [0m
+                                                            [0m
+   [0;2;38;2;132;122;110m⏎ start   q quit[0m                                         [0m

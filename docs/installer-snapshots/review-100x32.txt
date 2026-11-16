@@ -1,0 +1,32 @@
+
+
+   riskell setup                                                          8 / 8   ● ● ● ● ● ● ● ◉
+   ──────────────────────────────────────────────────────────────────────────────────────────────
+
+   Review
+   Nothing is written until you choose Install.
+
+   Window mgr  auto (OmniWM)                      Bars        Classic, preset, flush
+   Theme       Gruvbox dark, medium               Weather     Hamburg
+   Usage       off                                Gestures    system
+   Scale       auto
+
+   config.json   merged, backup first
+   launch agent  com.rish.riskell
+   risk link     /opt/homebrew/bin/risk
+
+
+
+
+
+
+
+
+
+
+   ○ Replace my layout                                         keep yours
+   ● Install                                                            ⏎
+   ○ Show what would change
+   ○ Back
+
+   ↑↓ move   space toggle   ⏎ choose   esc back

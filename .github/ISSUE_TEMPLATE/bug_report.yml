@@ -1,0 +1,18 @@
+name: Bug report
+description: Something looks wrong or breaks
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes: { label: What happened, description: What you expected and what you saw (a screenshot helps) }
+    validations: { required: true }
+  - type: input
+    id: macos
+    attributes: { label: macOS version and Mac model }
+    validations: { required: true }
+  - type: input
+    id: wm
+    attributes: { label: Window manager and its version, description: "OmniWM, yabai, AeroSpace, none" }
+  - type: textarea
+    id: log
+    attributes: { label: Log, description: "`scripts/risk log 80`", render: shell }

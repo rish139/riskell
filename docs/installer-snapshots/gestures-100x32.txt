@@ -1,0 +1,32 @@
+
+
+   riskell setup                                                          6 / 8   ● ● ● ● ● ◉ ○ ○
+   ──────────────────────────────────────────────────────────────────────────────────────────────
+
+   Three-finger gestures
+   Who handles swipes between spaces and the overview.
+
+   ○ System  default                                 macOS handles the gestures
+   ● riskell                                   riskell's own swipe and overview
+
+   Conflicts with macOS settings
+   ! three-finger swipe between spaces
+   ! Mission Control gesture
+
+   ○ Turn them off for me
+       saves your originals; undo with riskell --gestures-restore
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   ↑↓ move   space toggle   ⏎ continue   esc back   q quit

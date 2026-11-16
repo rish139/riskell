@@ -1,0 +1,24 @@
+   riskell setup                                      2 / 8   ● ◉ ○ ○ ○ ○ ○ ○
+   ──────────────────────────────────────────────────────────────────────────
+
+   Bars
+   The preset picks the bars and what sits on them.
+
+   ○ Minimal                       top bar only    ╭────────────────────────╮
+   ● Classic  recommended  top, bottom and left    │  ▄▄▄▄▄▄ ▀▀▀▀ ▄▄▄▄▄▄    │
+   ○ Full                         all four bars    │▌             ┌────┐    │
+                                                   │▌             │    │    │
+   Cards    ● Flush   ○ Chat                       │▌             └────┘    │
+   Bars     ○ Floating   ○ Hug   ● as preset       │▌                       │
+                                                   │▌                       │
+   Flush: cards hang from the bar.                 │▌                       │
+                                                   │       ▀▀▀▀▀▀           │
+                                                   ╰────────────────────────╯
+
+                                                   Classic · bars as preset
+                                                   flush cards
+
+
+
+
+   ↑↓ move   ←→ change   ⏎ continue   esc back   q quit

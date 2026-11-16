@@ -1,0 +1,497 @@
+#!/usr/bin/env python3
+"""Renders the pictures in docs/images/ from fake data, so they can be made again after a change.
+
+    scripts/make-screenshots [name ...]      names: hero cards themes editor overview pills extension installer scale   (default: all)
+
+Needs a release build (swift build -c release), Pillow and NumPy (python3 -m pip install pillow numpy). Every picture comes from scratch instances of
+riskell: fake workspaces (the `command` window-manager backend), fake usage and media, a made-up wallpaper, a placeholder pill set. Nothing
+of yours is read or written (--no-reserve, their own config, layout and event socket), and OmniWM's gaps are never touched. The overview and
+the hover cards cover part of the screen for a few seconds each while they are drawn.
+"""
+import json, os, shutil, subprocess, sys, tempfile, time
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BIN = ROOT + "/.build/release/riskell"
+SETUP = ROOT + "/.build/release/riskell-setup"
+OUT = ROOT + "/docs/images"
+TMP = tempfile.mkdtemp(prefix="riskell-shots-")
+BG = (29, 32, 33)
+SCREEN = "2268x1473:notch=48,278"
+
+
+def font(size, bold=False):
+    for p in ("~/Library/Fonts/GeistMono-Medium.otf" if bold else "~/Library/Fonts/GeistMono-Regular.otf", "/System/Library/Fonts/SFNSMono.ttf", "/System/Library/Fonts/Menlo.ttc"):
+        p = os.path.expanduser(p)
+        if os.path.exists(p):
+            return ImageFont.truetype(p, size)
+    return ImageFont.load_default()
+
+
+# ---------------------------------------------------------------- fixtures
+
+def wallpaper():
+    path = TMP + "/wallpaper.png"
+    w, h = 1134, 736
+    im = Image.new("RGB", (w, h))
+    px = im.load()
+    for y in range(h):
+        for x in range(w):
+            t = (x / w * 0.6 + y / h * 0.4)
+            px[x, y] = (int(34 + 26 * t), int(38 + 22 * (1 - t)), int(58 + 40 * t))
+    im.save(path)
+    return path
+
+
+STATE = """#!/bin/sh
+echo '{"spaces":[{"id":1,"focused":true,"windows":2},{"id":2,"windows":2},{"id":3,"windows":1},{"id":4,"windows":0}],"windows":[{"id":101,"pid":1,"app":"Notes","title":"Shopping list","space":1,"focused":true},{"id":102,"pid":2,"app":"Terminal","title":"build","space":1},{"id":103,"pid":3,"app":"Browser","title":"Docs","space":2},{"id":104,"pid":4,"app":"Editor","title":"main.swift","space":2},{"id":105,"pid":5,"app":"Music","title":"Playlist","space":3}]}'
+"""
+
+PILLS = [
+    {"id": "up", "name": "Uptime", "run": "printf 'up 3d\\nload 1.2 0.9 0.8\\nusers 2'", "every": 600},
+    {"id": "dsk", "name": "Disk", "run": "printf '%s' '{\"text\":\"3%\",\"icon\":\"internaldrive\",\"tone\":\"ok\",\"value\":0.03,\"lines\":[\"Used 13G of 1.4T\",\"Free 497G\"],\"values\":[{\"label\":\"CPU\",\"text\":\"62\",\"unit\":\"%\",\"tone\":\"warn\",\"value\":0.62},{\"label\":\"RAM\",\"text\":\"48\",\"unit\":\"%\",\"tone\":\"ok\",\"value\":0.48}],\"spark\":[1,3,2,5,4,6,5,8],\"grid\":[[\"Read\",\"12 MB/s\"],[\"Write\",\"3 MB/s\"]]}'", "every": 600},
+    {"id": "temp", "name": "Temp", "run": "printf '%s' '{\"text\":\"71°\",\"icon\":\"thermometer\",\"tone\":\"crit\",\"value\":0.71}'", "every": 600},
+]
+
+
+def isl(i, atoms):
+    return {"id": i, "atoms": atoms}
+
+
+def layout(extra=None):
+    L = {"gap": 8, "hugTop": False, "hugBottom": False, "hugLeft": False, "hugRight": True,
+         "on": {"top": True, "bottom": True, "left": True, "right": True},
+         "spill": {"top": "fill", "bottom": "fill", "left": "fill", "right": "fill"},      # every bar opens flush cards
+         "top": {"start": [], "center": [], "end": [isl("s", ["bat", "clock"]), isl("p", ["pill:up", "pill:temp"])]},
+         "bottom": {"start": [isl("d", ["pill:dsk"])], "center": [isl("c", ["cpu"])], "end": [isl("w", ["weather"])]},
+         "left": {"start": [isl("ws", ["workspaces"])], "center": [], "end": [isl("u", ["usage", "fan"])]},
+         "right": {"start": [], "center": [], "end": [isl("l", ["net", "vol"])]}}
+    if extra:
+        extra(L)
+    path = TMP + "/layout-%d.json" % len(os.listdir(TMP))
+    json.dump(L, open(path, "w"))
+    return path
+
+
+def config(theme="gruvbox-dark-medium"):
+    path = TMP + "/config-%s.json" % theme
+    json.dump({"theme": theme, "pills": PILLS, "location": {"name": "Hamburg", "lat": 53.55, "lon": 10.0},
+               "usage": {"claude": True}, "wm": "command", "wmCommand": {"state": TMP + "/state.sh"}}, open(path, "w"))      # usage on only so its atom is drawn; --no-usage keeps it from reading anything
+    return path
+
+
+def run(args, outdir, layout_path, cfg=None, env=None, stay=5, binary=None, capture=False):
+    os.makedirs(outdir, exist_ok=True)
+    e = dict(os.environ)
+    e.update(RISKELL_CONFIG=cfg or config(), RISKELL_LAYOUT=layout_path, RISKELL_FAKE_DISPLAY=SCREEN, RISKELL_WALLPAPER=TMP + "/wallpaper.png",
+             RISKELL_DEMO="1", RISKELL_CACHE_DIR=TMP + "/cache")      # demo: placeholder names for devices, volumes, processes, addresses
+    os.makedirs(TMP + "/cache", exist_ok=True)
+    e.update(env or {})
+    cmd = [binary or BIN, "--no-usage", "--no-reserve", "--no-claude", "--fake-usage", "--fake-media", "--fake-heat", "--snap", outdir, "--stay", str(stay)] + args
+    r = subprocess.run(cmd, env=e, stdout=subprocess.PIPE if capture else subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=stay + 30)
+    return r.stdout.decode("utf-8", "replace") if capture else ""
+
+
+def overview(outdir, layout_path, binary=None, cfg=None):
+    os.makedirs(outdir, exist_ok=True)
+    sock = "/tmp/rk-shot-%d.sock" % os.getpid()      # a unix socket path must be under 104 characters
+    e = dict(os.environ)
+    e.update(RISKELL_CONFIG=cfg or config(), RISKELL_LAYOUT=layout_path, RISKELL_FAKE_DISPLAY=SCREEN, RISKELL_EVENT_SOCKET=sock,
+             RISKELL_SNAP_DIR=outdir, RISKELL_WALLPAPER=TMP + "/wallpaper.png", RISKELL_DEMO="1", RISKELL_CACHE_DIR=TMP + "/cache")
+    os.makedirs(TMP + "/cache", exist_ok=True)
+    p = subprocess.Popen([binary or BIN, "--no-usage", "--no-reserve", "--no-claude", "--fake-usage", "--fake-media", "--snap", outdir, "--stay", "12"],
+                         env=e, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    def send(w):
+        subprocess.run("printf %s | nc -U -w1 " % w + sock, shell=True)
+    time.sleep(3.5); send("overview"); time.sleep(3); send("overview-snap"); time.sleep(1.5); send("overview")
+    p.wait(timeout=30)
+    if os.path.exists(sock):
+        os.remove(sock)
+
+
+# ---------------------------------------------------------------- image helpers
+
+def tight(im, pad=10):
+    """The picture cropped to what is not transparent."""
+    a = im.getchannel("A") if im.mode == "RGBA" else None
+    box = a.point(lambda v: 255 if v > 8 else 0).getbbox() if a else im.getbbox()
+    if not box:
+        return im
+    return im.crop((max(0, box[0] - pad), max(0, box[1] - pad), min(im.width, box[2] + pad), min(im.height, box[3] + pad)))
+
+
+def runs(im, mingap=10):
+    """A bar's islands as separate pictures, left to right (the empty stretches between them are dropped)."""
+    a = np.asarray(im.getchannel("A")) > 8
+    col = a.any(axis=0)
+    out, start, last = [], None, None
+    for x, v in enumerate(col):
+        if v:
+            if start is None:
+                start = x
+            last = x
+        elif start is not None and x - last > mingap:
+            out.append((start, last + 1)); start = None
+    if start is not None:
+        out.append((start, last + 1))
+    pics = []
+    for x0, x1 in out:
+        piece = im.crop((x0, 0, x1, im.height))
+        box = piece.getchannel("A").point(lambda v: 255 if v > 8 else 0).getbbox()
+        pics.append(piece.crop(box) if box else piece)
+    return pics
+
+
+def is_black(im):
+    """The notch's wing: a solid black piece (the app icon and the play button on it are small)."""
+    rgb = np.asarray(im.convert("RGB")).astype(int)
+    return rgb.mean() < 12
+
+
+def islands(im):
+    return [r for r in runs(im) if not is_black(r)]
+
+
+def join(parts, gap=24, vertical=False):
+    if vertical:
+        W = max(p.width for p in parts); H = sum(p.height for p in parts) + gap * (len(parts) - 1)
+    else:
+        W = sum(p.width for p in parts) + gap * (len(parts) - 1); H = max(p.height for p in parts)
+    out = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    pos = 0
+    for p in parts:
+        out.alpha_composite(p.convert("RGBA"), (0, pos) if vertical else (pos, (H - p.height) // 2))
+        pos += (p.height if vertical else p.width) + gap
+    return out
+
+
+def on_bg(im, pad=24, bg=BG):
+    out = Image.new("RGBA", (im.width + 2 * pad, im.height + 2 * pad), bg + (255,))
+    out.alpha_composite(im.convert("RGBA"), (pad, pad))
+    return out
+
+
+def save(im, name, width=None, colors=None):
+    if width and im.width > width:
+        im = im.resize((width, round(im.height * width / im.width)), Image.LANCZOS)
+    os.makedirs(OUT, exist_ok=True)
+    im = im.convert("RGB")
+    if colors:
+        im = im.quantize(colors=colors, method=Image.MEDIANCUT, dither=Image.FLOYDSTEINBERG)
+    im.save(OUT + "/" + name, optimize=True)
+    print("wrote docs/images/%s  %dx%d  %d KB" % (name, im.width, im.height, os.path.getsize(OUT + "/" + name) // 1024))
+
+
+def caption(text, color=(150, 140, 125)):
+    f = font(26)
+    d = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+    w = int(d.textlength(text, font=f))
+    im = Image.new("RGBA", (w + 4, 40), (0, 0, 0, 0))
+    ImageDraw.Draw(im).text((2, 4), text, font=f, fill=color + (255,))
+    return im
+
+
+def grid(items, columns, gap=40, bg=BG, pad=40):
+    """items: [(image, label)] laid out in columns, shortest column first."""
+    cols = [[] for _ in range(columns)]
+    heights = [0] * columns
+    for im, label in items:
+        k = heights.index(min(heights))
+        cols[k].append((im, label))
+        heights[k] += im.height + (44 if label else 0) + gap
+    cap_w = lambda t: int(ImageDraw.Draw(Image.new("RGB", (1, 1))).textlength(t, font=font(26))) + 6
+    widths = [max((max(im.width, cap_w(l) if l else 0) for im, l in c), default=0) for c in cols]
+    W = sum(widths) + gap * (columns - 1) + 2 * pad
+    H = max(heights) - gap + 2 * pad
+    out = Image.new("RGBA", (W, H), bg + (255,))
+    x = pad
+    for k, c in enumerate(cols):
+        y = pad
+        for im, label in c:
+            out.alpha_composite(im.convert("RGBA"), (x, y))
+            y += im.height
+            if label:
+                out.alpha_composite(caption(label), (x, y + 6)); y += 44
+            y += gap
+        x += widths[k] + gap
+    return out
+
+
+# ---------------------------------------------------------------- pictures
+
+def screen_picture(d, w, h, notch=None, right=True):
+    """A picture of a w x h screen (points): a plain wallpaper, placeholder tiled windows and the bars from the snapshots in `d`."""
+    W, H = 2 * w, 2 * h
+    scr = Image.open(TMP + "/wallpaper.png").convert("RGBA").resize((W, H), Image.LANCZOS)
+    top, bottom, left, rgt = (Image.open("%s/%s.png" % (d, n)).convert("RGBA") for n in ("top", "bottom", "left", "right"))
+    # placeholder windows (tiled, as a window manager would lay them out), so the bars are seen with something to frame
+    wd = ImageDraw.Draw(scr)
+    x0, y0, x1, y1, g = 116, 116 + (0 if notch else 40), W - (116 if right else 24), H - 112, 14
+    mid = round(x0 + (x1 - x0) * 0.58)
+    for (p, q, r, t) in ((x0, y0, mid - g // 2, y1), (mid + g // 2, y0, x1, round((y0 + y1) / 2) - g // 2), (mid + g // 2, round((y0 + y1) / 2) + g // 2, x1, y1)):
+        wd.rounded_rectangle((p, q, r, t), radius=26, fill=(34, 37, 43, 255), outline=(62, 66, 74, 255), width=3)
+        wd.rounded_rectangle((p, q, r, q + 56), radius=26, fill=(44, 48, 55, 255))
+        wd.rectangle((p + 3, q + 40, r - 3, q + 56), fill=(44, 48, 55, 255))
+        for i, col in enumerate(((255, 95, 86), (255, 189, 46), (39, 201, 63))):
+            wd.ellipse((p + 24 + i * 34, q + 17, p + 42 + i * 34, q + 35), fill=col + (255,))
+        for k in range(7):
+            ww = round((r - p - 100) * (0.9 - 0.11 * ((k * 5) % 6) / 5))
+            wd.rounded_rectangle((p + 40, q + 110 + k * 46, p + 40 + ww, q + 124 + k * 46), radius=7, fill=(58, 62, 70, 255))
+    # the panels are the full screen width (strips are drawn over their ends): place each where its window is
+    scr.alpha_composite(top, (round((W - top.width) / 2) if top.width < W else 0, 0))
+    scr.alpha_composite(bottom, (round((W - bottom.width) / 2) if bottom.width < W else 0, H - bottom.height))
+    scr.alpha_composite(left, (0, 0))
+    if right:
+        scr.alpha_composite(rgt, (W - rgt.width, 0))
+    if notch:
+        layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        nw, nh = notch
+        ImageDraw.Draw(layer).rounded_rectangle((W // 2 - nw, -40, W // 2 + nw, 2 * nh), radius=26, fill=(0, 0, 0, 255))
+        scr.alpha_composite(layer)
+    return scr
+
+
+def make_hero():
+    d = TMP + "/hero"
+    run([], d, layout())
+    save(screen_picture(d, 2268, 1473, notch=(278, 48)), "hero.png", 2400)
+
+
+def card_pic(cid, atoms, binary=None, cfg=None):
+    """One hover card as the app draws it: flush, opened from the top bar. Only the card is kept."""
+    d = TMP + "/card-" + cid.replace(".", "_")
+    def top_only(L):
+        L["top"].update(start=[], center=[], end=[isl("k", atoms)]); L["on"].update(right=False)
+    run([], d, layout(top_only), env={"RISKELL_FORCE_HOT": cid}, stay=6, binary=binary, cfg=cfg)
+    f = "%s/pop-%s.png" % (d, cid)
+    if not os.path.exists(f):
+        print("no card picture for", cid); return None
+    return card_body(Image.open(f).convert("RGBA"))
+
+
+def card_body(card):
+    """A flush card is drawn with the strip of the bar it hangs from, flared at both ends. Only the card is wanted: drop the strip and the
+    flares, keep the body."""
+    a = np.asarray(card.getchannel("A")) > 8
+    rows = [i for i in range(a.shape[0]) if a[i].any()]
+    x0 = np.array([a[i].argmax() for i in rows]); x1 = np.array([a.shape[1] - a[i][::-1].argmax() for i in rows])
+    half = len(rows) // 2
+    bx0, bx1 = int(np.median(x0[half:])), int(np.median(x1[half:]))      # the body's columns, from the lower half
+    flared = [k for k in range(len(rows)) if x0[k] < bx0 - 3 or x1[k] > bx1 + 3]
+    first = (flared[-1] + 1) if flared else 0
+    # a flare may also be drawn without widening (just the strip): skip the rows above the first full-width body row
+    top = rows[first] if first < len(rows) else rows[0]
+    return tight(card.crop((bx0, top, bx1, rows[-1] + 1)), 2)
+
+
+def make_cards():
+    cards = [("date", "Clock and calendar"), ("bat", "Battery"), ("vitals", "CPU, memory, power"), ("fan", "Fans and temperature"),
+             ("vol", "Volume and microphone"), ("net", "Network"), ("weather", "Weather"), ("usage", "AI usage"),
+             ("workspaces", "Workspaces"), ("pill.dsk", "A script pill")]
+    atoms = {"date": ["clock"], "bat": ["bat"], "vitals": ["cpu"], "fan": ["fan"], "vol": ["vol"], "net": ["net"], "weather": ["weather"],
+             "usage": ["usage"], "workspaces": ["workspaces"], "pill.dsk": ["pill:dsk"]}
+    items = []
+    for cid, label in cards:
+        pic = card_pic(cid, atoms[cid])
+        if pic:
+            items.append((pic, label))
+    save(grid(items, 3), "cards.png", 2400, colors=160)
+
+
+def make_themes():
+    ids = [t["id"] for t in json.loads(subprocess.run([BIN, "--list-themes"], capture_output=True, text=True).stdout)]
+    tiles, frames = [], []
+    for tid in ids:
+        d = TMP + "/theme-" + tid
+        run([], d, layout(), cfg=config(tid), stay=4)
+        # the right end of the top bar and the centre of the bottom bar: the atoms with the most colour
+        t = join(islands(Image.open(d + "/top.png").convert("RGBA")), 16)
+        b = islands(Image.open(d + "/bottom.png").convert("RGBA"))[1]
+        both = join([t, b], 18, vertical=True)
+        name = tid.replace("-", " ")
+        tiles.append((both, name))
+        fr = on_bg(both, 30, BG)
+        ImageDraw.Draw(fr).text((34, fr.height - 44), name, font=font(26), fill=(150, 140, 125))
+        frames.append(fr.convert("RGB"))
+    save(grid(tiles, 2, gap=30), "themes.png", 2400)
+    w = 1100
+    fr = [f.resize((w, round(f.height * w / f.width)), Image.LANCZOS) for f in frames]
+    fr = [f.quantize(colors=96, method=Image.MEDIANCUT) for f in fr]
+    fr[0].save(OUT + "/themes.gif", save_all=True, append_images=fr[1:], duration=1400, loop=0, optimize=True)
+    print("wrote docs/images/themes.gif  %d KB" % (os.path.getsize(OUT + "/themes.gif") // 1024))
+
+
+def make_editor():
+    d = TMP + "/edit"
+    run(["--edit"], d, layout(), stay=5)
+    s = TMP + "/settings"
+    run(["--settings"], s, layout(), stay=8)
+    items = []
+    if os.path.exists(s + "/settings.png"):
+        items.append((Image.open(s + "/settings.png").convert("RGBA"), "The layout editor's panel (ctrl-alt-,)"))
+    for n, label in (("top", "Top bar while editing: dashed outlines, drag to move, x to remove"), ("bottom", "Bottom bar while editing")):
+        items.append((join(islands(Image.open("%s/%s.png" % (d, n)).convert("RGBA")), 40), label))
+    save(grid(items, 1), "editor.png", 2400)
+
+
+def make_overview():
+    d = TMP + "/overview"
+    overview(d, layout(lambda L: L["on"].update(right=False)))
+    if os.path.exists(d + "/overview.png"):
+        im = Image.open(d + "/overview.png").convert("RGB")
+        # the row of tiles, the numbers and the find field: crop the empty top and bottom
+        h = im.height
+        save(im.crop((0, int(h * 0.28), im.width, int(h * 0.68))), "overview.png", 2400)
+
+
+def make_pills():
+    d = TMP + "/pills"
+    only = lambda L: L["top"].update(end=[isl("p", ["pill:up", "pill:temp"])])
+    run([], d, layout(only), stay=4)      # the bars at rest; the cards come from card_pic
+    t = join(islands(Image.open(d + "/top.png").convert("RGBA")))
+    b = islands(Image.open(d + "/bottom.png").convert("RGBA"))[0]
+    cards = [card_pic("pill.dsk", ["pill:dsk"]), card_pic("pill.up", ["pill:up"])]
+    row = Image.new("RGBA", (cards[0].width + cards[1].width + 40, max(c.height for c in cards)), (0, 0, 0, 0))
+    row.alpha_composite(cards[0], (0, 0)); row.alpha_composite(cards[1], (cards[0].width + 40, 0))
+    save(grid([(b, "A pill with two readings, a gauge and a sparkline"), (t, "Two plain pills"), (row, "Their hover cards: lines, then a grid")], 1), "pills.png", 2000)
+
+
+def make_scale():
+    global SCREEN
+    items = []
+    for disp, w, h, notch, label in (("2268x1473:notch=48,278", 2268, 1473, (278, 48), "2268 x 1473, with a notch"),
+                                     ("1512x982:notch=32,185", 1512, 982, (185, 32), "1512 x 982, with a notch (the same Mac, stock mode)"),
+                                     ("1920x1080", 1920, 1080, None, "1920 x 1080, no notch (an external monitor)")):
+        keep, SCREEN = SCREEN, disp
+        d = TMP + "/scale-" + disp.split(":")[0]
+        run([], d, layout(lambda L: L["on"].update(right=False)), stay=4)
+        SCREEN = keep
+        pic = screen_picture(d, w, h, notch=notch, right=False)
+        items.append((pic.resize((round(pic.width * 520 / pic.height), 520), Image.LANCZOS), label))
+    save(grid(items, 3, gap=30, pad=30), "scale.png", 2400)
+
+
+def make_extension():
+    src = TMP + "/src"
+    shutil.copytree(ROOT, src, ignore=shutil.ignore_patterns(".build", ".git", "docs", "*.png"))
+    ext = src + "/.build/release/riskell-ext"
+    env = dict(os.environ, RISKELL_ROOT=src)
+    subprocess.run(["swift", "build", "-c", "release", "--product", "riskell-ext"], cwd=src, check=True, capture_output=True)
+    subprocess.run([ext, "add", "Examples/load-ext"], cwd=src, env=env, check=True, capture_output=True)
+    subprocess.run(["swift", "build", "-c", "release", "--product", "riskell"], cwd=src, check=True, capture_output=True)
+    binary = src + "/.build/release/riskell"
+
+    def L(l):
+        l["top"]["end"].append(isl("x", ["ext:load"])); l["bottom"]["start"].append(isl("y", ["ext:pulse"]))
+        l["left"]["end"].append(isl("z", [])); l["right"]["end"] = [isl("r", [])]
+    a = TMP + "/ext-a"; run([], a, layout(L), binary=binary)
+
+    def V(l):
+        for z in ("start", "end"):
+            l["top"][z] = []; l["bottom"][z] = []
+        l["bottom"]["center"] = []; l["left"]["start"] = []; l["left"]["end"] = [isl("u", ["ext:load"])]; l["right"]["end"] = [isl("r", ["ext:pulse"])]
+    v = TMP + "/ext-v"; run([], v, layout(V), binary=binary)
+    top = islands(Image.open(a + "/top.png").convert("RGBA"))[-1]
+    bot = islands(Image.open(a + "/bottom.png").convert("RGBA"))[1]
+    cards = [card_pic("ext.load", ["ext:load"], binary=binary), card_pic("pulse", ["ext:pulse"], binary=binary)]
+    row = Image.new("RGBA", (cards[0].width + cards[1].width + 40, max(x.height for x in cards)), (0, 0, 0, 0))
+    row.alpha_composite(cards[0], (0, 0)); row.alpha_composite(cards[1], (cards[0].width + 40, 0))
+    lv = Image.open(v + "/left.png").convert("RGBA"); rv = Image.open(v + "/right.png").convert("RGBA")
+    lv = lv.crop((0, lv.height - 420, lv.width, lv.height)); rv = rv.crop((0, rv.height - 420, rv.width, rv.height))
+    strips = Image.new("RGBA", (lv.width + rv.width + 40, 420), (0, 0, 0, 0)); strips.alpha_composite(lv, (0, 0)); strips.alpha_composite(rv, (lv.width + 40, 0))
+    save(grid([(top, "A reading atom (a few lines of Swift) on the top bar"), (bot, "A hand-drawn atom on the bottom bar"), (row, "Their cards"),
+               (strips, "Both on a strip: the same atoms, vertical forms")], 2), "extension.png", 2000)
+
+
+def ansi_to_image(text, font_size=22):
+    import re
+    f = ImageFont.truetype("/System/Library/Fonts/Menlo.ttc", font_size)
+    cw = int(f.getlength("M")); ch = int(font_size * 1.3)
+    lines = text.split("\n")
+    while lines and not lines[-1].strip():
+        lines.pop()
+    cols = max(len(re.sub(r"\x1b\[[0-9;]*m", "", l)) for l in lines)
+    im = Image.new("RGB", (cols * cw + 40, len(lines) * ch + 40), (24, 24, 26))
+    d = ImageDraw.Draw(im)
+    default = (216, 210, 196)
+    for y, line in enumerate(lines):
+        fg, bg, dim, x = default, None, False, 0
+        for part in re.split(r"(\x1b\[[0-9;]*m)", line):
+            if part.startswith("\x1b["):
+                codes = [int(c) if c else 0 for c in part[2:-1].split(";")]
+                i = 0
+                while i < len(codes):
+                    c = codes[i]
+                    if c == 0: fg, bg, dim = default, None, False
+                    elif c == 2: dim = True
+                    elif c == 22: dim = False
+                    elif c == 39: fg = default
+                    elif c == 49: bg = None
+                    elif c in (38, 48) and i + 4 < len(codes) and codes[i + 1] == 2:
+                        col = tuple(codes[i + 2:i + 5])
+                        if c == 38: fg = col
+                        else: bg = col
+                        i += 4
+                    i += 1
+            else:
+                for chx in part:
+                    if bg: d.rectangle((20 + x * cw, 20 + y * ch, 20 + (x + 1) * cw, 20 + (y + 1) * ch), fill=bg)
+                    col = tuple(int(v * 0.6) for v in fg) if dim else fg
+                    d.text((20 + x * cw, 20 + y * ch), chx, font=f, fill=col)
+                    x += 1
+    return im
+
+
+def make_installer():
+    items = []
+    for name, label in (("review-100x32", "The review screen, before anything is written"), ("bars-100x32", "Choosing the bars")):
+        p = "%s/docs/installer-snapshots/%s.ansi" % (ROOT, name)
+        if os.path.exists(p):
+            items.append((ansi_to_image(open(p, encoding="utf-8").read()).convert("RGBA"), label))
+    save(grid(items, 1), "installer.png", 2000)
+
+
+def make_architecture():
+    """The layers, as a picture: extensions on RiskellKit on the shell on macOS."""
+    rows = [("Extensions", "pills  ·  themes  ·  reading atoms  ·  custom atoms", False),
+            ("RiskellKit", "design tokens  ·  drawing parts  ·  extension API", False),
+            ("riskell, the shell", "bars  ·  hover cards  ·  workspace overview  ·  layout editor  ·  themes", True),
+            ("macOS and your window manager", "", False)]
+    W, bh, gap, pad = 1500, 118, 56, 40
+    H = pad * 2 + len(rows) * bh + (len(rows) - 1) * gap
+    im = Image.new("RGB", (W, H), BG)
+    d = ImageDraw.Draw(im)
+    big, small = font(34, True), font(25)
+    for i, (title, sub_, hot) in enumerate(rows):
+        y = pad + i * (bh + gap)
+        d.rounded_rectangle((pad, y, W - pad, y + bh), radius=22, fill=(40, 40, 40), outline=(250, 189, 47) if hot else (84, 78, 66), width=3 if hot else 2)
+        ty = y + (bh - 40) // 2 if not sub_ else y + 20
+        d.text((pad + 36, ty), title, font=big, fill=(235, 219, 178))
+        if sub_:
+            d.text((pad + 36, y + 66), sub_, font=small, fill=(150, 140, 125))
+        if i < len(rows) - 1:      # an arrow to the layer below
+            cx, y0 = W // 2, y + bh + 6
+            d.line((cx, y0, cx, y0 + gap - 18), fill=(150, 140, 125), width=3)
+            d.polygon([(cx - 11, y0 + gap - 24), (cx + 11, y0 + gap - 24), (cx, y0 + gap - 8)], fill=(150, 140, 125))
+    save(im, "architecture.png", 1500)
+
+
+MAKERS = {"architecture": make_architecture, "hero": make_hero, "cards": make_cards, "themes": make_themes, "editor": make_editor, "overview": make_overview,
+          "pills": make_pills, "extension": make_extension, "installer": make_installer, "scale": make_scale}
+
+if __name__ == "__main__":
+    if not os.path.exists(BIN):
+        sys.exit("make-screenshots: build first (swift build -c release)")
+    open(TMP + "/state.sh", "w").write(STATE)
+    os.chmod(TMP + "/state.sh", 0o755)
+    wallpaper()
+    want = sys.argv[1:] or list(MAKERS)
+    try:
+        for n in want:
+            if n not in MAKERS:
+                sys.exit("unknown picture: " + n)
+            print("--", n)
+            MAKERS[n]()
+    finally:
+        shutil.rmtree(TMP, ignore_errors=True)

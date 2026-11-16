@@ -1,0 +1,7 @@
+.build/
+.claude/
+.DS_Store
+*.png
+!docs/images/*.png
+__pycache__/
+*.pyc

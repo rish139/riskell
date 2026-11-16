@@ -1,0 +1,16 @@
+name: Extension idea or kit request
+description: Something you want to build and cannot, or something you want someone to build
+labels: [extension]
+body:
+  - type: textarea
+    id: want
+    attributes: { label: What should it show or do }
+    validations: { required: true }
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Which kind do you think it is
+      options: [pill, theme, preset, reading, atom, behaviour, not sure]
+  - type: textarea
+    id: blocked
+    attributes: { label: What the kit does not offer that you need, description: Leave empty if nothing is missing }
