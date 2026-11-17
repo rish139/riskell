@@ -30,5 +30,21 @@
     "package" : "system",
     "path" : "Packages\/system",
     "product" : "SystemExt"
+  },
+  {
+    "entry" : "NetworkPackage",
+    "id" : "network",
+    "module" : "NetworkExt",
+    "package" : "network",
+    "path" : "Packages\/network",
+    "product" : "NetworkExt"
+  },
+  {
+    "entry" : "VolumePackage",
+    "id" : "volume",
+    "module" : "VolumeExt",
+    "package" : "volume",
+    "path" : "Packages\/volume",
+    "product" : "VolumeExt"
   }
 ]

@@ -2,7 +2,7 @@
 
 > **Write new atoms as packages**: [`docs/WRITING-EXTENSIONS.md`](WRITING-EXTENSIONS.md). The clock, weather, AI usage, battery, CPU and fans are packages in
 > `Packages/` and are the worked examples. This page describes the built-in route, which the atoms that still need the application's own services
-> use (workspaces, app icon, volume, network).
+> use (workspaces and the app icon).
 
 An atom is one module on a bar: a figure, a gauge, a glass cell, a list of readings. Each atom has a horizontal form (for the top and
 bottom bars) and a vertical form (for the left and right strips), and it must fit any bar. The house rules are in `docs/BARS.md`; this

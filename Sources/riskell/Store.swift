@@ -12,14 +12,6 @@ struct SpaceInfo: Identifiable, Equatable {
 /// Everything the bars draw. Services write it on the main queue; each setter ignores an unchanged value so a redundant
 /// event never republishes (and never re-renders).
 struct MediaReading: Equatable { var bundle: String; var playing: Bool }
-struct WifiState: Equatable {
-    var on = false; var rssi = 0; var ssid: String? = nil
-    var kind = "down"            // wifi | eth | linked (associated or tunnelled, no route) | down
-    var primary: String? = nil   // the interface the default route uses
-    var location = "none"       // Location permission for Wi-Fi names: ok | asking | denied | none
-    var pct: Int { kind != "wifi" || rssi == 0 ? 0 : max(0, min(100, 2 * (rssi + 100))) }   // -50 dBm and better = 100 %, -100 dBm = 0 %
-}
-
 /// One window on the bar's display (the workspaces atom and its card).
 struct WinInfo: Equatable, Identifiable { let id: Int; var pid: Int; var app: String; var title: String; var space: Int; var focused: Bool }
 
@@ -38,15 +30,12 @@ final class Store: ObservableObject {
     let rail = RailModel()
     private(set) var swipeLive = false        // fingers on the pad: follow them with no animation
     @Published private(set) var media: MediaReading? = nil
-    @Published private(set) var wifi = WifiState()
     @Published private(set) var batPct: Int? = nil       // nil: no battery
     @Published private(set) var onAC = false
     @Published private(set) var charging = false
     @Published private(set) var windows: [WinInfo] = []
     @Published private(set) var volume = 0               // %
     @Published private(set) var muted = false
-    @Published private(set) var mic = -1                 // default input's level in %, -1: it has none
-    @Published private(set) var micMuted = false
 
     var trace: ((String) -> Void)?       // diagnostics hook (main.swift sets it to tlog)
     private var queue: [Int] = []          // committed-on-lift swipes macOS has not confirmed yet, oldest first (+1 / -1)
@@ -89,13 +78,11 @@ final class Store: ObservableObject {
         if pct != batPct { batPct = pct }; if ac != onAC { onAC = ac }; if ch != charging { charging = ch }
     }
     func set(media m: MediaReading?) { if m != media { media = m } }
-    func set(wifi w: WifiState) { if w != wifi { wifi = w } }
     func set(windows w: [WinInfo]) { if w != windows { windows = w } }
-    func set(mic v: Int, muted m: Bool) { if v != mic { mic = v }; if m != micMuted { micMuted = m } }
     func set(volume v: Int, muted m: Bool) { if v != volume { volume = v }; if m != muted { muted = m } }
 
     func dump() -> String {
         let sp = spaces.map { "\($0.id)\($0.focused ? "*" : "")(\($0.windows))" }.joined(separator: " ")
-        return "spaces \(sp) | bat \(batPct.map(String.init) ?? "-")% ac=\(onAC) charging=\(charging) | vol \(volume)% muted=\(muted) | wifi on=\(wifi.on) rssi=\(wifi.rssi) ssid=\(wifi.ssid ?? "-")"
+        return "spaces \(sp) | bat \(batPct.map(String.init) ?? "-")% ac=\(onAC) charging=\(charging) | vol \(volume)% muted=\(muted)"
     }
 }

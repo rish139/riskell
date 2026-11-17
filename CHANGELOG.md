@@ -21,6 +21,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   `scripts/listings-check.sh`, which keeps the listings in step with the app.
 
 ### Changed
+- Volume and network are packages too (`Packages/volume`, `Packages/network`; `ext:vol` and `ext:net`; older layouts are read as them). The volume
+  package owns the CoreAudio readers, the mixer taps and the microphone; the network package owns the Wi-Fi service (a Location grant restarts riskell
+  through the kit's new `AppHooks`) and the live network card. RiskellKit 0.5.0 adds `View.onScrollSteps` and `AppHooks.restart`. The application's
+  `Sys` keeps only the battery and volume that the `.battery` and `.volume` feeds read, started by their first subscriber, and the `Needs` table has
+  no atom rows left. The network card reads its tab from `--pop net:<n>` itself.
 - Battery, CPU and fans are one package, `Packages/system` (`ext:bat`, `ext:cpu`, `ext:fan`; older layouts are read as them). The package owns its
   samplers (CPU and memory, the smart battery, the SMC, the process list) behind one engine that runs only while one of the three is on a showing bar.
   RiskellKit 0.4.0 adds `PopState.setKeyable` and `refit`, `View.onRightClick` and `Demo` (the screenshot placeholders). The application's own `Sys`

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import Foundation
 import CoreWLAN
 import IOBluetooth
@@ -26,7 +29,16 @@ final class NetLive: ObservableObject {
     static let shared = NetLive()
 
     enum Tab: Int, CaseIterable { case wifi, bt, eth, vpn }
-    @Published var tab = Tab.wifi
+    @Published var tab = NetLive.initialTab()
+    /// `riskell --pop net:<n>` (a snapshot test) opens the card on its n-th tab.
+    private static func initialTab() -> Tab {
+        let a = CommandLine.arguments
+        if let i = a.firstIndex(of: "--pop"), i + 1 < a.count {
+            let p = a[i + 1].split(separator: ":")
+            if p.first == "net", p.count > 1, let n = Int(p[1]) { return Tab(rawValue: n - 1) ?? .wifi }
+        }
+        return .wifi
+    }
 
     // throughput
     private(set) var rx = 0.0
@@ -66,7 +78,7 @@ final class NetLive: ObservableObject {
     private(set) var vpn: [VpnItem] = []
     private(set) var vpnBusy: String? = nil
 
-    private var timer: Timer?
+    private var stopTick: (() -> Void)?
     private var users = 0
     private var prevCounters: (rx: UInt64, tx: UInt64, at: TimeInterval)?
     private var tick = 0
@@ -77,20 +89,19 @@ final class NetLive: ObservableObject {
 
     func start() {
         users += 1
-        guard timer == nil else { return }
+        guard stopTick == nil, let env = NetEnv.env else { return }
         prevCounters = nil; tick = 0
         if Demo.on && hist.isEmpty {      // screenshots: a minute of plausible traffic, so the graph is not empty
             let now = Date().timeIntervalSince1970
             hist = (0..<60).map { i in RateSample(t: now - Double(60 - i), rx: Demo.rxAt(i), tx: Demo.txAt(i)) }
         }
-        step()
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.step() }
-        timer?.tolerance = 0.1
+        // the kit's repeating schedule fires at once and then every second: the first sample is taken as the card opens
+        stopTick = env.repeating(.seconds(1)) { [weak self] in self?.step() }
     }
     func stop() {
         users = max(0, users - 1)
         guard users == 0 else { return }
-        timer?.invalidate(); timer = nil
+        stopTick?(); stopTick = nil
     }
 
     func select(_ t: Tab) { tab = t; refreshTab(force: true) }
@@ -147,7 +158,7 @@ final class NetLive: ObservableObject {
             hist.append(RateSample(t: now, rx: rx, tx: tx)); trim(now)
             return
         }
-        guard let p = store.wifi.primary, let c = interfaceCounters()[p] else {
+        guard let p = NetState.shared.wifi.primary, let c = interfaceCounters()[p] else {
             rx = 0; tx = 0
             hist.append(RateSample(t: now, rx: 0, tx: 0)); trim(now)
             return
@@ -172,7 +183,7 @@ final class NetLive: ObservableObject {
             let a = Demo.on ? ["192.168.1.1"] : a
             if a != dns { dns = a }
         } else if !dns.isEmpty { dns = [] }
-        let ip = Demo.address(store.wifi.primary.flatMap { Self.ipv4($0) } ?? "", "192.168.1.20")
+        let ip = Demo.address(NetState.shared.wifi.primary.flatMap { Self.ipv4($0) } ?? "", "192.168.1.20")
         if ip != localIP { localIP = ip }
     }
 

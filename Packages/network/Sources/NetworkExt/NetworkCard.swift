@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
 
@@ -6,7 +9,7 @@ import RiskellKit
 /// you, the networks nearby), Bluetooth (paired devices, one click to connect or disconnect), Ethernet (only when a wired link is up)
 /// and tunnels. Everything is read only while the card is open, and the slow reads only for the tab that is on show.
 struct NetworkCard: View {
-    @EnvironmentObject var s: Store
+    @ObservedObject private var s = NetState.shared
     @ObservedObject private var n = NetLive.shared
     @State private var hover: Int? = nil
     @State private var hoverNet: String? = nil
@@ -43,10 +46,10 @@ struct NetworkCard: View {
         .frame(width: Self.width, alignment: .topLeading)
         .onAppear { NetLive.shared.start() }
         .onDisappear { NetLive.shared.stop() }
-        .onChange(of: n.tab) { _, _ in Popout.shared.refit() }
-        .onChange(of: n.bt.count) { _, _ in if n.tab == .bt { Popout.shared.refit() } }
-        .onChange(of: n.vpn.count) { _, _ in if n.tab == .vpn { Popout.shared.refit() } }
-        .onChange(of: n.wifiOn) { _, _ in if n.tab == .wifi { Popout.shared.refit() } }
+        .onChange(of: n.tab) { _, _ in PopState.shared.refit() }
+        .onChange(of: n.bt.count) { _, _ in if n.tab == .bt { PopState.shared.refit() } }
+        .onChange(of: n.vpn.count) { _, _ in if n.tab == .vpn { PopState.shared.refit() } }
+        .onChange(of: n.wifiOn) { _, _ in if n.tab == .wifi { PopState.shared.refit() } }
     }
 
     // MARK: pieces
@@ -237,7 +240,7 @@ struct NetworkCard: View {
         let hov = hoverNet == w.id
         let q = max(0, min(100, 2 * (w.rssi + 100)))
         return HStack(spacing: 8) {
-            Image(systemName: w.secure ? "lock.fill" : "lock.open").font(.system(size: 9)).foregroundStyle(Pal.text4).frame(width: 12)
+            Image(systemName: w.secure ? "lock.fill" : "lock.open").font(Pal.font(9)).foregroundStyle(Pal.text4).frame(width: 12)
             Text(w.ssid ?? "Hidden network").font(Pal.font(12, w.current ? .bold : .regular)).foregroundStyle(w.ssid == nil ? Pal.text3 : Pal.text1).lineLimit(1)
             if w.current { t("● YOURS", 8, Pal.accent, 1) }
             Spacer(minLength: 0)
@@ -266,7 +269,7 @@ struct NetworkCard: View {
     private func btRow(_ d: BtDevice) -> some View {
         let hov = hoverBt == d.id, busy = n.btBusy == d.id
         return HStack(spacing: 10) {
-            Image(systemName: Self.btIcon(d.name)).font(.system(size: 13)).foregroundStyle(d.connected ? Pal.accent : Pal.text4).frame(width: 20)
+            Image(systemName: Self.btIcon(d.name)).font(Pal.font(13)).foregroundStyle(d.connected ? Pal.accent : Pal.text4).frame(width: 20)
             Text(d.name).font(Pal.font(12, d.connected ? .bold : .regular)).foregroundStyle(d.connected ? Pal.text1 : Pal.text3).lineLimit(1)
             Spacer(minLength: 0)
             if busy { ProgressView().controlSize(.small).scaleEffect(0.6) }
@@ -298,7 +301,7 @@ struct NetworkCard: View {
                 VStack(spacing: 0) {
                     ForEach(n.vpn) { v in
                         HStack(spacing: 10) {
-                            Image(systemName: "lock.shield.fill").font(.system(size: 13)).foregroundStyle(v.on ? Pal.accent : Pal.text4).frame(width: 20)
+                            Image(systemName: "lock.shield.fill").font(Pal.font(13)).foregroundStyle(v.on ? Pal.accent : Pal.text4).frame(width: 20)
                             Text(v.name).font(Pal.font(12, v.on ? .bold : .regular)).foregroundStyle(v.on ? Pal.text1 : Pal.text3).lineLimit(1)
                             Spacer(minLength: 0)
                             t(v.state.uppercased(), 9, v.on ? Pal.ok : Pal.text4, 1.2)
@@ -318,7 +321,7 @@ struct NetworkCard: View {
         }.frame(height: 24).animation(.easeOut(duration: 0.15), value: linkHot)
     }
     private func link(_ label: String, _ url: String) -> some View {
-        Button { if let u = URL(string: url) { NSWorkspace.shared.open(u) }; Popout.shared.close() } label: {
+        Button { if let u = URL(string: url) { NSWorkspace.shared.open(u) }; PopState.shared.close() } label: {
             t(label, 9, linkHot == label ? Pal.accent : Pal.amberDim, 1.4).padding(.vertical, 4).contentShape(Rectangle())
         }.buttonStyle(.plain).onHover { linkHot = $0 ? label : (linkHot == label ? nil : linkHot) }
     }

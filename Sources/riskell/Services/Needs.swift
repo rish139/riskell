@@ -9,8 +9,7 @@ import Foundation
 enum Needs {
     /// Which atoms need which service. The whole list in one place; main.swift gives each service its start and stop.
     static let table: [String: Set<String>] = [
-        "sys": ["vol"],      // the battery, the volume and the microphone (a feed subscriber also keeps it running)
-        "wifi": ["net"],                          // also the Location prompt for Wi-Fi names
+        "sys": [],      // the battery and the volume feeds only: a feed subscriber keeps it running (`Needs.hold`)
     ]
     private struct Rule { let start: () -> Void; let stop: () -> Void }
     private static var rules: [String: Rule] = [:]

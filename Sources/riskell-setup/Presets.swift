@@ -46,7 +46,7 @@ enum Presets {
         bar(start: [island("compat", ["compat"])], end: [island("status", ["ext:bat", "ext:clock"])])
     }
 
-    private static var link: [String: Any] { island("link", ["net", "vol"]) }
+    private static var link: [String: Any] { island("link", ["ext:net", "ext:vol"]) }
 
     static func layout(_ preset: Preset, mode: BarMode, cards: CardStyle) -> [String: Any] {
         let top = self.top

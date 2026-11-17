@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import CoreAudio
 import RiskellKit
@@ -7,7 +10,7 @@ import RiskellKit
 /// (each with its own mute), the output devices (one click makes one the default) and the microphone with its own fader and mute.
 /// Levels come from a system-audio tap that exists only while this card is open.
 struct VolumeCard: View {
-    @EnvironmentObject var s: Store
+    @ObservedObject private var s = VolumeState.shared
     @ObservedObject private var m = Mixer.shared
     @State private var hover: Int? = nil
     @State private var hoverRow: String? = nil
@@ -34,11 +37,12 @@ struct VolumeCard: View {
         }
         .padding(.horizontal, Self.pad).padding(.top, 14).padding(.bottom, 10)
         .frame(width: Self.width, alignment: .topLeading)
+        .background(MeterClock())
         .onAppear { Mixer.shared.start() }
         .onDisappear { Mixer.shared.stop() }
-        .onChange(of: m.streams.count) { _, _ in Popout.shared.refit() }
-        .onChange(of: m.outs.count) { _, _ in Popout.shared.refit() }
-        .onChange(of: m.ins.count) { _, _ in Popout.shared.refit() }
+        .onChange(of: m.streams.count) { _, _ in PopState.shared.refit() }
+        .onChange(of: m.outs.count) { _, _ in PopState.shared.refit() }
+        .onChange(of: m.ins.count) { _, _ in PopState.shared.refit() }
     }
 
     private func t(_ s: String, _ size: CGFloat, _ color: Color, bold: Bool = true, _ ls: CGFloat = 1.2) -> some View {
@@ -66,7 +70,7 @@ struct VolumeCard: View {
                 HStack(spacing: 8) {
                     Button { Volume.toggleMute() } label: {
                         Image(systemName: s.muted ? "speaker.slash.fill" : s.volume < 34 ? "speaker.wave.1.fill" : s.volume < 67 ? "speaker.wave.2.fill" : "speaker.wave.3.fill")
-                            .font(.system(size: 14, weight: .semibold)).foregroundStyle(s.muted ? Pal.text4 : Pal.accent).frame(width: 22, height: 22).contentShape(Rectangle())
+                            .font(Pal.font(14, .semibold)).foregroundStyle(s.muted ? Pal.text4 : Pal.accent).frame(width: 22, height: 22).contentShape(Rectangle())
                     }.buttonStyle(.plain)
                     t("MASTER", 10, Pal.amberDim, 2.6)
                 }
@@ -140,7 +144,7 @@ struct VolumeCard: View {
                         .frame(height: 24)
                     t(st.muted ? "MUTED" : "\(Int((st.gain * 100).rounded()))%", 9, st.muted ? Pal.text4 : st.gain < 1 ? Pal.accent : Pal.text3, 0.6).frame(width: 42, alignment: .trailing)
                     Button { Mixer.shared.toggleMute(st) } label: {
-                        Image(systemName: st.muted ? "speaker.slash.fill" : "speaker.wave.2.fill").font(.system(size: 12)).foregroundStyle(st.muted ? Pal.text4 : hov ? Pal.text1 : Pal.amberDim)
+                        Image(systemName: st.muted ? "speaker.slash.fill" : "speaker.wave.2.fill").font(Pal.font(12)).foregroundStyle(st.muted ? Pal.text4 : hov ? Pal.text1 : Pal.amberDim)
                             .frame(width: 24, height: 26).contentShape(Rectangle())
                     }.buttonStyle(.plain)
                 }
@@ -166,7 +170,7 @@ struct VolumeCard: View {
             VStack(spacing: 2) {
                 HStack(spacing: 9) {
                     Button { Volume.toggleMicMute() } label: {
-                        Image(systemName: s.micMuted ? "mic.slash.fill" : "mic.fill").font(.system(size: 14, weight: .semibold))
+                        Image(systemName: s.micMuted ? "mic.slash.fill" : "mic.fill").font(Pal.font(14, .semibold))
                             .foregroundStyle(s.micMuted ? Pal.text4 : Pal.info).frame(width: 22, height: 22).contentShape(Rectangle())
                     }.buttonStyle(.plain)
                     Text(dflt?.name ?? "No microphone").font(Pal.font(12)).foregroundStyle(dflt == nil ? Pal.text4 : Pal.text1).lineLimit(1)
@@ -182,7 +186,7 @@ struct VolumeCard: View {
     private func deviceRow(_ d: AudioHW.Device, isDefault: Bool, input: Bool) -> some View {
         let hov = hoverRow == "d\(d.id)"
         return HStack(spacing: 10) {
-            Image(systemName: Self.deviceIcon(d, input: input)).font(.system(size: 13)).foregroundStyle(isDefault ? Pal.accent : Pal.text4).frame(width: 20)
+            Image(systemName: Self.deviceIcon(d, input: input)).font(Pal.font(13)).foregroundStyle(isDefault ? Pal.accent : Pal.text4).frame(width: 20)
             Text(d.name).font(Pal.font(12, isDefault ? .bold : .regular)).foregroundStyle(isDefault ? Pal.text1 : Pal.text3).lineLimit(1)
             Spacer(minLength: 0)
             if hov && !isDefault { t("USE", 9, Pal.accent, 1.4) }
@@ -204,7 +208,7 @@ struct VolumeCard: View {
         }.frame(height: 18).animation(.easeOut(duration: 0.15), value: linkHot)
     }
     private func link(_ label: String, _ action: @escaping () -> Void) -> some View {
-        Button { action(); Popout.shared.close() } label: {
+        Button { action(); PopState.shared.close() } label: {
             t(label, 9, linkHot == label ? Pal.accent : Pal.amberDim, 1.4).padding(.vertical, 4).contentShape(Rectangle())
         }.buttonStyle(.plain).onHover { linkHot = $0 ? label : (linkHot == label ? nil : linkHot) }
     }
@@ -324,6 +328,17 @@ struct LoudnessChart: View {
                 case .ended: hover = nil
                 }
             }
+        }
+    }
+}
+
+/// The card's meter tick: a zero-size view that asks for a frame every 0.125 s while the card is on screen (the timeline stops when the card
+/// is removed, so nothing runs with the card closed) and steps the mixer on each one.
+struct MeterClock: View {
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 0.125)) { ctx in
+            Color.clear.frame(width: 0, height: 0)
+                .onChange(of: ctx.date) { _, _ in Mixer.shared.step() }
         }
     }
 }

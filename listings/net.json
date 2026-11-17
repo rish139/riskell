@@ -8,11 +8,14 @@
   "license": "MIT",
   "repository": "https://github.com/rish139/riskell",
   "source": [
-    "Sources/riskell/NetAtom.swift",
-    "Sources/riskell/NetworkCard.swift",
-    "Sources/riskell/Services/NetLive.swift",
-    "Sources/riskell/Services/Wifi.swift"
+    "Packages/network/riskell.json",
+    "Packages/network/Sources/NetworkExt/NetFace.swift",
+    "Packages/network/Sources/NetworkExt/NetLive.swift",
+    "Packages/network/Sources/NetworkExt/NetState.swift",
+    "Packages/network/Sources/NetworkExt/NetworkCard.swift",
+    "Packages/network/Sources/NetworkExt/NetworkPackage.swift",
+    "Packages/network/Sources/NetworkExt/Wifi.swift"
   ],
-  "home": "kit",
-  "homeNote": "needs a network feed in the kit"
+  "home": "package",
+  "homeNote": "moved out of the application: a package in this repository, placed as ext:net; it reads the hardware itself (CoreWLAN, the network service and Bluetooth)"
 }

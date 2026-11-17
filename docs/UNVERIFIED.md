@@ -33,6 +33,8 @@ verified, move it to the "Verified" list with the date, the macOS version and th
 
 | **Battery, CPU and fans as a package** | `risk dev`, then hover each of the three and open the CPU card (search, kill a process, right-click the CPU figure for Activity Monitor); unplug and plug the charger; check the fan card's live reading. Remove all three from every bar and confirm in Activity Monitor that riskell stops waking. | Compared with the built-in versions on identical layouts (bars and cards matched apart from live numbers) and run in scratch instances only. The weather-style real-data comparison, charger events and a process kill were not exercised. Idle CPU was noisy on a busy machine (0.25 to 0.35 s per 30 s for the full layout, as before). |
 
+| **Volume and network as packages** | `risk dev`, then: scroll over the volume atom (steps 1 % per 6 px of trackpad), right-click mutes, open the mixer and watch the meters move; open the network card (every tab: Wi-Fi, Bluetooth, Ethernet, VPN), connect and disconnect a Bluetooth device, and on a build that has not been granted Location, grant it and check riskell restarts and shows the network name. | Compared with the built-in versions on scratch instances (bars and cards matched, apart from live audio streams and devices). The mixer meters now tick from a SwiftUI timeline at 0.125 s instead of a `Timer`, the Location restart goes through `KitHost.app`, and neither was exercised on real hardware. |
+
 ### Display and system
 | Item | What to try | Why it is unverified |
 |---|---|---|

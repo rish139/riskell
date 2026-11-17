@@ -47,6 +47,12 @@ struct ActiveWhenShown: ViewModifier {
     }
 }
 
+/// What the kit's `KitHost.app` offers an extension.
+final class AppBridge: AppHooks {
+    static let shared = AppBridge()
+    func restart() { shutdown(); exit(0) }      // launchd starts riskell again
+}
+
 /// The kit's `.popout` modifier talks to the one popout host through this.
 final class PopoutBridge: PopoutHooks {
     static let shared = PopoutBridge()

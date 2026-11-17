@@ -9,7 +9,9 @@ let locked: [Locked] = [
     Locked(module: "ClockExt", product: "ClockExt", package: "clock", path: "Packages/clock", url: nil, revision: nil),
     Locked(module: "WeatherExt", product: "WeatherExt", package: "weather", path: "Packages/weather", url: nil, revision: nil),
     Locked(module: "UsageExt", product: "UsageExt", package: "usage", path: "Packages/usage", url: nil, revision: nil),
-    Locked(module: "SystemExt", product: "SystemExt", package: "system", path: "Packages/system", url: nil, revision: nil)
+    Locked(module: "SystemExt", product: "SystemExt", package: "system", path: "Packages/system", url: nil, revision: nil),
+    Locked(module: "NetworkExt", product: "NetworkExt", package: "network", path: "Packages/network", url: nil, revision: nil),
+    Locked(module: "VolumeExt", product: "VolumeExt", package: "volume", path: "Packages/volume", url: nil, revision: nil)
 ]
 // END generated
 
@@ -25,7 +27,7 @@ let package = Package(
         // loaded by /usr/bin/perl, not linked: see Services/NowPlaying.swift
         .library(name: "nowplaying", type: .dynamic, targets: ["nowplaying"]),
     ],
-    dependencies: [.package(url: "https://github.com/rish139/riskell-kit", from: "0.4.0")] + locked.map { l in
+    dependencies: [.package(url: "https://github.com/rish139/riskell-kit", from: "0.5.0")] + locked.map { l in
         if let p = l.path { return .package(path: p) }
         return .package(url: l.url ?? "", revision: l.revision ?? "main")
     },

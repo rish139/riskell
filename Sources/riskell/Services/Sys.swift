@@ -18,7 +18,7 @@ final class Sys {
     func start() {
         guard !running else { return }
         running = true
-        readBattery(); readVolume(); readMic()
+        readBattery(); readVolume()
         let ctx = Unmanaged.passUnretained(self).toOpaque()
         batSource = IOPSNotificationCreateRunLoopSource({ ctx in
             guard let ctx else { return }
@@ -76,13 +76,6 @@ final class Sys {
         if AudioObjectHasProperty(dev, &ma) { AudioObjectGetPropertyData(dev, &ma, 0, nil, &msize, &muted) }
         store.set(volume: Int((vol * 100).rounded()), muted: muted != 0)
     }
-    /// The default microphone's level and mute (the volume atom's caption).
-    private func readMic() {
-        guard running else { return }
-        let dev = AudioHW.defaultDevice(input: true)
-        guard dev != kAudioObjectUnknown else { store.set(mic: -1, muted: false); return }
-        store.set(mic: AudioHW.volume(dev, input: true).map { Int(($0 * 100).rounded()) } ?? -1, muted: AudioHW.muted(dev, input: true) ?? false)
-    }
     private func listenVolume() {
         let q = DispatchQueue.main
         func hook(_ obj: AudioObjectID, _ sel: AudioObjectPropertySelector, _ scope: AudioObjectPropertyScope, _ then: @escaping () -> Void) {
@@ -94,21 +87,9 @@ final class Sys {
             hook(dev, 0x766D7663, kAudioDevicePropertyScopeOutput) { [weak self] in self?.readVolume() }
             hook(dev, kAudioDevicePropertyMute, kAudioDevicePropertyScopeOutput) { [weak self] in self?.readVolume() }
         }
-        func hookMic() {
-            let dev = AudioHW.defaultDevice(input: true)
-            for el in [kAudioObjectPropertyElementMain, 1] as [UInt32] {
-                for sel in [AudioHW.vmvc, kAudioDevicePropertyVolumeScalar, kAudioDevicePropertyMute] {
-                    var a = AudioObjectPropertyAddress(mSelector: sel, mScope: kAudioDevicePropertyScopeInput, mElement: el)
-                    if AudioObjectHasProperty(dev, &a) { AudioObjectAddPropertyListenerBlock(dev, &a, q) { [weak self] _, _ in self?.readMic() } }
-                }
-            }
-        }
-        hookDevice(); hookMic()
+        hookDevice()
         hook(AudioObjectID(kAudioObjectSystemObject), kAudioHardwarePropertyDefaultOutputDevice, kAudioObjectPropertyScopeGlobal) { [weak self] in
             self?.readVolume(); hookDevice()
-        }
-        hook(AudioObjectID(kAudioObjectSystemObject), kAudioHardwarePropertyDefaultInputDevice, kAudioObjectPropertyScopeGlobal) { [weak self] in
-            self?.readMic(); hookMic()
         }
     }
 }

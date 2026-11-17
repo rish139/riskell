@@ -21,6 +21,7 @@ let args = Array(CommandLine.arguments.dropFirst())
 Theme.current = Theme.loadInitial()
 G.corner = { Spacing.current.corner }
 KitHost.popout = PopoutBridge.shared
+KitHost.app = AppBridge.shared
 KitHost.feeds = FeedBridge.shared
 InstanceLock.selfTest(args)      // --lock-test hold|try <file>: the lock logic alone
 if args.contains("--check-fit") { CheckFit.run() }      // the wings on each fake display, PASS / FAIL, exit 1 on FAIL (WingFit.swift)
@@ -46,7 +47,6 @@ let wm: WindowManager = WM.make(store: store)
 WM.shared = wm
 let sys = Sys(store: store)
 let spaceWatch = SpaceWatch(store: store, wm: wm)
-let wifi = Wifi(store: store)
 let nowPlaying = NowPlaying()
 tracing = args.contains("--trace")
 Compat.fake = args.contains("--fake-compat")
@@ -103,7 +103,6 @@ if !args.contains("--dump") { Compat.shared.start() }
 ConfigWatcher.shared.start()
 // The built-in services run only while an atom that needs them is placed on a bar that is on (Services/Needs.swift).
 Needs.register("sys", start: sys.start, stop: sys.stop)      // the battery, the volume and the microphone
-Needs.register("wifi", start: wifi.start, stop: wifi.stop)      // also the Location prompt for Wi-Fi names
 Needs.begin()
 if tracing { Sky.trace(1300...1460) { t in tlog("SkyLight event \(t)") } }
 
@@ -398,7 +397,6 @@ if let spec = opt("--pop"), let dir = opt("--snap") {      // --pop date[:2] --s
     DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
         let rail = parts[0] == "workspaces" || parts[0] == "fan", lower = parts[0] == "vitals", lowerRight = parts[0] == "weather", topLeft = parts[0] == "usage"
         if args.contains("--pop-hop") { DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { Popout.shared.hover("bat", anchor: CGRect(x: f.maxX - 420, y: f.maxY - 46, width: 120, height: 36), edge: .below) } }      // test: hop to another atom with no "left" event
-        if parts[0] == "net" { NetLive.shared.tab = NetLive.Tab(rawValue: stage - 1) ?? .wifi }
         defer { if !args.contains("--pop-free") { Popout.shared.holdOpen = true } }      // a snapshot keeps its card out; --pop-free lets the watchdog act (a test)
         let forced = opt("--pop-edge").flatMap { ["below": PopEdge.below, "above": .above, "right": .right, "left": .left][$0] }      // --pop-edge below|above|right: that card from a bar on that side
         if let e = forced {
@@ -409,7 +407,7 @@ if let spec = opt("--pop"), let dir = opt("--snap") {      // --pop date[:2] --s
         } else {
         Popout.shared.hover(String(parts[0]), anchor: rail ? (parts[0] == "fan" ? CGRect(x: f.minX, y: f.minY + Real.sideMargin, width: Real.strip, height: 150) : CGRect(x: f.minX, y: f.maxY - Real.sideMargin - 250, width: Real.strip, height: 250)) : lower ? CGRect(x: f.midX - 300, y: f.minY + 9, width: 600, height: 36) : lowerRight ? CGRect(x: f.maxX - 260, y: f.minY + 9, width: 220, height: 36) : topLeft ? CGRect(x: f.minX + G.strip + G.sideMargin, y: f.maxY - 46, width: 190, height: 36) : CGRect(x: f.maxX - 200, y: f.maxY - 46, width: 90, height: 36), edge: rail ? .right : (lower || lowerRight) ? .above : .below)
         }
-        if parts[0] == "net" { NetLive.shared.tab = NetLive.Tab(rawValue: stage - 1) ?? .wifi } else if stage == 2 { Popout.shared.setStage(2) }
+        if parts[0] != "net" && stage == 2 { Popout.shared.setStage(2) }      // the network card reads its tab from `--pop net:<n>` itself
         DispatchQueue.main.asyncAfter(deadline: .now() + 6) { if let v = Popout.shared.snapshotView { print("pop-frame", parts[0], v.window?.frame ?? .zero, "floatY", Popout.shared.floatY, "screen", f); fflush(stdout)
              snap(v, "pop-\(parts[0])-\(stage)", dir) }; snap(topHost, "top-lit", dir); snap(strip, "left-lit", dir); snap(rightStrip, "right-lit", dir); snap(bottomHost, "bottom-lit", dir) }
     }

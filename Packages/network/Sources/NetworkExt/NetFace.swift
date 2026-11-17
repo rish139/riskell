@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
 
@@ -5,8 +8,8 @@ import RiskellKit
 /// ceil(signal / 25), at least 1 for any signal), the same size at 5 % and 95 %, and the figure sits in a fixed right-aligned bay so the
 /// end of the bar never shifts. Down: every groove turns crit, nothing is lit, "-" in crit. Hover runs a pulse through the four cells
 /// and warms the label.
-struct NetAtom: View {
-    @EnvironmentObject var s: Store
+struct NetFace: View {
+    @ObservedObject private var s = NetState.shared
     @State private var hot = false
     @State private var phase: Double = 1
     let vertical: Bool
@@ -22,7 +25,7 @@ struct NetAtom: View {
                 // The left strip: a column. The link glyph on top, the four cells stacked in the middle (weakest at the bottom, lit
                 // from the bottom up), the figure (or state dash) underneath. Equal gaps above and below the cells.
                 VStack(spacing: 0) {
-                    Image(systemName: glyph).font(.system(size: 12, weight: .semibold)).foregroundStyle(down ? Pal.crit : hot ? Pal.accent : Pal.text3)
+                    Image(systemName: glyph).font(Pal.font(12, .semibold)).foregroundStyle(down ? Pal.crit : hot ? Pal.accent : Pal.text3)
                         .scaleEffect(hot ? 1.15 : 1).frame(height: 16)
                     Color.clear.frame(height: T.gap)
                     Cells(level: level, down: down, phase: phase, w: 7, vertical: true)
@@ -33,7 +36,7 @@ struct NetAtom: View {
                 .frame(width: 40)
             } else {
                 HStack(spacing: T.gap) {
-                    Image(systemName: glyph).font(.system(size: 12, weight: .semibold)).foregroundStyle(down ? Pal.crit : hot ? Pal.accent : Pal.text3)
+                    Image(systemName: glyph).font(Pal.font(12, .semibold)).foregroundStyle(down ? Pal.crit : hot ? Pal.accent : Pal.text3)
                         .scaleEffect(hot ? 1.15 : 1).frame(width: 18)
                     Cells(level: level, down: down, phase: phase)
                     Num(value: figure, unit: unit, tone: figureTone, hot: hot && !down)

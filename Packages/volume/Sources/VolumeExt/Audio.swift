@@ -1,10 +1,13 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import Foundation
 import CoreAudio
 import AppKit
 import RiskellKit
 
 /// Plain CoreAudio helpers: the default devices, their volume and mute, the device lists. Everything the bar needs at rest is event-driven
-/// (Sys listens for changes); this file is what the volume atom's wheel / right-click and the mixer card use to change things.
+/// (VolumeEngine listens for changes); this file is what the volume atom's wheel / right-click and the mixer card use to change things.
 enum AudioHW {
     static let system = AudioObjectID(kAudioObjectSystemObject)
     static func addr(_ sel: AudioObjectPropertySelector, _ scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal, _ el: UInt32 = kAudioObjectPropertyElementMain) -> AudioObjectPropertyAddress {
@@ -104,26 +107,26 @@ enum AudioHW {
 enum Volume {
     static func step(_ d: Int) {
         let dev = AudioHW.defaultDevice(input: false)
-        let v = max(0, min(100, store.volume + d))
-        if AudioHW.setVolume(Float(v) / 100, dev, input: false) { store.set(volume: v, muted: store.muted && v == 0) }
-        if v > 0, store.muted { AudioHW.setMuted(false, dev, input: false) }
+        let v = max(0, min(100, VolumeState.shared.volume + d))
+        if AudioHW.setVolume(Float(v) / 100, dev, input: false) { VolumeState.shared.set(volume: v, muted: VolumeState.shared.muted && v == 0) }
+        if v > 0, VolumeState.shared.muted { AudioHW.setMuted(false, dev, input: false) }
     }
     static func set(_ pct: Int) {
         let dev = AudioHW.defaultDevice(input: false), v = max(0, min(100, pct))
-        if AudioHW.setVolume(Float(v) / 100, dev, input: false) { store.set(volume: v, muted: store.muted) }
+        if AudioHW.setVolume(Float(v) / 100, dev, input: false) { VolumeState.shared.set(volume: v, muted: VolumeState.shared.muted) }
     }
     static func toggleMute() {
         let dev = AudioHW.defaultDevice(input: false)
-        AudioHW.setMuted(!store.muted, dev, input: false)
-        store.set(volume: store.volume, muted: !store.muted)
+        AudioHW.setMuted(!VolumeState.shared.muted, dev, input: false)
+        VolumeState.shared.set(volume: VolumeState.shared.volume, muted: !VolumeState.shared.muted)
     }
     static func toggleMicMute() {
         let dev = AudioHW.defaultDevice(input: true)
-        AudioHW.setMuted(!store.micMuted, dev, input: true)
-        store.set(mic: store.mic, muted: !store.micMuted)
+        AudioHW.setMuted(!VolumeState.shared.micMuted, dev, input: true)
+        VolumeState.shared.set(mic: VolumeState.shared.mic, muted: !VolumeState.shared.micMuted)
     }
     static func setMic(_ pct: Int) {
         let dev = AudioHW.defaultDevice(input: true), v = max(0, min(100, pct))
-        if AudioHW.setVolume(Float(v) / 100, dev, input: true) { store.set(mic: v, muted: store.micMuted) }
+        if AudioHW.setVolume(Float(v) / 100, dev, input: true) { VolumeState.shared.set(mic: v, muted: VolumeState.shared.micMuted) }
     }
 }

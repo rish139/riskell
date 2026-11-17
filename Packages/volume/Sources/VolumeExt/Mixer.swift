@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import Foundation
 import CoreAudio
 import AudioToolbox
@@ -115,7 +118,6 @@ final class Mixer: ObservableObject {
     private(set) var streams: [AudioStream] = []
 
     private var sink: AudioTap?
-    private var timer: Timer?
     private var users = 0, tick = 0
     private var peakAcc = 0.0                             // the loudest peak since the last history sample
     private var appTaps: [String: (tap: AudioTap, ids: [AudioObjectID], pid: Int32, bundle: String, name: String)] = [:]
@@ -125,29 +127,27 @@ final class Mixer: ObservableObject {
 
     func start() {
         users += 1
-        guard timer == nil else { return }
+        guard users == 1 else { return }
         tick = 0
         if Demo.on && hist.isEmpty {      // screenshots: a minute of plausible loudness, so the graph is not empty
             let now = Date().timeIntervalSince1970
-            hist = (0..<240).map { i in LoudSample(t: now - Double(240 - i) * 0.25, db: Demo.dbAt(i), vol: Double(store.volume)) }
+            hist = (0..<240).map { i in LoudSample(t: now - Double(240 - i) * 0.25, db: Demo.dbAt(i), vol: Double(VolumeState.shared.volume)) }
         }
-        if let last = hist.last, Date().timeIntervalSince1970 - last.t > 1 { hist.append(LoudSample(t: Date().timeIntervalSince1970, db: .nan, vol: Double(store.volume))) }
+        if let last = hist.last, Date().timeIntervalSince1970 - last.t > 1 { hist.append(LoudSample(t: Date().timeIntervalSince1970, db: .nan, vol: Double(VolumeState.shared.volume))) }
         if ProcessInfo.processInfo.environment["RK_NO_TAP"] == nil { sink = AudioTap(processes: nil, playback: false); meterable = sink?.ok ?? false }
         refreshDevices(); refreshStreams()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.125, repeats: true) { [weak self] _ in self?.step() }
-        timer?.tolerance = 0.02
     }
     func stop() {
         users = max(0, users - 1)
         guard users == 0 else { return }
-        timer?.invalidate(); timer = nil
         sink?.destroy(); sink = nil; meterable = false
         levelL = 0; levelR = 0
     }
 
     private static func db(_ p: Float) -> Double { p > 1e-5 ? max(-60, 20 * log10(Double(p))) : -99 }
 
-    private func step() {
+    /// One meter step. The card's `MeterClock` calls it every 0.125 s while the card is open; the mixer owns no timer.
+    func step() {
         tick += 1
         let now = Date().timeIntervalSince1970
         if let s = sink {
@@ -160,7 +160,7 @@ final class Mixer: ObservableObject {
         if tick % 2 == 0 {            // the history: one sample per 250 ms, the loudest peak in it
             let d = meterable ? Self.db(Float(peakAcc)) : .nan
             peakAcc = 0
-            hist.append(LoudSample(t: now, db: d.isNaN ? .nan : max(-50, d), vol: Double(store.volume)))
+            hist.append(LoudSample(t: now, db: d.isNaN ? .nan : max(-50, d), vol: Double(VolumeState.shared.volume)))
             hist.removeAll { $0.t < now - 75 }
         }
         for (k, t) in appTaps {      // each tapped app's own level

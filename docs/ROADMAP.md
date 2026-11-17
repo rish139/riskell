@@ -14,9 +14,9 @@ storefront's first listings, so they have to look like any other listing. In ord
 1. Done: each built-in service is gated by whether its atom is placed (`Services/Needs.swift`), so nothing runs for an atom that is not
    used. This is also what makes an atom removable.
 2. Done: every built-in atom has a listing in `listings/` that points at its source in this repository (`scripts/listings-check.sh` keeps them in step).
-3. Move atoms out of the application into packages one at a time, where the kit's feeds and drawing parts are enough. Done for the clock, weather, AI usage, battery, CPU and fans
-   (`Packages/`; the kit gained `PopState`, `env.config`, `Demo` and `onRightClick`). Next: volume and network, which need audio and network
-   capabilities in the kit. Atoms that need the window manager or the notch (workspaces,
+3. Move atoms out of the application into packages one at a time, where the kit's feeds and drawing parts are enough. Done for the clock, weather, AI usage, battery, CPU, fans, volume and
+   network (`Packages/`; the kit gained `PopState`, `env.config`, `Demo`, `onRightClick`, `onScrollSteps` and `AppHooks`). Next: workspaces and the
+   app icon, which need a window-manager and Spaces API in the kit. Atoms that need the window manager or the notch (workspaces,
    application icon, media) stay in the application longest.
 
 ## Extensions

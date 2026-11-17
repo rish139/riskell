@@ -8,11 +8,15 @@
   "license": "MIT",
   "repository": "https://github.com/rish139/riskell",
   "source": [
-    "Sources/riskell/VolAtom.swift",
-    "Sources/riskell/VolumeCard.swift",
-    "Sources/riskell/Services/Audio.swift",
-    "Sources/riskell/Services/Mixer.swift"
+    "Packages/volume/riskell.json",
+    "Packages/volume/Sources/VolumeExt/Audio.swift",
+    "Packages/volume/Sources/VolumeExt/Mixer.swift",
+    "Packages/volume/Sources/VolumeExt/VolAtom.swift",
+    "Packages/volume/Sources/VolumeExt/VolumeCard.swift",
+    "Packages/volume/Sources/VolumeExt/VolumeEngine.swift",
+    "Packages/volume/Sources/VolumeExt/VolumePackage.swift",
+    "Packages/volume/Sources/VolumeExt/VolumeState.swift"
   ],
-  "home": "kit",
-  "homeNote": "the kit's volume feed covers the figure; the mixer card needs audio taps"
+  "home": "package",
+  "homeNote": "moved out of the application: a package in this repository, placed as ext:vol; it reads the hardware itself (CoreAudio and the mixer taps)"
 }

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import CoreWLAN
 import SystemConfiguration
 import CoreLocation
@@ -5,18 +8,21 @@ import RiskellKit
 
 /// What the network atom shows, event-driven: CoreWLAN events (power, link, link quality) and SystemConfiguration notifications
 /// (the default route and its interface). No timers. The SSID is only readable once Location Services allows it for this binary;
-/// signal strength, channel and on/off never need it.
+/// signal strength, channel and on/off never need it. It runs while the atom is on a showing bar (`start` and `stop` count the users).
 final class Wifi: NSObject, CWEventDelegate, CLLocationManagerDelegate {
-    private let store: Store
+    static let shared = Wifi()
     private let client = CWWiFiClient.shared()
     private var dyn: SCDynamicStore?
     private var loc: CLLocationManager?
     private var askedAtStart = false
     private var src: CFRunLoopSource?
+    private var users = 0       // the atom instances that want it: it starts with the first and stops with the last
 
-    init(store: Store) { self.store = store; super.init() }
+    private override init() { super.init() }
 
     func start() {
+        users += 1
+        guard users == 1 else { return }
         client.delegate = self
         for e in [CWEventType.powerDidChange, .ssidDidChange, .linkDidChange, .linkQualityDidChange] { try? client.startMonitoringEvent(with: e) }
         var ctx = SCDynamicStoreContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
@@ -38,7 +44,10 @@ final class Wifi: NSObject, CWEventDelegate, CLLocationManagerDelegate {
     }
 
     func stop() {
+        users = max(0, users - 1)
+        guard users == 0 else { return }
         try? client.stopMonitoringAllEvents()
+        client.delegate = nil
         if let src { CFRunLoopRemoveSource(CFRunLoopGetMain(), src, .defaultMode) }
         src = nil; dyn = nil; loc = nil; askedAtStart = false
     }
@@ -47,8 +56,9 @@ final class Wifi: NSObject, CWEventDelegate, CLLocationManagerDelegate {
         read()
         // macOS gives Wi-Fi names only to a process that STARTED after the grant: if it arrives while we run, start again (launchd relaunches us)
         if askedAtStart, locationState == "ok", client.interface()?.ssid() == nil {
+            askedAtStart = false
             print("location granted: restarting to pick up Wi-Fi names"); fflush(stdout)
-            shutdown(); exit(0)
+            KitHost.app?.restart()
         }
     }
     /// "ok" (names readable), "asking" (the prompt is up or not answered), "denied", or "none" (running outside the app bundle)
@@ -76,7 +86,7 @@ final class Wifi: NSObject, CWEventDelegate, CLLocationManagerDelegate {
             if p == i?.interfaceName { kind = "wifi" } else if p.hasPrefix("en") { kind = "eth" } else { kind = "linked" }
         } else if on && rssi != 0 { kind = "linked" }
         let s = WifiState(on: on, rssi: rssi, ssid: i?.ssid(), kind: kind, primary: primary, location: locationState)
-        DispatchQueue.main.async { self.store.set(wifi: s) }
+        DispatchQueue.main.async { NetState.shared.set(wifi: s) }
     }
 
     func powerStateDidChangeForWiFiInterface(withName interfaceName: String) { read() }
@@ -84,10 +94,11 @@ final class Wifi: NSObject, CWEventDelegate, CLLocationManagerDelegate {
     func linkDidChangeForWiFiInterface(withName interfaceName: String) { read() }
     func linkQualityDidChangeForWiFiInterface(withName interfaceName: String, rssi: Int, transmitRate: Double) {
         // the event carries the signal: no SSID or route lookups, and a flicker of a dBm or two is not worth a redraw
-        DispatchQueue.main.async { [store] in
-            var w = store.wifi
+        DispatchQueue.main.async {
+            let net = NetState.shared
+            var w = net.wifi
             guard w.on, w.kind == "wifi", rssi != 0, abs(rssi - w.rssi) >= 3 else { return }
-            w.rssi = rssi; store.set(wifi: w)
+            w.rssi = rssi; net.set(wifi: w)
         }
     }
 }
