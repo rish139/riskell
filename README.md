@@ -2,7 +2,7 @@
 
 **A desktop shell framework for macOS.**
 
-riskell provides the building blocks of a desktop shell (status bars, hover cards, a workspace overview, riskell preferences (a layout editor), themes and window
+riskell provides the building blocks of a desktop shell (bars, hover cards, a workspace overview, riskell preferences (a layout editor), themes and window
 manager integration) in one native Swift application, together with an extension system for adding to them. Extensions are written by
 people or by their coding agents, checked by a command line validator, and shared as ordinary Swift packages.
 
@@ -13,16 +13,15 @@ The project began as a port of a Quickshell setup from Linux. It works alongside
 
 *The shell on a 14-inch MacBook Pro. The bars are snapshots of the running application; the windows between them are placeholders.*
 
-> **Status: pre-release.** riskell is in daily use on one Mac. Other Macs, window managers and macOS versions are untested, and the
+> **Status: early release (v0.1.0).** riskell is in daily use on one Mac. Other Macs, window managers and macOS versions are untested, and the
 > extension system is new. [What is tested and what is not](#what-is-tested-and-what-is-not) lists each case.
 
 **Contents:**
-[Architecture](#architecture) ·
+[Install](#install) ·
 [Features](#features) ·
 [The shell in pictures](#the-shell-in-pictures) ·
+[Architecture](#architecture) ·
 [Extending riskell](#extending-riskell) ·
-[Requirements](#requirements) ·
-[Installation](#installation) ·
 [Usage](#usage) ·
 [Window managers](#window-managers) ·
 [Resource use](#resource-use) ·
@@ -35,36 +34,55 @@ The project began as a port of a Quickshell setup from Linux. It works alongside
 
 ---
 
-## Architecture
+## Install
 
-riskell has two parts. The **shell** is the application: it owns every window and draws the surfaces. The **framework** is what extensions
-build on: a small public package, [RiskellKit](https://github.com/rish139/riskell-kit), that provides the design tokens, drawing parts and extension API, so that anything written
-against it matches the shell in every theme and at every screen size.
+### Requirements
 
-![The layers: extensions build on RiskellKit, which builds on the shell, which runs on macOS and the window manager](docs/images/architecture.png)
+- macOS 14 or later on Apple silicon (Intel Macs are not supported), and the Xcode Command Line Tools (`xcode-select --install`). Full Xcode is
+  not required.
+- The font **Geist Mono** (SIL Open Font License): `brew install --cask font-geist-mono`. Sizes are tuned to it, and without it macOS
+  substitutes another font and text widths change.
+- A tiling window manager is optional. OmniWM is the one riskell was built and tested with. See [Window managers](#window-managers).
 
-| Surface | State | What extensions can add to it |
-|---|---|---|
-| Bars (top, bottom, left, right) | built | atoms: widgets that sit in islands |
-| Hover cards | built | the card an atom opens |
-| Workspace overview | built | not yet |
-| riskell preferences (layout editor) | built | the EXTENSIONS card: settings an extension declares in its manifest |
+### Homebrew
 
-Design rules that apply to the shell and to every extension:
+```sh
+brew tap rish139/riskell
+brew install riskell
+brew install --cask font-geist-mono     # the font the sizes are tuned to
+risk install                            # start riskell now and at login (or run riskell-install for the guided installer)
+```
 
-- **Native.** Swift and SwiftUI, with no web views and no second runtime.
-- **Event-driven.** Nothing polls without a reason, and nothing runs for a surface that is not showing.
-- **Consistent.** Colours, type and sizes come from the theme and from one scale factor, so a widget looks the same on every display.
-- **Valid by construction.** The extension API has no way to express an unreadable colour, a fixed pixel size or a stray timer, and
-  `risk ext validate` reports any attempt with the fix.
-- **Readable by machines.** A JSON Schema for the manifest, a generated API reference and task-oriented documentation allow a coding agent
-  to write an extension and check it without guessing.
+The formula builds the release from source with Apple's Swift toolchain (about a minute) and links `risk`, the control script. After an upgrade run
+`risk install` again, because the launch agent points into the keg. `brew install --HEAD riskell` builds the main branch instead.
 
-riskell is not a window manager and does not tile windows. It is not only a launcher, and it is not a collection of fixed widgets.
-SketchyBar is configured through shell scripts and Übersicht widgets are written in HTML and JavaScript; riskell takes the
-shell-framework approach known from Quickshell and AGS on Linux and applies it to macOS with typed, native extensions.
+### From source
 
----
+The guided installer checks the Mac, asks a few questions, writes the settings and starts riskell:
+
+```sh
+git clone https://github.com/rish139/riskell.git && cd riskell
+./install.sh
+```
+
+![The installer's review and bar-choice screens](docs/images/installer.png)
+
+Nothing is written until the final screen. The installer links `risk` into a folder on the PATH; when none is writable it adds
+`~/.local/bin` to `~/.zshrc` (and to `~/.bash_profile`, `~/.bashrc` and fish's `config.fish` when they exist), in a marked block after a backup.
+`--no-path` skips this and `--uninstall` removes the block. `./install.sh --dry-run` shows the plan and the JSON that would be written, and
+`./install.sh --yes` accepts the detected defaults without questions. [docs/INSTALL.md](docs/INSTALL.md) lists everything the installer
+writes.
+
+To install manually:
+
+```sh
+swift build -c release
+scripts/risk install      # runs riskell as a launch agent: starts at login and restarts if it exits
+```
+
+`risk` also provides `dev` (rebuild and restart), `restart`, `log`, `status`, `ext` (extensions) and `uninstall`; from a checkout that has not
+been installed, run it as `scripts/risk`. Builds are signed with a local
+certificate named `riskell-dev` when one exists. Without it, macOS asks again for keychain and Location access after every rebuild.
 
 ## Features
 
@@ -204,6 +222,37 @@ On a screen with a notch, the top bar is divided into two wings, one on each sid
 
 ---
 
+## Architecture
+
+riskell has two parts. The **shell** is the application: it owns every window and draws the surfaces. The **framework** is what extensions
+build on: a small public package, [RiskellKit](https://github.com/rish139/riskell-kit), that provides the design tokens, drawing parts and extension API, so that anything written
+against it matches the shell in every theme and at every screen size.
+
+![The layers: extensions build on RiskellKit, which builds on the shell, which runs on macOS and the window manager](docs/images/architecture.png)
+
+| Surface | State | What extensions can add to it |
+|---|---|---|
+| Bars (top, bottom, left, right) | built | atoms: widgets that sit in islands |
+| Hover cards | built | the card an atom opens |
+| Workspace overview | built | not yet |
+| riskell preferences (layout editor) | built | the EXTENSIONS card: settings an extension declares in its manifest |
+
+Design rules that apply to the shell and to every extension:
+
+- **Native.** Swift and SwiftUI, with no web views and no second runtime.
+- **Event-driven.** Nothing polls without a reason, and nothing runs for a surface that is not showing.
+- **Consistent.** Colours, type and sizes come from the theme and from one scale factor, so a widget looks the same on every display.
+- **Valid by construction.** The extension API has no way to express an unreadable colour, a fixed pixel size or a stray timer, and
+  `risk ext validate` reports any attempt with the fix.
+- **Readable by machines.** A JSON Schema for the manifest, a generated API reference and task-oriented documentation allow a coding agent
+  to write an extension and check it without guessing.
+
+riskell is not a window manager and does not tile windows. It is not only a launcher, and it is not a collection of fixed widgets.
+SketchyBar is configured through shell scripts and Übersicht widgets are written in HTML and JavaScript; riskell takes the
+shell-framework approach known from Quickshell and AGS on Linux and applies it to macOS with typed, native extensions.
+
+---
+
 ## Extending riskell
 
 There are four ways to add to riskell, from no code to custom drawing:
@@ -288,42 +337,6 @@ the manifest has a [JSON Schema](schemas/riskell-extension.schema.json), and `Ex
 the list of unbuilt parts are in [docs/EXTENSION-KIT.md](docs/EXTENSION-KIT.md).
 
 ---
-
-## Requirements
-
-- macOS 14 or later on Apple silicon (Intel Macs are not supported), and the Xcode Command Line Tools (`xcode-select --install`). Full Xcode is
-  not required.
-- The font **Geist Mono** (SIL Open Font License): `brew install --cask font-geist-mono`. Sizes are tuned to it, and without it macOS
-  substitutes another font and text widths change.
-- A tiling window manager is optional. OmniWM is the one riskell was built and tested with. See [Window managers](#window-managers).
-
-## Installation
-
-The guided installer checks the Mac, asks a few questions, writes the settings and starts riskell:
-
-```sh
-git clone https://github.com/rish139/riskell.git && cd riskell
-./install.sh
-```
-
-![The installer's review and bar-choice screens](docs/images/installer.png)
-
-Nothing is written until the final screen. The installer links `risk` into a folder on the PATH; when none is writable it adds
-`~/.local/bin` to `~/.zshrc` (and to `~/.bash_profile`, `~/.bashrc` and fish's `config.fish` when they exist), in a marked block after a backup.
-`--no-path` skips this and `--uninstall` removes the block. `./install.sh --dry-run` shows the plan and the JSON that would be written, and
-`./install.sh --yes` accepts the detected defaults without questions. [docs/INSTALL.md](docs/INSTALL.md) lists everything the installer
-writes.
-
-To install manually:
-
-```sh
-swift build -c release
-scripts/risk install      # runs riskell as a launch agent: starts at login and restarts if it exits
-```
-
-`risk` also provides `dev` (rebuild and restart), `restart`, `log`, `status`, `ext` (extensions) and `uninstall`; from a checkout that has not
-been installed, run it as `scripts/risk`. Builds are signed with a local
-certificate named `riskell-dev` when one exists. Without it, macOS asks again for keychain and Location access after every rebuild.
 
 ## Usage
 

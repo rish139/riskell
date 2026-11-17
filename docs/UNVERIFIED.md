@@ -42,6 +42,11 @@ verified, move it to the "Verified" list with the date, the macOS version and th
 |---|---|---|
 | **Installing a compiled extension from the registry** | `risk ext add <name>` for an atom listed from a real repository, then place `ext:<id>` and check it runs. | Only the lock and the import list were exercised; the rebuild that follows was not run on a registry-installed package. |
 
+### Packaging
+| Item | What to try | Why it is unverified |
+|---|---|---|
+| **`risk install` and `riskell-install` from a Homebrew keg** | After `brew install riskell`: `risk install` (or `riskell-install`), then check the bars appear, `risk status` is running, and `risk uninstall` removes the agent. Then `brew upgrade` and run `risk install` again. | `brew install` itself was run end to end (the build, the install, the `risk` link). The launch agent, the bundle and its signing were only ever created from a source checkout, never from inside a keg. |
+
 ### Display and system
 | Item | What to try | Why it is unverified |
 |---|---|---|
