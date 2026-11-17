@@ -48,6 +48,7 @@ The project began as a port of a Quickshell setup from Linux. It works alongside
 
 ```sh
 brew tap rish139/riskell
+brew trust rish139/riskell              # Homebrew 7 and later refuses an untrusted third-party tap; skip this on older versions
 brew install riskell
 brew install --cask font-geist-mono     # the font the sizes are tuned to
 risk install                            # start riskell now and at login (or run riskell-install for the guided installer)
