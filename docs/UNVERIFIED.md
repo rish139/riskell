@@ -40,13 +40,7 @@ verified, move it to the "Verified" list with the date, the macOS version and th
 ### Storefront
 | Item | What to try | Why it is unverified |
 |---|---|---|
-| **The registry on GitHub** (`riskell-registry`: `validate.yml`, `pages.yml`, the Pages index that `risk ext` fetches by default) | Once the repositories are public: open a listing pull request and watch `validate`; merge it and open `https://rish139.github.io/riskell-registry/`; `risk ext search` without `RISKELL_REGISTRY`. | The checker, the index and the page were run locally, and the client end to end against local file:// repositories (search, info, add for an atom, a pill and a theme, update with and without `--yes`, remove, a mismatching listing refused). The workflows never ran on a runner that could fetch the private kit, and Pages is not enabled on a private repository. |
 | **Installing a compiled extension from the registry** | `risk ext add <name>` for an atom listed from a real repository, then place `ext:<id>` and check it runs. | Only the lock and the import list were exercised; the rebuild that follows was not run on a registry-installed package. |
-
-### Packaging
-| Item | What to try | Why it is unverified |
-|---|---|---|
-| **Homebrew tap** (`rish139/homebrew-riskell`) | After the kit and riskell are public: `brew tap rish139/riskell && brew install --HEAD riskell`, then `risk install`. | The build cannot fetch the private kit inside Homebrew's environment, so it never ran end to end. The keg layout (the tree and the release build in `libexec`, `risk` linked into the path, `risk ext list` and `risk status` through the link) was checked by hand. |
 
 ### Display and system
 | Item | What to try | Why it is unverified |
@@ -68,6 +62,11 @@ verified, move it to the "Verified" list with the date, the macOS version and th
 | Esc / q closing the editor, the edit backdrop | Confirmed by the author on one machine. |
 
 ## Verified
+
+### Public release (2026-11-17)
+- A clone of the tag `v0.1.0` with no credentials builds and passes the installer self-test (the kit is fetched anonymously).
+- The registry on GitHub Pages serves `index.json` and the storefront page, `risk ext search` reads it by default, and the app CI passes on a macOS runner.
+- `brew tap rish139/riskell && brew install riskell` builds and installs the release from source (46 s) and links `risk`; the formula pins the v0.1.0 tarball.
 | Item | Date | Where |
 |---|---|---|
 | Script pills: text and JSON output, hover card, click, file watch | 2026-11-16 | macOS 27.2 (26B123), author's machine |

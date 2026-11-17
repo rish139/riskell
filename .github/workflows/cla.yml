@@ -19,6 +19,8 @@ permissions:
 
 jobs:
   cla:
+    # Dependabot's pull requests run with a read-only token: the allowlist already covers it, and the check cannot post a status for it
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Check that contributors have signed the CLA
