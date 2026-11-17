@@ -57,6 +57,7 @@ final class PopoutBridge: PopoutHooks {
     func leave(_ id: String) { Popout.shared.leave(id) }
     func toggleStage(_ id: String) { Popout.shared.toggleStage(id) }
     func setStage(_ stage: Int) { Popout.shared.setStage(stage) }
+    func closeCard() { Popout.shared.close() }
     func holdOpen() { Popout.shared.holdOpen = true }
 }
 
@@ -203,10 +204,11 @@ enum PackageAtoms {
     }
 
     private static func prefs(_ id: String) -> Prefs { Prefs(json: ExtPrefs.json(id)) }
+    private static func env(_ id: String) -> Env { Env(id: id, prefs: prefs(id), cache: URL(fileURLWithPath: Demo.cacheDirectory)) }
 
     private static func reading(_ t: any ReadingAtom.Type) -> AtomDef {
         let m = t.meta
-        let run = ExtensionReading(t, env: Env(id: m.id, prefs: prefs(m.id)))
+        let run = ExtensionReading(t, env: env(m.id))
         return AtomDef(id: "ext:" + m.id, name: m.name,
                        card: CardDef(id: run.cardID, size: { _ in PillCard.size(run.model.reading, stale: run.model.stale) }, content: { AnyView(PillCard(source: run)) }),
                        blank: nil,
@@ -217,11 +219,11 @@ enum PackageAtoms {
     }
 
     private static func custom<A: CustomAtom>(_ t: A.Type) -> AtomDef {
-        let m = t.meta, atom = A(), env = Env(id: m.id, prefs: prefs(m.id))
+        let m = t.meta, atom = A(), env = env(m.id)
         let life = AtomLifecycle { atom.activate(env) }
         return AtomDef(id: "ext:" + m.id, name: m.name,
                        card: atom.card.map { CardDef(id: $0.id, size: $0.size, content: $0.content) },
-                       blank: { _ in atom.isBlank() },
+                       blank: { _ in atom.isBlank(env) },
                        view: { v in AnyView(CustomAtomView(atom: atom, env: env, life: life, vertical: v, maxWidth: m.maxWidth)) },
                        priority: m.priority)
     }

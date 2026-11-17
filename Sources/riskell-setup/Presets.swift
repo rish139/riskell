@@ -56,8 +56,8 @@ enum Presets {
         case .classic:
             bars = [
                 "top": top,
-                "bottom": bar(center: [island("cpu", ["cpu"])], end: [link, island("sky", ["weather"])]),
-                "left": bar(start: [island("workspaces", ["workspaces", "appicon"])], end: [island("system", ["usage", "fan"])]),
+                "bottom": bar(center: [island("cpu", ["cpu"])], end: [link, island("sky", ["ext:weather"])]),
+                "left": bar(start: [island("workspaces", ["workspaces", "appicon"])], end: [island("system", ["ext:usage", "fan"])]),
                 "right": bar(),
             ]
             on = [true, true, true, false]
@@ -67,8 +67,8 @@ enum Presets {
         case .full:
             bars = [
                 "top": top,
-                "bottom": bar(center: [island("cpu", ["cpu"])], end: [island("sky", ["weather"])]),
-                "left": bar(start: [island("workspaces", ["workspaces", "appicon"])], end: [island("system", ["usage", "fan"])]),
+                "bottom": bar(center: [island("cpu", ["cpu"])], end: [island("sky", ["ext:weather"])]),
+                "left": bar(start: [island("workspaces", ["workspaces", "appicon"])], end: [island("system", ["ext:usage", "fan"])]),
                 "right": bar(end: [link]),
             ]
             on = [true, true, true, true]

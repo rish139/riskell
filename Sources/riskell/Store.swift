@@ -70,11 +70,8 @@ final class Store: ObservableObject {
     private(set) var swipe: Double = 0
     let rail = RailModel()
     private(set) var swipeLive = false        // fingers on the pad: follow them with no animation
-    @Published private(set) var weather: WX? = nil
     @Published private(set) var media: MediaReading? = nil
     @Published private(set) var wifi = WifiState()
-    @Published private(set) var claude: ClaudeUse? = nil
-    @Published private(set) var opencode: OCUse? = nil
     @Published private(set) var batPct: Int? = nil       // nil: no battery
     @Published private(set) var onAC = false
     @Published private(set) var charging = false
@@ -130,11 +127,8 @@ final class Store: ObservableObject {
         if pct != batPct { batPct = pct }; if ac != onAC { onAC = ac }; if ch != charging { charging = ch }
     }
     func set(media m: MediaReading?) { if m != media { media = m } }
-    func set(weather w: WX?) { if w != weather { weather = w } }
     func set(thermal t: ThermalReading) { if t != thermal { gauges.thermal = t } }
     func set(wifi w: WifiState) { if w != wifi { wifi = w } }
-    func set(claude u: ClaudeUse?) { if u != claude { claude = u } }
-    func set(opencode u: OCUse?) { if u != opencode { opencode = u } }
     func set(windows w: [WinInfo]) { if w != windows { windows = w } }
     func set(batDetail d: BatteryDetail) { if d != batDetail { batDetail = d } }
     func set(powerW w: Double?) { if w != powerW { gauges.powerW = w } }
@@ -143,6 +137,6 @@ final class Store: ObservableObject {
 
     func dump() -> String {
         let sp = spaces.map { "\($0.id)\($0.focused ? "*" : "")(\($0.windows))" }.joined(separator: " ")
-        return "spaces \(sp) | cpu \(cpu)% mem \(mem)% | bat \(batPct.map(String.init) ?? "-")% ac=\(onAC) charging=\(charging) power=\(powerW.map { String(format: "%.1fW", $0) } ?? "-") | vol \(volume)% muted=\(muted) | temp \(thermal.tempC.map { String(format: "%.1fC", $0) } ?? "-") fan \(thermal.fanRPM.map(String.init) ?? "-") rpm | wifi on=\(wifi.on) rssi=\(wifi.rssi) ssid=\(wifi.ssid ?? "-") | weather \(weather.map { "\($0.cur.temp)C feels \($0.cur.feels) code \($0.cur.code) hours \($0.hours.count) days \($0.days.count)" } ?? "-") | claude \(claude.map { "\($0.rep)% stale=\($0.stale)" } ?? "-") | opencode \(opencode.map { "\($0.rep)% stale=\($0.stale)" } ?? "-")"
+        return "spaces \(sp) | cpu \(cpu)% mem \(mem)% | bat \(batPct.map(String.init) ?? "-")% ac=\(onAC) charging=\(charging) power=\(powerW.map { String(format: "%.1fW", $0) } ?? "-") | vol \(volume)% muted=\(muted) | temp \(thermal.tempC.map { String(format: "%.1fC", $0) } ?? "-") fan \(thermal.fanRPM.map(String.init) ?? "-") rpm | wifi on=\(wifi.on) rssi=\(wifi.rssi) ssid=\(wifi.ssid ?? "-")"
     }
 }

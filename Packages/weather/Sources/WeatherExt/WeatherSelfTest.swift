@@ -1,10 +1,13 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import Foundation
 import RiskellKit
 
 /// `riskell --weather-selftest`: builds a forecast like Open-Meteo's (390 hours, 108 days, every column the app reads), parses it with the current
 /// parser and with the first version, checks both give the same result, and prints the time of each. Exits 0 on a match.
-enum WeatherSelfTest {
-    static func run() -> Never {
+public enum WeatherSelfTest {
+    public static func run() -> Never {
         let hours = 390, days = 108
         func col(_ n: Int, _ f: (Int) -> Any) -> [Any] { (0..<n).map(f) }
         var hourly: [String: Any] = ["time": col(hours) { "2026-11-\(String(format: "%02d", $0 / 24 % 28 + 1))T\(String(format: "%02d", $0 % 24)):00" }]

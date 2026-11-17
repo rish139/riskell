@@ -66,10 +66,13 @@ struct AppConfig: Codable, Equatable {
     /// so a half-typed edit never wipes the settings).
     static func read() -> AppConfig? {
         var c = AppConfig()
+        var raw: [String: Any] = [:]
         if let d = try? Data(contentsOf: url) {
             guard let parsed = try? JSONDecoder().decode(AppConfig.self, from: d) else { print("config: \(url.path) is not valid"); fflush(stdout); return nil }
             c = parsed
+            raw = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any] ?? [:]
         }
+        HostConfig.shared.update(raw)      // the same file, read-only, for the atoms that are packages (env.config)
         let extra = dropIns()
         if !extra.isEmpty { c.pills = (c.pills ?? []) + extra }
         return c

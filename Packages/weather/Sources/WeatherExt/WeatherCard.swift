@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
 
@@ -5,8 +8,9 @@ import RiskellKit
 /// ribbon (night shaded, the forecast curve, rain chance rising from the floor, a NOW cursor) and the next 16 days as one band. Clicking
 /// an hour or a day turns the same card into that date's page: hero, readings, ribbon and band read a different row of the same payload.
 struct WeatherCard: View {
-    @EnvironmentObject var s: Store
-    @ObservedObject private var pop = Popout.shared
+    @ObservedObject private var state = WeatherState.shared
+    @ObservedObject private var config = HostConfig.shared
+    @ObservedObject private var pop = PopState.shared
     @State private var focus: String? = nil          // a date's page, or nil for today
     @State private var hourHover: Int? = nil
     @State private var dayHover: Int? = nil
@@ -15,7 +19,7 @@ struct WeatherCard: View {
     static let pad: CGFloat = 16, width: CGFloat = 508
     static let size = CGSize(width: width, height: 579)
 
-    private var w: WX? { s.weather }
+    private var w: WX? { state.wx }
     private var today: String { w?.todayKey ?? "" }
     private var dayKey: String { focus ?? today }
     private var day: WX.Day? { w?.days.first { $0.date == dayKey } }
@@ -40,8 +44,8 @@ struct WeatherCard: View {
             }
         }
         .frame(width: Self.width, alignment: .topLeading)
-        .onChange(of: pop.card) { _, c in if c != "weather" { focus = nil } }
         .onChange(of: pop.open) { _, o in if !o { focus = nil } }
+        .onChange(of: pop.card) { _, c in if c != "weather" { focus = nil } }
     }
 
     private func open(_ date: String) { withAnimation(.easeOut(duration: 0.2)) { focus = date == today ? nil : date } }
@@ -86,11 +90,11 @@ struct WeatherCard: View {
     private func hero(_ w: WX) -> some View {
         let night = focus == nil && w.cur.isDay == 0
         let code = focus == nil ? w.cur.code : day?.code ?? 0
-        let tone = WeatherAtom.tone(code, night: night)
+        let tone = WeatherFace.tone(code, night: night)
         return HStack(alignment: .center, spacing: 0) {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .center, spacing: 10) {
-                    Image(systemName: WXText.symbol(code, day: !night)).font(.system(size: 30, weight: .semibold)).foregroundStyle(tone)
+                    Image(systemName: WXText.symbol(code, day: !night)).font(Pal.font(30, .semibold)).foregroundStyle(tone)
                     if focus == nil {
                         HStack(alignment: .firstTextBaseline, spacing: 1) {
                             Text(String(format: "%.1f", w.cur.temp)).font(Pal.font(36, .bold)).foregroundStyle(Pal.text1)
@@ -187,9 +191,9 @@ struct WeatherCard: View {
 
     /// "HAMBURG 53.55N 10.00E · OPEN-METEO": the configured place (config.json `location`), or just the source when none is set.
     private var placeLine: String {
-        guard let l = AppConfig.shared.location else { return "OPEN-METEO" }
-        let c = String(format: "%.2f%@ %.2f%@", abs(l.lat), l.lat >= 0 ? "N" : "S", abs(l.lon), l.lon >= 0 ? "E" : "W")
-        return ((l.name?.uppercased()).map { $0 + " " } ?? "") + c + " · OPEN-METEO"
+        guard let lat = config.number("location.lat"), let lon = config.number("location.lon") else { return "OPEN-METEO" }
+        let c = String(format: "%.2f%@ %.2f%@", abs(lat), lat >= 0 ? "N" : "S", abs(lon), lon >= 0 ? "E" : "W")
+        return ((config.string("location.name")?.uppercased()).map { $0 + " " } ?? "") + c + " · OPEN-METEO"
     }
 
     private func footer(_ w: WX) -> some View {

@@ -1,60 +1,76 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
+
+import Combine
 import Foundation
 import RiskellKit
 
 /// Open-Meteo: ONE forecast request feeds everything the atom and the card draw (current readings, 6 past +
 /// 384 forecast hours, 92 past + 16 forecast days) plus a best-effort air-quality call. A good cache younger than 10 minutes IS the answer
 /// (a restart must not spend the free daily quota), and only a real reading is ever cached or shown (a quota-error reply is valid JSON too).
+/// The atom starts it and stops it (see `WeatherAtom.activate`): nothing is requested while the atom is not on a showing bar.
 final class WeatherService {
-    static var lat: Double { AppConfig.shared.location?.lat ?? 0 }      // from config.json; no location = no requests
-    static var lon: Double { AppConfig.shared.location?.lon ?? 0 }
-    private let store: Store
-    private let cache = URL(fileURLWithPath: Demo.cacheDirectory + "/weather-v2.json")
-    private var timer: Timer?
+    /// The three values that name the place. A change in any other config key is not a move.
+    struct Spot: Equatable { let lat: Double?, lon: Double?, name: String? }
 
-    init(store: Store) { self.store = store }
+    private let env: Env
+    private let cache: URL
+    private var started = false
+
+    init(env: Env) { self.env = env; self.cache = env.cache.appendingPathComponent("weather-v2.json") }
+
+    /// The place in riskell's config.json. A missing lat or lon means no location: no requests.
+    var spot: Spot {
+        Spot(lat: env.config.number("location.lat"), lon: env.config.number("location.lon"), name: env.config.string("location.name"))
+    }
+
+    /// Each firing of the repeating timer. The first one takes the cache when it is fresher than 600 s and fetches otherwise; the rest fetch.
+    func tick() {
+        guard started else { started = true; start(); return }
+        fetch()
+    }
 
     /// The location changed in config.json: forget the old place's reading and start over (no location: nothing is requested).
     func reconfigure() {
-        timer?.invalidate(); timer = nil
         try? FileManager.default.removeItem(at: cache)
-        store.set(weather: nil)
-        if Needs.isRunning("weather") { start() }
+        WeatherState.shared.set(nil)
+        start()
     }
 
-    func stop() { timer?.invalidate(); timer = nil }
-
-    func start() {
-        guard AppConfig.shared.location != nil else { return }
+    private func start() {
+        let s = spot
+        guard s.lat != nil, s.lon != nil else { return }
         let c = loadCache()
-        if let c { store.set(weather: c) }
+        if let c { WeatherState.shared.set(c) }
         if c == nil || Date().timeIntervalSince1970 - c!.syncedAt >= 600 { fetch() }
-        timer = Timer.scheduledTimer(withTimeInterval: 600, repeats: true) { [weak self] _ in self?.fetch() }
-        timer?.tolerance = 60
     }
 
     private func loadCache() -> WX? { (try? Data(contentsOf: cache)).flatMap { try? JSONDecoder().decode(WX.self, from: $0) } }
 
     func fetch() {
+        let s = spot
+        guard let lat = s.lat, let lon = s.lon else { return }
         let cur = "temperature_2m,apparent_temperature,relative_humidity_2m,is_day,precipitation,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_gusts_10m,wind_direction_10m,uv_index,dew_point_2m,visibility"
         let hourly = "temperature_2m,apparent_temperature,weather_code,precipitation_probability,precipitation,relative_humidity_2m,cloud_cover,dew_point_2m,pressure_msl,wind_speed_10m,visibility,uv_index,is_day"
         let daily = "weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_sum,precipitation_hours,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,sunrise,sunset,daylight_duration,sunshine_duration,uv_index_max"
-        let url = URL(string: "https://api.open-meteo.com/v1/forecast?latitude=\(Self.lat)&longitude=\(Self.lon)&current=\(cur)&hourly=\(hourly)&daily=\(daily)&timezone=auto&past_days=92&forecast_days=16&past_hours=6&forecast_hours=384")!
+        let url = URL(string: "https://api.open-meteo.com/v1/forecast?latitude=\(lat)&longitude=\(lon)&current=\(cur)&hourly=\(hourly)&daily=\(daily)&timezone=auto&past_days=92&forecast_days=16&past_hours=6&forecast_hours=384")!
         var req = URLRequest(url: url); req.timeoutInterval = 12
         URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
             guard let self else { return }
             guard let data, var w = Self.parse(data) else {
                 return      // a failed fetch keeps what is shown (stale is judged from syncedAt)
             }
-            self.fetchAirQuality { aq in
-                w.aqi = aq; w.syncedAt = Date().timeIntervalSince1970
+            self.fetchAirQuality(lat, lon) { aq in
+                w.aqi = aq; w.location = s.name ?? ""; w.syncedAt = Date().timeIntervalSince1970
                 try? JSONEncoder().encode(w).write(to: self.cache)
-                DispatchQueue.main.async { self.store.set(weather: w) }
+                DispatchQueue.main.async { WeatherState.shared.set(w) }
             }
         }.resume()
     }
 
-    private func fetchAirQuality(_ done: @escaping (WX.AQ?) -> Void) {
-        var req = URLRequest(url: URL(string: "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=\(Self.lat)&longitude=\(Self.lon)&current=us_aqi,pm2_5,pm10")!)
+    private func fetchAirQuality(_ lat: Double, _ lon: Double, _ done: @escaping (WX.AQ?) -> Void) {
+        var req = URLRequest(url: URL(string: "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=\(lat)&longitude=\(lon)&current=us_aqi,pm2_5,pm10")!)
         req.timeoutInterval = 6
         URLSession.shared.dataTask(with: req) { data, _, _ in
             guard let data, let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let c = j["current"] as? [String: Any],

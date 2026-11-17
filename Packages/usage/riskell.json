@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/rish139/riskell/main/schemas/riskell-extension.schema.json",
+  "id": "usage",
+  "kind": "atom",
+  "name": "AI usage",
+  "version": "1.0.0",
+  "kit": "^0.3",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "summary": "Claude and OpenCode usage meters, opt-in in config.json, with a card for windows and reset times.",
+  "module": "UsageExt",
+  "entry": "UsagePackage",
+  "atoms": ["usage"]
+}

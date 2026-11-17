@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
+import Combine
 import Foundation
 
 /// One Open-Meteo forecast, typed. Times are the location's own wall-clock strings ("2026-10-29T22:00"), exactly as the API sends them.
@@ -20,7 +24,7 @@ struct WX: Equatable, Codable {
         var daylight: Double? = nil, sunshine: Double? = nil
     }
     struct AQ: Equatable, Codable { var usAqi: Double; var pm25: Double?; var pm10: Double? }
-    var location = AppConfig.shared.location?.name ?? ""
+    var location = ""
     var cur = Cur()
     var hours: [Hour] = []          // 6 past hours + 16 days of forecast
     var days: [Day] = []            // 92 past days + 16 days of forecast
@@ -38,4 +42,11 @@ struct WX: Equatable, Codable {
     var nowIndex: Int? { hours.firstIndex { $0.time.prefix(13) == cur.time.prefix(13) } }
     /// the next six hours' precipitation probability, for the atom's pips
     var pips: [Double] { guard let i = nowIndex else { return [] }; return hours[i..<min(hours.count, i + 6)].map { $0.pop ?? 0 } }
+}
+
+/// The current forecast for the views. The service sets it; the atom and the card observe it.
+final class WeatherState: ObservableObject {
+    static let shared = WeatherState()
+    @Published private(set) var wx: WX?
+    func set(_ w: WX?) { if w != wx { wx = w } }
 }

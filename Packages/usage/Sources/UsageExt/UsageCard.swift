@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
 
@@ -6,7 +9,8 @@ import RiskellKit
 /// Hovering a row names its reset, its pace and, at this speed, when it runs out (OpenCode also its dollars). A missing feed is an empty bar
 /// and "—", never an invented value.
 struct UsageCard: View {
-    @EnvironmentObject var s: Store
+    @ObservedObject private var state = UsageState.shared
+    @ObservedObject private var config = HostConfig.shared
     @State private var hoverC: Int? = nil
     @State private var hoverO: Int? = nil
     @State private var linkHot: String? = nil
@@ -22,14 +26,14 @@ struct UsageCard: View {
     }
 
     private var claudeRows: [Row] {
-        let c = s.claude
+        let c = state.claude
         var r = [Row(id: "5h", code: "5H", win: c?.five, len: Self.h5), Row(id: "7d", code: "7D", win: c?.seven, len: Self.d7)]
         if let x = c?.sonnet { r.append(Row(id: "so", code: "SONNET", win: x, len: Self.d7)) }
         if let x = c?.opus { r.append(Row(id: "op", code: "OPUS", win: x, len: Self.d7)) }
         return r
     }
     private var ocRows: [Row] {
-        let o = s.opencode
+        let o = state.opencode
         let monthLen: Double = {
             guard let r = o?.month?.resets else { return 30 * 86400 }
             let d = Date(timeIntervalSince1970: r), prev = Calendar(identifier: .gregorian).date(byAdding: .month, value: -1, to: d) ?? d.addingTimeInterval(-30 * 86400)
@@ -41,16 +45,16 @@ struct UsageCard: View {
 
     private static let rowH: CGFloat = 30, rowGap: CGFloat = 2
     /// The providers switched on in config.json; a switched-off one has no block, no PLAN line and no footer link.
-    static var claudeOn: Bool { AppConfig.shared.claudeEnabled }
-    static var ocOn: Bool { AppConfig.shared.opencodeWorkspace != nil }
+    static var claudeOn: Bool { UsageConfig.claudeOn() }
+    static var ocOn: Bool { UsageConfig.opencodeWorkspace() != nil }
     static var size: CGSize {
         func block(_ n: Int) -> CGFloat { 18 + 6 + CGFloat(n) * rowH + CGFloat(max(0, n - 1)) * rowGap }
-        let c = store.claude
+        let c = UsageState.shared.claude
         let claudeRows = 2 + (c?.sonnet != nil ? 1 : 0) + (c?.opus != nil ? 1 : 0)
         var blocks: [CGFloat] = []
         if claudeOn { blocks.append(block(claudeRows)) }
         if ocOn { blocks.append(block(3)) }
-        let plan: CGFloat = ocOn && store.opencode?.ending == true ? 16 : 0
+        let plan: CGFloat = ocOn && UsageState.shared.opencode?.ending == true ? 16 : 0
         let items = 2 + blocks.count + (plan > 0 ? 1 : 0)      // the header, the footer, the blocks, the plan line
         let h = 11 + 12 + 20 + blocks.reduce(0, +) + plan + 22 + CGFloat(items - 1) * 10
         return CGSize(width: width, height: h)
@@ -62,8 +66,8 @@ struct UsageCard: View {
             header
             if Self.claudeOn { block("CLAUDE", mark: Brand.claude, rows: claudeRows, hover: $hoverC, now: now, tokens: false) }
             if Self.ocOn {
-                block("OPENCODE " + (s.opencode?.plan.replacingOccurrences(of: "go-plus", with: "go+").uppercased() ?? "GO"), mark: Brand.opencode, rows: ocRows, hover: $hoverO, now: now, tokens: true)
-                if let o = s.opencode, o.ending {
+                block("OPENCODE " + (state.opencode?.plan.replacingOccurrences(of: "go-plus", with: "go+").uppercased() ?? "GO"), mark: Brand.opencode, rows: ocRows, hover: $hoverO, now: now, tokens: true)
+                if let o = state.opencode, o.ending {
                     t("PLAN ENDS " + Self.dayMonth(o.endsAt), 9, Pal.warn, 1.4).frame(height: 16).padding(.leading, 2)
                 }
             }
@@ -77,9 +81,9 @@ struct UsageCard: View {
         Text(s).font(Pal.font(size, bold ? .bold : .regular)).tracking(ls).foregroundStyle(color)
     }
 
-    private var stale: Bool { (Self.claudeOn && s.claude?.stale == true) || (Self.ocOn && s.opencode?.stale == true) }
+    private var stale: Bool { (Self.claudeOn && state.claude?.stale == true) || (Self.ocOn && state.opencode?.stale == true) }
     private var header: some View {
-        let times = [Self.claudeOn ? s.claude?.fetched : nil, Self.ocOn ? s.opencode?.fetched : nil].compactMap { $0 }.filter { $0 > 0 }
+        let times = [Self.claudeOn ? state.claude?.fetched : nil, Self.ocOn ? state.opencode?.fetched : nil].compactMap { $0 }.filter { $0 > 0 }
         let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "HH:mm"
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
             t("USAGE", 10, Pal.text4, 2.6)
@@ -169,11 +173,11 @@ struct UsageCard: View {
         HStack(spacing: 16) {
             Spacer()
             if Self.claudeOn { link("CLAUDE USAGE ↗", "https://claude.ai/settings/usage") }
-            if Self.ocOn { link("OPENCODE GO ↗", "https://opencode.ai/console/\(UsageService.opencodeOrg ?? "")/go") }
+            if Self.ocOn { link("OPENCODE GO ↗", "https://opencode.ai/console/\(UsageConfig.opencodeWorkspace() ?? "")/go") }
         }.frame(height: 22).animation(.easeOut(duration: 0.15), value: linkHot)
     }
     private func link(_ label: String, _ url: String) -> some View {
-        Button { if let u = URL(string: url) { NSWorkspace.shared.open(u) }; Popout.shared.close() } label: {
+        Button { if let u = URL(string: url) { NSWorkspace.shared.open(u) }; PopState.shared.close() } label: {
             t(label, 9, linkHot == label ? Pal.accent : Pal.text4, 1.4).padding(.vertical, 4).contentShape(Rectangle())
         }.buttonStyle(.plain).onHover { linkHot = $0 ? label : (linkHot == label ? nil : linkHot) }
     }

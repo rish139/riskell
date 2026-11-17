@@ -29,6 +29,8 @@ verified, move it to the "Verified" list with the date, the macOS version and th
 | **Services follow placement, live** (`Services/Needs.swift`) | In riskell preferences remove the weather atom from every bar, then `risk log` and Activity Monitor: no weather request, no timer. Place it again: the forecast returns. Repeat with Network (the Location prompt appears only once it is placed) and AI usage (the keychain read). | Tested at launch with scratch layouts (`riskell --dump` lists the running services) and by build; a drag in the real editor was not driven, because synthetic mouse input is not used on a running bar. Stopping and restarting Wi-Fi monitoring and the Sys battery listener in one session was never run. |
 | **EXTENSIONS card** | `risk ext add Examples/load-ext`, open riskell preferences, press the − / + and On chips; the Load atom changes at once and `~/.config/riskell/ext/load-ext.json` holds the values. | The card was drawn (`--settings`), and the write and rebuild are covered by `riskell --ext-selftest`; the click path was not driven. |
 
+| **Weather and AI usage as packages** | Place weather and AI usage, change `location` in `config.json` while running, and toggle `usage.claude`; the atoms follow without a restart. Check the keychain prompt for Claude usage appears once, after the rebuild. | Weather was run live in a scratch instance (fetch, and a location change refetching); usage was checked only with `--fake-usage`, never against the real keychain or OpenCode. The weather glyphs now take `Pal.font` instead of the system font: layout matched, but day and night glyphs were compared on different data. |
+
 ### Display and system
 | Item | What to try | Why it is unverified |
 |---|---|---|

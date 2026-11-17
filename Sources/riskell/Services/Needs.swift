@@ -11,9 +11,7 @@ enum Needs {
     static let table: [String: Set<String>] = [
         "sys": ["cpu", "bat", "vol", "fan"],      // CPU and memory, battery, power, volume, microphone
         "thermal": ["fan", "cpu"],                // the SMC reading and the fan history
-        "weather": ["weather"],
         "wifi": ["net"],                          // also the Location prompt for Wi-Fi names
-        "usage": ["usage"],                       // reads the Claude token from the keychain (a prompt the first time)
     ]
     private struct Rule { let start: () -> Void; let stop: () -> Void }
     private static var rules: [String: Rule] = [:]

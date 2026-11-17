@@ -6,5 +6,21 @@
     "package" : "clock",
     "path" : "Packages\/clock",
     "product" : "ClockExt"
+  },
+  {
+    "entry" : "WeatherPackage",
+    "id" : "weather",
+    "module" : "WeatherExt",
+    "package" : "weather",
+    "path" : "Packages\/weather",
+    "product" : "WeatherExt"
+  },
+  {
+    "entry" : "UsagePackage",
+    "id" : "usage",
+    "module" : "UsageExt",
+    "package" : "usage",
+    "path" : "Packages\/usage",
+    "product" : "UsageExt"
   }
 ]

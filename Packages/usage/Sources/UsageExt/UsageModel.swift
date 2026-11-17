@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import Foundation
 
 /// One rate-limit window: percent used, when it resets, and (OpenCode) what was used out of what limit, in dollars.

@@ -64,8 +64,8 @@ def layout(extra=None):
          "on": {"top": True, "bottom": True, "left": True, "right": True},
          "spill": {"top": "fill", "bottom": "fill", "left": "fill", "right": "fill"},      # every bar opens flush cards
          "top": {"start": [], "center": [], "end": [isl("s", ["bat", "ext:clock"]), isl("p", ["pill:up", "pill:temp"])]},
-         "bottom": {"start": [isl("d", ["pill:dsk"])], "center": [isl("c", ["cpu"])], "end": [isl("w", ["weather"])]},
-         "left": {"start": [isl("ws", ["workspaces"])], "center": [], "end": [isl("u", ["usage", "fan"])]},
+         "bottom": {"start": [isl("d", ["pill:dsk"])], "center": [isl("c", ["cpu"])], "end": [isl("w", ["ext:weather"])]},
+         "left": {"start": [isl("ws", ["workspaces"])], "center": [], "end": [isl("u", ["ext:usage", "fan"])]},
          "right": {"start": [], "center": [], "end": [isl("l", ["net", "vol"])]}}
     if extra:
         extra(L)
@@ -289,8 +289,8 @@ def make_cards():
     cards = [("date", "Clock and calendar"), ("bat", "Battery"), ("vitals", "CPU, memory, power"), ("fan", "Fans and temperature"),
              ("vol", "Volume and microphone"), ("net", "Network"), ("weather", "Weather"), ("usage", "AI usage"),
              ("workspaces", "Workspaces"), ("pill.dsk", "A script pill")]
-    atoms = {"date": ["ext:clock"], "bat": ["bat"], "vitals": ["cpu"], "fan": ["fan"], "vol": ["vol"], "net": ["net"], "weather": ["weather"],
-             "usage": ["usage"], "workspaces": ["workspaces"], "pill.dsk": ["pill:dsk"]}
+    atoms = {"date": ["ext:clock"], "bat": ["bat"], "vitals": ["cpu"], "fan": ["fan"], "vol": ["vol"], "net": ["net"], "weather": ["ext:weather"],
+             "usage": ["ext:usage"], "workspaces": ["workspaces"], "pill.dsk": ["pill:dsk"]}
     items = []
     for cid, label in cards:
         pic = card_pic(cid, atoms[cid])

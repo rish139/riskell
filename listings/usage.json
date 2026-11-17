@@ -8,11 +8,13 @@
   "license": "MIT",
   "repository": "https://github.com/rish139/riskell",
   "source": [
-    "Sources/riskell/UsageAtom.swift",
-    "Sources/riskell/UsageCard.swift",
-    "Sources/riskell/UsageModel.swift",
-    "Sources/riskell/Services/Usage.swift"
+    "Packages/usage/riskell.json",
+    "Packages/usage/Sources/UsageExt/Usage.swift",
+    "Packages/usage/Sources/UsageExt/UsageCard.swift",
+    "Packages/usage/Sources/UsageExt/UsageFace.swift",
+    "Packages/usage/Sources/UsageExt/UsageModel.swift",
+    "Packages/usage/Sources/UsageExt/UsagePackage.swift"
   ],
-  "home": "kit",
-  "homeNote": "needs a usage feed; reads the keychain only when placed"
+  "home": "package",
+  "homeNote": "moved out of the application: a package in this repository, placed as ext:usage; the providers come from config.json through env.config"
 }

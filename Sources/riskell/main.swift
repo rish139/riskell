@@ -3,6 +3,7 @@ import Carbon.HIToolbox
 import SwiftUI
 import Combine
 import RiskellKit
+import WeatherExt
 
 // riskell: the bars. usage: riskell [--snap DIR] [--stay SECONDS] [--dump]
 //   --trace     log timestamped space-change sources (window manager, NSWorkspace, SkyLight events)
@@ -29,7 +30,7 @@ if args.contains("--list-atoms") {      // JSON: each built-in atom with its car
     print(String(decoding: (try? JSONSerialization.data(withJSONObject: rows, options: [.sortedKeys])) ?? Data(), as: UTF8.self)); exit(0)
 }
 if args.contains("--ext-selftest") { ExtSelfTest.run() }      // the preferences card's writes and the live rebuild (needs RISKELL_CONFIG at a scratch config)
-if args.contains("--weather-selftest") { WeatherSelfTest.run() }      // the fast forecast parser against the first version, on synthetic data
+if args.contains("--weather-selftest") { WeatherExt.WeatherSelfTest.run() }      // the fast forecast parser against the first version, on synthetic data
 if args.contains("--list-themes") { print(Theme.listJSON()); exit(0) }      // JSON of every scheme with its resolved tokens (the installer previews them)
 if args.contains("--check-themes") { if args.contains("tokens") { Theme.dumpTokens() } else { Theme.check() }; exit(0) }      // contrast of every scheme against its floors, then exit
 if GestureConflicts.runCommand(args) { exit(0) }      // --gestures-fix / --gestures-restore (--yes writes): the consented trackpad and Dock writes, then exit
@@ -45,9 +46,7 @@ WM.shared = wm
 let sys = Sys(store: store)
 let spaceWatch = SpaceWatch(store: store, wm: wm)
 let thermal = Thermal(store: store)
-let weather = WeatherService(store: store)
 let wifi = Wifi(store: store)
-let usage = UsageService(store: store)
 let nowPlaying = NowPlaying()
 tracing = args.contains("--trace")
 Compat.fake = args.contains("--fake-compat")
@@ -102,13 +101,10 @@ wm.start()
 Extensions.apply(AppConfig.shared)      // the optional extensions: gestures start only when config.json says "gestures": "riskell"
 if !args.contains("--dump") { Compat.shared.start() }
 ConfigWatcher.shared.start()
-UsageService.skipClaude = args.contains("--no-claude")
 // The built-in services run only while an atom that needs them is placed on a bar that is on (Services/Needs.swift).
 Needs.register("sys", start: sys.start, stop: sys.stop)      // CPU and memory, battery, power, volume, microphone
 Needs.register("thermal", start: { thermal.start(); FanLive.shared.startHistory() }, stop: { FanLive.shared.stopHistory() })
-Needs.register("weather", start: weather.start, stop: weather.stop)
 Needs.register("wifi", start: wifi.start, stop: wifi.stop)      // also the Location prompt for Wi-Fi names
-if !args.contains("--no-usage") { Needs.register("usage", start: usage.start, stop: usage.stop) }      // reads the Claude token from the keychain (a prompt the first time)
 Needs.begin()
 if tracing { Sky.trace(1300...1460) { t in tlog("SkyLight event \(t)") } }
 
@@ -191,11 +187,6 @@ NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenPar
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: w)
 }
 
-if args.contains("--fake-usage") {      // sample readings for snapshots (never touches the keychain or the network)
-    let now = Date().timeIntervalSince1970
-    store.set(claude: ClaudeUse(five: UsageWin(pct: 62, resets: now + 2 * 3600 + 1100), seven: UsageWin(pct: 41, resets: now + 4 * 86400 + 9 * 3600), sonnet: UsageWin(pct: 12, resets: now + 4 * 86400), fetched: now - 120))
-    store.set(opencode: OCUse(roll: UsageWin(pct: 23, resets: now + 3600 * 3.4, used: 2.76, limit: 12), week: UsageWin(pct: 71, resets: now + 3 * 86400, used: 17.04, limit: 24), month: UsageWin(pct: 88, resets: now + 19 * 86400, used: 35.2, limit: 40), plan: "go", ending: true, endsAt: now + 19 * 86400, fetched: now - 300))
-}
 if args.contains("--fake-media") { store.set(media: MediaReading(bundle: "app.zen-browser.zen", playing: args.contains("--fake-playing"))) } else { nowPlaying.start() }
 print("pinned in private space:", Sky.pin([left, right, top, bottom]))
 Config.shared.windows = [.left: left, .right: right, .top: top, .bottom: bottom]

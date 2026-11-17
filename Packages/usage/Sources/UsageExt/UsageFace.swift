@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
 
@@ -22,23 +25,21 @@ func spanText(_ seconds: Double) -> String {
 /// a reading that is old is dimmed. Countdowns live in the card. Hover swells the bars and marks and opens the usage card.
 /// On a horizontal bar (`vertical` false) it is one 36 pt row: each vendor is its mark, the figure and a 34 pt bar, the two vendors
 /// split by the usual hairline. Same data, tones, dimming and hover.
-struct UsageAtom: View {
-    @EnvironmentObject var s: Store
-    @ObservedObject private var cfg = Config.shared
+struct UsageFace: View {
+    @ObservedObject private var state = UsageState.shared
+    @ObservedObject private var config = HostConfig.shared
     @State private var hot = false
     let vertical: Bool
 
     var body: some View {
-        let c = s.claude, o = s.opencode
+        let c = state.claude, o = state.opencode
         // only the vendors switched on in config.json are drawn; with none, the atom is an "off" placeholder and has no card
-        let showC = AppConfig.shared.claudeEnabled, showO = AppConfig.shared.opencodeWorkspace != nil
+        let showC = UsageConfig.claudeOn(config), showO = UsageConfig.opencodeWorkspace(config) != nil
         anchored(Group {
             if !showC && !showO {
-                // blank: drawn only in edit mode, so the atom can be moved; elsewhere it is nothing (an island of only this is not drawn at all)
-                if cfg.editing {
-                    Text("OFF").font(Pal.font(9, .bold)).tracking(1.4).foregroundStyle(Pal.text4)
-                        .frame(width: vertical ? G.strip : nil, height: vertical ? nil : G.pill)
-                }
+                // blank: the host lists a blank atom only in edit mode (so it can be moved); elsewhere it is never drawn
+                Text("OFF").font(Pal.font(9, .bold)).tracking(1.4).foregroundStyle(Pal.text4)
+                    .frame(width: vertical ? G.strip : nil, height: vertical ? nil : G.pill)
             } else if vertical {
                 VStack(spacing: 10) {
                     if showC { vendor(mark: Brand.claude, markW: 13, markH: 13, value: c?.rep ?? -1, base: Pal.accent, stale: c?.stale == true) }

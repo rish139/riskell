@@ -60,8 +60,6 @@ final class ConfigWatcher {
         if Pills.update(new.pills ?? []) {
             Registry.rebuild(); Config.shared.pruneUnknown(); Config.shared.objectWillChange.send(); did.append("pills: " + Pills.all.map(\.spec.id).joined(separator: " "))
         }
-        if new.location != old.location { weather.reconfigure(); did.append("location") }
-        if new.usage != old.usage { usage.reconfigure(); ThemeState.shared.epoch += 1; did.append("usage") }      // the views re-read which providers are on
         if new.wm != old.wm { did.append("wm: run `risk restart` to apply") }
         else if new.wmCommand != old.wmCommand { (WM.shared as? CommandWM)?.reconfigure(); did.append("wmCommand") }
         print("config: reloaded (\(did.joined(separator: ", ")))"); fflush(stdout)

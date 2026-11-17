@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
 
@@ -6,13 +9,13 @@ import RiskellKit
 /// On the left strip (`vertical`) it stands up as a column: the glyph, the temperature, the feels-like beneath it, a short hairline, then
 /// the range, hi over lo. Figures are one decimal under 10 degrees and whole degrees from 10 up ("-12°", as CpuAtom does for watts),
 /// because "-12.4°" does not fit the 40 pt column at the figure size.
-struct WeatherAtom: View {
-    @EnvironmentObject var s: Store
+struct WeatherFace: View {
+    @ObservedObject private var state = WeatherState.shared
     @State private var hot = false
     let vertical: Bool
 
     var body: some View {
-        if let w = s.weather {
+        if let w = state.wx {
             let night = w.cur.isDay == 0, env = w.envelope
             let tone = Self.tone(w.cur.code, night: night)
             Group {
@@ -20,7 +23,7 @@ struct WeatherAtom: View {
                     column(w, env, tone: tone, night: night)
                 } else {
                     HStack(spacing: T.gap) {
-                        Image(systemName: WXText.symbol(w.cur.code, day: !night)).font(.system(size: 16, weight: .semibold)).symbolRenderingMode(.monochrome)
+                        Image(systemName: WXText.symbol(w.cur.code, day: !night)).font(Pal.font(16, .semibold)).symbolRenderingMode(.monochrome)
                             .foregroundStyle(tone).scaleEffect(hot ? 1.15 : 1).frame(width: 22)
                         HStack(alignment: .center, spacing: 6) {
                             Num(value: String(format: "%.1f", w.cur.temp), unit: "°", hot: hot)
@@ -50,7 +53,7 @@ struct WeatherAtom: View {
     /// The left strip's column, 40 pt wide and centred: glyph, temperature, feels-like, hairline, range.
     private func column(_ w: WX, _ env: (hi: Double, lo: Double)?, tone: Color, night: Bool) -> some View {
         VStack(spacing: 0) {
-            Image(systemName: WXText.symbol(w.cur.code, day: !night)).font(.system(size: 16, weight: .semibold)).symbolRenderingMode(.monochrome)
+            Image(systemName: WXText.symbol(w.cur.code, day: !night)).font(Pal.font(16, .semibold)).symbolRenderingMode(.monochrome)
                 .foregroundStyle(tone).scaleEffect(hot ? 1.15 : 1).frame(height: 18)
             Color.clear.frame(height: 4)
             Num(value: Self.short(w.cur.temp), unit: "°", hot: hot)
@@ -83,7 +86,7 @@ struct WeatherAtom: View {
 
     private func range(_ arrow: String, _ v: Double, column: Bool = false) -> some View {
         HStack(spacing: column ? 2 : 3) {
-            Image(systemName: arrow).font(.system(size: 7.5, weight: .bold)).foregroundStyle(Pal.text4)
+            Image(systemName: arrow).font(Pal.font(7.5, .bold)).foregroundStyle(Pal.text4)
             Text(column ? Self.short(v) + "°" : String(format: "%.1f°", v)).font(T.sub).foregroundStyle(hot ? Pal.text2 : Pal.text3)
         }
     }

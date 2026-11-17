@@ -1,53 +1,60 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import Foundation
 import Security
 import SQLite3
+import Combine
 import RiskellKit
 
-/// Claude and OpenCode Go usage, in-process. Both are opt-in through config.json (see AppConfig).
+/// Claude and OpenCode Go usage, in-process. Both are opt-in through config.json (see `UsageConfig`).
 /// A reading is cached only when it validates; any failure keeps the last good one, marked stale.
 final class UsageService {
-    private let store: Store
-    private var timer: Timer?
-    static var skipClaude = false       // --no-claude: do not touch the keychain (it prompts the first time)
-    private let dir = NSHomeDirectory() + "/.cache/riskell"
-    static var opencodeOrg: String? { AppConfig.shared.opencodeWorkspace }      // the Go workspace id, from config.json; nil = OpenCode usage is off
+    private let env: Env
+    private let state = UsageState.shared
+    private var providers: AnyCancellable?
+    private static let skipClaude = CommandLine.arguments.contains("--no-claude")     // --no-claude: do not touch the keychain (it prompts the first time)
 
-    init(store: Store) { self.store = store }
+    init(env: Env) { self.env = env }
 
-    func start() {
-        let c = (try? Data(contentsOf: URL(fileURLWithPath: "\(dir)/usage-claude-v2.json"))).flatMap { try? JSONDecoder().decode(ClaudeUse.self, from: $0) }
-        let o = (try? Data(contentsOf: URL(fileURLWithPath: "\(dir)/usage-opencode-v2.json"))).flatMap { try? JSONDecoder().decode(OCUse.self, from: $0) }
-        if var c { c.stale = true; store.set(claude: c) }
-        if var o { o.stale = true; store.set(opencode: o) }
+    /// Loads the cached readings (marked stale), then fetches now and every 5 minutes (the first firing is immediate). Returns the closure
+    /// that stops it: the poll, and the watch on config.json.
+    func start() -> () -> Void {
+        let c = (try? Data(contentsOf: env.cache.appendingPathComponent("usage-claude-v2.json"))).flatMap { try? JSONDecoder().decode(ClaudeUse.self, from: $0) }
+        let o = (try? Data(contentsOf: env.cache.appendingPathComponent("usage-opencode-v2.json"))).flatMap { try? JSONDecoder().decode(OCUse.self, from: $0) }
+        if var c { c.stale = true; state.set(claude: c) }
+        if var o { o.stale = true; state.set(opencode: o) }
+        let stopPoll = env.repeating(.seconds(300)) { [weak self] in self?.refresh() }
+        providers = env.config.$json
+            .map { ($0["usage"] as? [String: Any]) ?? [:] }
+            .removeDuplicates { NSDictionary(dictionary: $0).isEqual(to: $1) }
+            .dropFirst()
+            .sink { [weak self] _ in self?.reconfigure() }
+        return { [self] in stopPoll(); providers?.cancel(); providers = nil }
+    }
+
+    /// The `usage` section changed in config.json: drop what is now off, fetch what is on.
+    private func reconfigure() {
+        if !UsageConfig.claudeOn(env.config) { state.set(claude: nil) }
+        if UsageConfig.opencodeWorkspace(env.config) == nil { state.set(opencode: nil) }
         refresh()
-        timer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in self?.refresh() }
-        timer?.tolerance = 30
     }
 
-    /// The providers changed in config.json: drop what is now off, fetch what is on.
-    func reconfigure() {
-        if !AppConfig.shared.claudeEnabled { store.set(claude: nil) }
-        if Self.opencodeOrg == nil { store.set(opencode: nil) }
-        if Needs.isRunning("usage") { refresh() }
-    }
-
-    func stop() { timer?.invalidate(); timer = nil }
-
-    private func save<T: Encodable>(_ name: String, _ v: T) { try? JSONEncoder().encode(v).write(to: URL(fileURLWithPath: "\(dir)/usage-\(name)-v2.json")) }
+    private func save<T: Encodable>(_ name: String, _ v: T) { try? JSONEncoder().encode(v).write(to: env.cache.appendingPathComponent("usage-\(name)-v2.json")) }
 
     func refresh() {
-        if !Self.skipClaude && AppConfig.shared.claudeEnabled { fetchClaude { [weak self] r in
+        if !Self.skipClaude && UsageConfig.claudeOn(env.config) { fetchClaude { [weak self] r in
             guard let self else { return }
             DispatchQueue.main.async {
-                if let r { self.store.set(claude: r); self.save("claude", r) }
-                else if var c = self.store.claude { c.stale = true; self.store.set(claude: c) }
+                if let r { self.state.set(claude: r); self.save("claude", r) }
+                else if var c = self.state.claude { c.stale = true; self.state.set(claude: c) }
             }
         } }
-        if Self.opencodeOrg != nil { fetchOpenCode { [weak self] r in
+        if UsageConfig.opencodeWorkspace(env.config) != nil { fetchOpenCode { [weak self] r in
             guard let self else { return }
             DispatchQueue.main.async {
-                if let r { self.store.set(opencode: r); self.save("opencode", r) }
-                else if var c = self.store.opencode { c.stale = true; self.store.set(opencode: c) }
+                if let r { self.state.set(opencode: r); self.save("opencode", r) }
+                else if var c = self.state.opencode { c.stale = true; self.state.set(opencode: c) }
             }
         } }
     }
@@ -104,7 +111,7 @@ final class UsageService {
     // MARK: OpenCode Go — the console session cookie from the newest browser profile (config: usage.opencode.profiles)
 
     private func zenCookie(_ name: String) -> String? {
-        let root = AppConfig.shared.opencodeProfiles
+        let root = UsageConfig.opencodeProfiles(env.config)
         let fm = FileManager.default
         let dbs = ((try? fm.contentsOfDirectory(atPath: root)) ?? []).map { "\(root)/\($0)/cookies.sqlite" }
             .filter { fm.fileExists(atPath: $0) }
@@ -130,7 +137,7 @@ final class UsageService {
 
     private func fetchOpenCode(_ done: @escaping (OCUse?) -> Void) {
         DispatchQueue.global(qos: .utility).async {
-            guard let org = Self.opencodeOrg, let session = self.zenCookie("__Host-console_session") else { done(nil); return }
+            guard let org = UsageConfig.opencodeWorkspace(self.env.config), let session = self.zenCookie("__Host-console_session") else { done(nil); return }
             var req = URLRequest(url: URL(string: "https://opencode.ai/console/api/go/status")!); req.timeoutInterval = 15
             req.setValue("__Host-console_session=\(session)", forHTTPHeaderField: "Cookie")
             req.setValue(org, forHTTPHeaderField: "x-org-id")
