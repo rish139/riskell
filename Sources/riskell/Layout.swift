@@ -60,11 +60,11 @@ enum WindowGap {
 final class Config: ObservableObject {
     static let shared = Config()
 
-    @Published private(set) var specs: [BarKey: BarSpec] = Config.defaults
+    @Published private(set) var specs: [BarKey: BarSpec] = Config.defaults { didSet { Needs.apply() } }
     @Published private(set) var hug: [BarKey: Bool] = Config.defaultHug
     @Published private(set) var spillStyle: [BarKey: Spill] = [:]
     @Published private(set) var gap: CGFloat = 8
-    @Published private(set) var enabled: [BarKey: Bool] = Config.defaultOn
+    @Published private(set) var enabled: [BarKey: Bool] = Config.defaultOn { didSet { Needs.apply() } }
     @Published var editing = false
     @Published var dragging: String? = nil
     @Published var hint: Hint? = nil
@@ -126,6 +126,8 @@ final class Config: ObservableObject {
     static var gapTop: CGFloat { (WindowGap.topBar + Spacing.current.window) * Real.k }
 
     /// Atoms that are on no bar (removed with their x); the settings panel lists them so they can be put back.
+    /// The atoms placed on a bar that is on: what the built-in services are gated by (Services/Needs.swift).
+    var placedAtoms: Set<String> { Set(BarKey.allCases.filter { on($0) }.flatMap { b in b.zones.flatMap { spec(b)[$0].flatMap(\.atoms) } }) }
     var tray: [String] { let placed = Set(BarKey.allCases.flatMap { b in b.zones.flatMap { spec(b)[$0].flatMap(\.atoms) } }); return AtomCatalog.all.filter { !placed.contains($0) } }
 
     // MARK: editing

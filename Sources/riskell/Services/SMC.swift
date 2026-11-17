@@ -88,6 +88,7 @@ final class Thermal {
     init(store: Store) { self.store = store }
 
     func start() {
+        guard smc == nil else { return }
         guard let s = SMC() else { print("thermal: AppleSMC unavailable"); return }
         s.enumerate()
         smc = s

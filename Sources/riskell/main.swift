@@ -91,26 +91,27 @@ app.setActivationPolicy(.accessory)
 
 events.start()
 
-sys.start()
 Clock.shared.start()
-thermal.start()
-FanLive.shared.startHistory()
 print("window manager:", wm.name)
 wm.start()
 Extensions.apply(AppConfig.shared)      // the optional extensions: gestures start only when config.json says "gestures": "riskell"
 if !args.contains("--dump") { Compat.shared.start() }
-weather.start()
 ConfigWatcher.shared.start()
-wifi.start()
 UsageService.skipClaude = args.contains("--no-claude")
-if !args.contains("--no-usage") { usage.start() }      // reads the Claude token from the keychain (a prompt the first time)
+// The built-in services run only while an atom that needs them is placed on a bar that is on (Services/Needs.swift).
+Needs.register("sys", atoms: ["cpu", "bat", "vol", "fan"], start: sys.start, stop: sys.stop)      // CPU and memory, battery, power, volume, microphone
+Needs.register("thermal", atoms: ["fan", "cpu"], start: { thermal.start(); FanLive.shared.startHistory() }, stop: { FanLive.shared.stopHistory() })
+Needs.register("weather", atoms: ["weather"], start: weather.start, stop: weather.stop)
+Needs.register("wifi", atoms: ["net"], start: wifi.start, stop: wifi.stop)      // also the Location prompt for Wi-Fi names
+if !args.contains("--no-usage") { Needs.register("usage", atoms: ["usage"], start: usage.start, stop: usage.stop) }      // reads the Claude token from the keychain (a prompt the first time)
+Needs.begin()
 if tracing { Sky.trace(1300...1460) { t in tlog("SkyLight event \(t)") } }
 
 func shutdown() { nowPlaying.stop(); wm.stop(); events.stop(); Extensions.stopAll() }
 
 if args.contains("--dump") {
     DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-        print(store.dump()); print("tray:", Config.shared.tray.joined(separator: " ")); if args.contains("--smc") { print(thermal.describe()) }; shutdown(); exit(0)
+        print(store.dump()); print("services:", Needs.active.joined(separator: " ")); print("tray:", Config.shared.tray.joined(separator: " ")); if args.contains("--smc") { print(thermal.describe()) }; shutdown(); exit(0)
     }
     app.run()
 }

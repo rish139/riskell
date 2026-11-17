@@ -18,8 +18,10 @@ final class WeatherService {
         timer?.invalidate(); timer = nil
         try? FileManager.default.removeItem(at: cache)
         store.set(weather: nil)
-        start()
+        if Needs.isRunning("weather") { start() }
     }
+
+    func stop() { timer?.invalidate(); timer = nil }
 
     func start() {
         guard AppConfig.shared.location != nil else { return }

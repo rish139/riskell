@@ -21,10 +21,12 @@ final class FanLive: ObservableObject {
                 return HeatPoint(t: now - Double(179 - i) * 10, temps: [52 + 22 * w * x, 48 + 14 * w, 45 + 12 * x, 47 + 6 * w, 31 + 3 * x, 34 + 5 * w], rpm: 1200 + 4200 * x * w)
             }
         }
+        guard slow == nil else { return }
         record()
         slow = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in self?.record() }
         slow?.tolerance = 2
     }
+    func stopHistory() { slow?.invalidate(); slow = nil; hist.removeAll() }
     private func record() {
         let s = thermal.snapshot(light: true)
         snap = s

@@ -28,8 +28,10 @@ final class UsageService {
     func reconfigure() {
         if !AppConfig.shared.claudeEnabled { store.set(claude: nil) }
         if Self.opencodeOrg == nil { store.set(opencode: nil) }
-        refresh()
+        if Needs.isRunning("usage") { refresh() }
     }
+
+    func stop() { timer?.invalidate(); timer = nil }
 
     private func save<T: Encodable>(_ name: String, _ v: T) { try? JSONEncoder().encode(v).write(to: URL(fileURLWithPath: "\(dir)/usage-\(name)-v2.json")) }
 

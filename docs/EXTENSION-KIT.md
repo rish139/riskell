@@ -70,8 +70,9 @@ multiplies by one scale factor where a number becomes a window frame.
   being on a bar was not enough. Found by a probe extension that counted its own productions: on a disabled bar it still ran (9 readings
   in 9 s); now it does not (0). Script pills use the same gate, which also makes the claim in `docs/PILLS.md` true for them.
 - **Feeds:** `.battery .volume .focusedApp .spaces .minute`. A feed is a Combine sink on the app's own `Store`, so subscribing adds no
-  polling. `.minute` is a timer that exists only while someone is subscribed. Note: the built-in services themselves (weather, wifi,
-  thermals, audio, window manager) start at launch whether or not their atom is placed; gating them by placement is separate work.
+  polling. `.minute` is a timer that exists only while someone is subscribed. The built-in services (CPU/battery/volume,
+  thermals, weather, Wi-Fi, AI usage) run only while an atom that needs them is placed on a bar that is on (`Services/Needs.swift`, one table in
+  `main.swift`). The window manager and the notch wings' media feed are not gated by an atom.
 - **Prefs:** `env.prefs.number/bool/string` from `~/.config/riskell/ext/<id>.json`.
 
 ## 4. Robustness
@@ -119,8 +120,7 @@ it harder; expect to find fit bugs in the app as well as in extensions.
 ## 7. Open questions
 
 1. Does the render matrix run headless on a CI runner? `--snap` makes real windows; test before the registry's gate depends on it.
-2. Gate the built-in services by placement, so that "nothing runs when off" is true for them too, and feeds can be reference counted
-   all the way down.
+2. Feeds are not yet reference counted down to the services: a service runs if any of its atoms is placed, not per subscriber.
 3. A settings card in the layout editor, so an extension ships no settings UI.
 4. Card size for `reading` is content-derived within a fixed width; do `atom` cards get a maximum?
 5. `behaviour` extensions: a review policy for community code that touches input.

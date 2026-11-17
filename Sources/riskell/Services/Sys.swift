@@ -12,10 +12,14 @@ final class Sys {
     private var lastHist = Date.distantPast
     private var batSource: CFRunLoopSource?
     private var smoothW: Double?
+    private var running = false          // the audio listeners are installed once and stay (they only fire on a change); while stopped they read nothing
+    private var listening = false
 
     init(store: Store) { self.store = store }
 
     func start() {
+        guard !running else { return }
+        running = true
         sampleCPU(); readBattery(); readPower(); readVolume(); readMic()
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in self?.sampleCPU(); self?.readPower(); self?.onTick?() }
         timer?.tolerance = 0.5
@@ -26,10 +30,15 @@ final class Sys {
             me.readBattery(); me.readPower()
         }, ctx).takeRetainedValue()
         CFRunLoopAddSource(CFRunLoopGetMain(), batSource, .defaultMode)
-        listenVolume()
+        if !listening { listening = true; listenVolume() }
     }
 
-    func stop() { timer?.invalidate(); if let s = batSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), s, .defaultMode) } }
+    func stop() {
+        running = false
+        timer?.invalidate(); timer = nil
+        if let s = batSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), s, .defaultMode) }
+        batSource = nil
+    }
 
     // MARK: CPU + memory
 
@@ -137,6 +146,7 @@ final class Sys {
         return dev
     }
     private func readVolume() {
+        guard running else { return }
         let dev = outputDevice()
         guard dev != kAudioObjectUnknown else { return }
         var vol = Float32(0), muted = UInt32(0)
@@ -150,6 +160,7 @@ final class Sys {
     }
     /// The default microphone's level and mute (the volume atom's caption).
     private func readMic() {
+        guard running else { return }
         let dev = AudioHW.defaultDevice(input: true)
         guard dev != kAudioObjectUnknown else { store.set(mic: -1, muted: false); return }
         store.set(mic: AudioHW.volume(dev, input: true).map { Int(($0 * 100).rounded()) } ?? -1, muted: AudioHW.muted(dev, input: true) ?? false)

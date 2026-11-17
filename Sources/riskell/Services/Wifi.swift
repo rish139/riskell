@@ -12,6 +12,7 @@ final class Wifi: NSObject, CWEventDelegate, CLLocationManagerDelegate {
     private var dyn: SCDynamicStore?
     private var loc: CLLocationManager?
     private var askedAtStart = false
+    private var src: CFRunLoopSource?
 
     init(store: Store) { self.store = store; super.init() }
 
@@ -25,7 +26,8 @@ final class Wifi: NSObject, CWEventDelegate, CLLocationManagerDelegate {
         }, &ctx)
         if let dyn {
             SCDynamicStoreSetNotificationKeys(dyn, ["State:/Network/Global/IPv4", "State:/Network/Global/IPv6"] as CFArray, nil)
-            if let src = SCDynamicStoreCreateRunLoopSource(nil, dyn, 0) { CFRunLoopAddSource(CFRunLoopGetMain(), src, .defaultMode) }
+            src = SCDynamicStoreCreateRunLoopSource(nil, dyn, 0)
+            if let src { CFRunLoopAddSource(CFRunLoopGetMain(), src, .defaultMode) }
         }
         // macOS shows Wi-Fi names only to an app that was allowed Location: ask once (the bundle's purpose string explains why)
         if Bundle.main.bundleIdentifier != nil {
@@ -33,6 +35,12 @@ final class Wifi: NSObject, CWEventDelegate, CLLocationManagerDelegate {
             if m.authorizationStatus == .notDetermined { askedAtStart = true; m.requestAlwaysAuthorization() }
         }
         read()
+    }
+
+    func stop() {
+        try? client.stopMonitoringAllEvents()
+        if let src { CFRunLoopRemoveSource(CFRunLoopGetMain(), src, .defaultMode) }
+        src = nil; dyn = nil; loc = nil; askedAtStart = false
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
