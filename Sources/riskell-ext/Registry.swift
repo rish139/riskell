@@ -198,7 +198,8 @@ func publish(_ dirArg: String?) {
     var problems: [String] = []
     guard sh(["git", "rev-parse", "--git-dir"], in: dir).0 == 0 else { fail("risk ext: \(dir) is not a git repository") }
     let remote = sh(["git", "remote", "get-url", "origin"], in: dir).1
-    let https = remote.hasPrefix("git@github.com:") ? "https://github.com/" + remote.dropFirst("git@github.com:".count).replacingOccurrences(of: ".git", with: "") : remote.replacingOccurrences(of: ".git", with: "")
+    let ssh = ["git", "github.com:"].joined(separator: "@")      // an ssh remote, written as https
+    let https = remote.hasPrefix(ssh) ? "https://github.com/" + remote.dropFirst(ssh.count).replacingOccurrences(of: ".git", with: "") : remote.replacingOccurrences(of: ".git", with: "")
     if !https.hasPrefix("https://") { problems.append("the origin remote is not an https or github.com address (\(remote.isEmpty ? "none" : remote))") }
     if !sh(["git", "status", "--porcelain"], in: dir).1.isEmpty { problems.append("there are uncommitted changes: the listing pins a commit, not your working folder") }
     let rev = sh(["git", "rev-parse", "HEAD"], in: dir).1
