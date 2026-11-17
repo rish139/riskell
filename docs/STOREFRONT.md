@@ -26,6 +26,13 @@ version, license, kit and atoms; the tag; and `risk ext validate`. On every merg
 the storefront page and serves both from GitHub Pages. Still to add to CI: a build against the current kit and the previous one, the render matrix
 (`docs/EXTENSION-KIT.md` section 6) with its images attached to the pull request, and an idle-CPU measurement (`scripts/resource-check`).
 
+## Pictures
+
+A listing shows a picture of the widget: its `preview`, a PNG inside the repository at the pinned commit (the manifest's `preview`; at least 600 px wide,
+up to 500 KB). The registry's check verifies it exists at that commit; the page build copies it in, so the site is self-contained. `risk ext publish`
+asks for it. The ones for what ships with riskell are rendered by riskell itself from fake data: `scripts/make-previews first-party` writes
+`docs/images/store/<id>.png` (the widget on a bar and the card it opens). An author can do the same with `riskell --snap` or take a screenshot.
+
 ## First residents
 
 The atoms that ship with riskell are the first listings (clock, weather, AI usage, system, volume, network, windows), marked `bundled`: they are in

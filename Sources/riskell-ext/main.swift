@@ -94,6 +94,11 @@ func validateManifest(_ dir: String) -> [String: Any]? {
             }
         }
     }
+    if let pv = j["preview"] as? String {
+        let f = dir + "/" + pv
+        if !pv.lowercased().hasSuffix(".png") || !fm.fileExists(atPath: f) { report("manifest.preview", "riskell.json", nil, "preview \"\(pv)\" is not a PNG in the repository", fix: "add the picture, e.g. docs/preview.png") }
+        else if let size = (try? fm.attributesOfItem(atPath: f))?[.size] as? Int, size > 500_000 { report("manifest.preview", "riskell.json", nil, "preview is \(size / 1000) KB (500 KB at most)", fix: "shrink it") }
+    }
     if let a = j["atoms"] as? [String] {
         var seen = Set<String>()
         for id in a where !matches(id, "^[A-Za-z0-9_-]+$") || !seen.insert(id).inserted { report("manifest.atoms", "riskell.json", nil, "atom id \"\(id)\" is not plain or is repeated", fix: "letters, digits, - and _, each once") }

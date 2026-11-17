@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+"""Storefront preview pictures, rendered by riskell itself from fake data: a listing's widget on a bar, and the card it opens.
+
+    scripts/make-previews first-party [id ...]     docs/images/store/<id>.png for the atoms that ship with riskell (their listings' `preview`)
+    scripts/make-previews samples OUTDIR SPEC.json  the made-up listings of the registry's preview mode (riskell-registry/preview/samples-spec.json)
+
+Needs a release build, Pillow and NumPy (see make-screenshots, whose scratch-instance helpers this uses). Nothing of yours is read or written.
+"""
+import importlib.machinery, importlib.util, json, os, shutil, sys
+from PIL import Image, ImageDraw, ImageFilter
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+loader = importlib.machinery.SourceFileLoader("ms", HERE + "/make-screenshots")
+spec = importlib.util.spec_from_loader("ms", loader); ms = importlib.util.module_from_spec(spec); loader.exec_module(ms)
+ROOT = os.path.dirname(HERE)
+W, H = 1200, 675
+
+# listing id -> (the islands drawn on the bar, one atom list each; the cards to show: (card id, atoms that open it))
+FIRST_PARTY = {
+    "clock":   ([["ext:clock"]], [("date", ["ext:clock"])]),
+    "weather": ([["ext:weather"]], [("weather", ["ext:weather"])]),
+    "usage":   ([["ext:usage"]], [("usage", ["ext:usage"])]),
+    "system":  ([["ext:bat"], ["ext:fan"], ["ext:cpu"]], [("fan", ["ext:fan"]), ("vitals", ["ext:cpu"])]),
+    "volume":  ([["ext:vol"]], [("vol", ["ext:vol"])]),
+    "network": ([["ext:net"]], [("net", ["ext:net"])]),
+    "windows": ([["ext:workspaces", "ext:appicon"]], [("workspaces", ["ext:workspaces"])]),
+}
+
+def backdrop():
+    im = Image.open(ms.TMP + "/wallpaper.png").convert("RGB").resize((W, H), Image.LANCZOS)
+    return im.convert("RGBA")
+
+def shadow(base, im, pos, blur=18, alpha=140):
+    sh = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    mask = im.getchannel("A").point(lambda v: alpha if v > 8 else 0)
+    sh.paste((0, 0, 0, 255), (pos[0], pos[1] + 8), mask)
+    sh = sh.filter(ImageFilter.GaussianBlur(blur))
+    base.alpha_composite(sh)
+
+def compose(bar, cards):
+    """bar: the bar islands (images); cards: the card pictures. A widget on a bar, its card hanging below it. A tall card is shown from the top, at a size
+    that can be read, and fades out at the bottom of the picture."""
+    canvas = backdrop()
+    row = ms.join(bar, gap=26)
+    s = min(1.6, (W - 110) / row.width)
+    row = row.resize((round(row.width * s), round(row.height * s)), Image.LANCZOS)
+    x = (W - row.width) // 2
+    shadow(canvas, row, (x, 30)); canvas.alpha_composite(row, (x, 30))
+    if cards:
+        deck = ms.join(cards, gap=34)
+        top = 30 + row.height + 26
+        avail = H - top - 24
+        fit = min((W - 110) / deck.width, avail / deck.height)
+        s = min(fit, 1.7) if fit > 1 else min(1.0, (W - 110) / deck.width)      # a small card is enlarged to fill the picture; a tall one is shown from the top
+        deck = deck.resize((round(deck.width * s), round(deck.height * s)), Image.LANCZOS)
+        avail = H - top
+        if deck.height > avail:
+            deck = deck.crop((0, 0, deck.width, avail))
+            fade = Image.new("L", deck.size, 255)
+            px = fade.load()
+            for y in range(deck.height):
+                a = 255 if y < avail - 90 else int(255 * (avail - y) / 90)
+                for xx in range(deck.width): px[xx, y] = a
+            deck.putalpha(Image.composite(deck.getchannel("A"), Image.new("L", deck.size, 0), fade))
+        x = (W - deck.width) // 2
+        shadow(canvas, deck, (x, top)); canvas.alpha_composite(deck, (x, top))
+    return canvas.convert("RGB")
+
+def bar_islands(atoms_per_island, cfg=None, tag="bar"):
+    d = ms.TMP + "/pv-" + tag
+    only = lambda L: (L["top"].update(start=[], center=[], end=[ms.isl("i%d" % i, a) for i, a in enumerate(atoms_per_island)]), L["on"].update(right=False))
+    ms.run([], d, ms.layout(only), cfg=cfg, stay=5)
+    got = ms.islands(Image.open(d + "/top.png").convert("RGBA"))
+    return got
+
+def make(listing, islands, cards, out, cfg=None):
+    bar = bar_islands(islands, cfg, listing)
+    pics = [p for p in (ms.card_pic(cid, atoms, cfg=cfg) for cid, atoms in cards) if p is not None]
+    compose(bar, pics).save(out, optimize=True)
+    print("wrote %s  %d KB" % (os.path.relpath(out, ROOT) if out.startswith(ROOT) else out, os.path.getsize(out) // 1024))
+
+def pill_cfg(pills, theme="gruvbox-dark-medium"):
+    path = ms.TMP + "/pv-config-%s.json" % theme
+    json.dump({"theme": theme, "pills": pills, "location": {"name": "Hamburg", "lat": 53.55, "lon": 10.0}, "usage": {"claude": True}, "wm": "command",
+               "wmCommand": {"state": ms.TMP + "/state.sh"}}, open(path, "w"))
+    return path
+
+if __name__ == "__main__":
+    if not os.path.exists(ms.BIN): sys.exit("make-previews: build first (swift build -c release)")
+    open(ms.TMP + "/state.sh", "w").write(ms.STATE); os.chmod(ms.TMP + "/state.sh", 0o755); ms.wallpaper()
+    mode = sys.argv[1] if len(sys.argv) > 1 else ""
+    try:
+        if mode == "first-party":
+            out = ROOT + "/docs/images/store"; os.makedirs(out, exist_ok=True)
+            for id in (sys.argv[2:] or FIRST_PARTY):
+                islands, cards = FIRST_PARTY[id]
+                make(id, islands, cards, "%s/%s.png" % (out, id))
+        elif mode == "samples" and len(sys.argv) > 2:
+            outdir = sys.argv[2]; os.makedirs(outdir, exist_ok=True)
+            sp = json.load(open(sys.argv[3]))
+            pills = [dict(id=s["id"], name=s["name"], run=s["run"], every=600) for s in sp if s["kind"] != "theme"]
+            for s in sp:
+                if s["kind"] == "theme":
+                    cfg = pill_cfg([], s["theme"])
+                    make(s["id"], [["ext:bat", "ext:clock"], ["ext:cpu"], ["ext:net", "ext:vol"]], [("weather", ["ext:weather"])], "%s/%s.png" % (outdir, s["id"]), cfg)
+                else:
+                    cfg = pill_cfg(pills)
+                    make(s["id"], [["pill:" + s["id"]]], [("pill." + s["id"], ["pill:" + s["id"]])], "%s/%s.png" % (outdir, s["id"]), cfg)
+        else:
+            sys.exit(__doc__)
+    finally:
+        shutil.rmtree(ms.TMP, ignore_errors=True)

@@ -206,7 +206,8 @@ func publish(_ dirArg: String?) {
     if !sh(["git", "tag", "--points-at", rev], in: dir).1.split(separator: "\n").contains(Substring("v" + version)) { problems.append("HEAD has no tag v\(version) (`git tag v\(version) && git push --tags`)") }
     if !fm.fileExists(atPath: dir + "/LICENSE") { problems.append("no LICENSE file") }
     var listing: [String: Any] = ["id": id, "kind": kind, "name": name, "summary": summary, "repo": https, "rev": rev, "version": version, "license": license]
-    for k in ["kit", "atoms", "keywords", "authors", "homepage"] { if let v = j[k] { listing[k] = v } }
+    for k in ["kit", "atoms", "keywords", "authors", "homepage", "preview"] { if let v = j[k] { listing[k] = v } }
+    if j["preview"] == nil { problems.append("no \"preview\" in riskell.json: a picture of the widget is what the storefront shows (a PNG, at least 600 px wide, up to 500 KB)") }
     let d = (try? JSONSerialization.data(withJSONObject: listing, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])) ?? Data()
     print(String(decoding: d, as: UTF8.self))
     FileHandle.standardError.write(Data((problems.isEmpty ? "\nready. Save this as listings/\(id).json in https://github.com/rish139/riskell-registry and open a pull request.\n"

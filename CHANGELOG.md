@@ -27,6 +27,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   shows the change between the two commits and applies only with `--yes`. `risk` rebuilds only when `riskell-ext` exits 10.
 - The registry repository: listing schema, `scripts/check-listing.py`, the index and storefront page builders, and CI (pull-request checks and GitHub Pages).
 
+- Storefront pictures: listings carry a `preview` PNG (the manifest's `preview`, checked by `risk ext validate` and `publish`); `scripts/make-previews` renders them with riskell, for what ships with it
+  (`docs/images/store/`).
+
 ### Fixed
 - `risk ext new` scaffolded extensions that depended on RiskellKit 1.0, which does not exist, so they could not build; they now depend on the kit's
   current minor (`.upToNextMinor(from: "0.6.0")`, `"kit": "^0.6"`), as does `Examples/load-ext`.
