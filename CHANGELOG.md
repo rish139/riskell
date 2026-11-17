@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-17
+
 ### Added
 - Two opt-in AI usage sources, both off by default and never enabled by `--yes` alone. `usage.claudeLimits` shows your plan's real Claude limits: it
   reads the Claude Code login token from the login keychain and asks Anthropic's usage endpoint. This is unofficial: Anthropic's terms do not allow
