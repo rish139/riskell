@@ -1,0 +1,14 @@
+{
+  "pins" : [
+    {
+      "identity" : "riskell-kit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/rish139/riskell-kit",
+      "state" : {
+        "revision" : "840e8a0501d425d899ad13b0a2ac0639bc6d7d08",
+        "version" : "0.6.0"
+      }
+    }
+  ],
+  "version" : 2
+}

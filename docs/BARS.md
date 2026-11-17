@@ -23,7 +23,8 @@ editable). **Every atom has a horizontal and a vertical form and fits any bar** 
 An island is a pill (or, on a hug bar, a stretch of band) holding one or more atoms separated by a hairline.
 
 Atoms are registered in one list, `Sources/riskell/Registry.swift`: id, editor name, how to draw it, and the popout card it opens (id, size per
-stage, content). The bars, edit mode, the popout host and the layout validation all read that list; a new atom is its own file plus one line there.
+stage, content). It is built from the script pills and the packages in `extensions.lock.json` (`ext:<id>`); no atom is built into the application.
+The bars, edit mode, the popout host and the layout validation all read that list. A new atom is a package: [ADDING-AN-ATOM.md](ADDING-AN-ATOM.md).
 
 House rules for the two forms (match them for any new atom):
 

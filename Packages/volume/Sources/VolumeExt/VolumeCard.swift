@@ -37,7 +37,7 @@ struct VolumeCard: View {
         }
         .padding(.horizontal, Self.pad).padding(.top, 14).padding(.bottom, 10)
         .frame(width: Self.width, alignment: .topLeading)
-        .background(MeterClock())
+        .background { if !m.meterable { MeterClock() } }      // with a tap the audio callback steps the meter; the clock is the fallback
         .onAppear { Mixer.shared.start() }
         .onDisappear { Mixer.shared.stop() }
         .onChange(of: m.streams.count) { _, _ in PopState.shared.refit() }

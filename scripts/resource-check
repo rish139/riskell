@@ -1,0 +1,37 @@
+#!/bin/zsh
+# CPU, memory and threads of riskell at rest, with each card open, and under system load. Scratch instances only (--no-reserve, their own event
+# socket and caches, RISKELL_LAYOUT / RISKELL_CONFIG at the files you give); the running bar is never touched.
+#   scripts/resource-check [layout.json] [config.json]            (defaults: ~/.config/riskell/layout.json, an empty config)
+#   RISKELL_BIN=/path/to/riskell scripts/resource-check ...       compare another build (an A/B run)
+#   RUNS=3 scripts/resource-check ...                             repeat each scenario (judge by the mean)
+#   ONLY="idle card:vol" scripts/resource-check ...               just those scenarios (idle, card:<id>, loaded)
+# Per scenario: 10 s to settle, then the CPU seconds the process used over the next 30 s (idle, load) or 20 s (a card), the resident memory and the
+# thread count at the end. 0.30 s over 30 s is 1 % of one core. Single runs are noisy by about +-0.05 s: judge by RUNS=3.
+root=${0:A:h:h}
+bin=${RISKELL_BIN:-$root/.build/release/riskell}
+layout=${1:-$HOME/.config/riskell/layout.json}; cfg=${2:-/dev/null}; runs=${RUNS:-1}; only=${ONLY:-}
+out=$(mktemp -d)
+secs() { echo "$1" | awk -F: '{ if (NF == 3) print ($1*3600)+($2*60)+$3; else print ($1*60)+$2 }'; }
+want() { [[ -z $only || " $only " == *" $1 "* ]]; }
+one() {      # one <label> <window seconds> [ENV=VALUE ...]
+  local label=$1 win=$2; shift 2
+  env "$@" RISKELL_CONFIG=$cfg RISKELL_LAYOUT=$layout RISKELL_CACHE_DIR=$out/cache RISKELL_DEMO=1 $bin --no-usage --no-reserve --no-claude --fake-media --snap $out --stay $((win + 14)) >/dev/null 2>&1 &
+  local pid=$!
+  sleep 10
+  local t0=$(secs $(ps -o cputime= -p $pid)); sleep $win; local t1=$(secs $(ps -o cputime= -p $pid))
+  local rss=$(ps -o rss= -p $pid | awk '{printf "%.0f", $1/1024}')
+  local th=$(ps -M -p $pid | tail -n +2 | wc -l | tr -d ' ')
+  printf "%-16s %6.2f s / %ss  %5.2f %%  %4s MB  %3s threads\n" $label $(echo "$t1 - $t0" | bc) $win $(echo "($t1 - $t0) * 100 / $win" | bc -l) $rss $th
+  wait $pid 2>/dev/null
+}
+mkdir -p $out/cache
+echo "build: $bin"; echo "layout: $layout"
+if want idle; then for i in $(seq $runs); do one idle 30; done; fi
+for c in date bat vitals fan vol net weather usage workspaces; do want "card:$c" && for i in $(seq $runs); do one "card:$c" 20 RISKELL_FORCE_HOT=$c; done; done
+# system load: busy loops on every core while riskell idles
+if want loaded; then
+cores=$(sysctl -n hw.ncpu); pids=(); for i in $(seq $cores); do yes >/dev/null & pids+=($!); done
+one "idle, loaded" 30
+kill $pids 2>/dev/null; wait 2>/dev/null
+fi
+rm -rf $out

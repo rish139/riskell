@@ -98,7 +98,6 @@ app.setActivationPolicy(.accessory)
 
 events.start()
 
-Clock.shared.start()
 print("window manager:", wm.name)
 wm.start()
 Extensions.apply(AppConfig.shared)      // the optional extensions: gestures start only when config.json says "gestures": "riskell"

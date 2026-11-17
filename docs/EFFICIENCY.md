@@ -11,6 +11,26 @@ riskell runs all day, so what it costs at rest is a feature. The rules, what was
 - **Setters ignore unchanged values**, so a reading that did not change redraws nothing.
 - **Measure, then change.** Every efficiency change is an A/B on the same binary with `scripts/idle-cpu` (three runs per variant) and a profile.
 
+## Resource check (every atom a package)
+`scripts/resource-check [layout] [config]` runs scratch instances and prints CPU, resident memory and threads: at rest, with each card held open,
+and at rest while every core is busy with other work (`RUNS=3` repeats each scenario, `ONLY="idle card:vol"` picks some, `RISKELL_BIN=` compares
+another build). CPU is the process's CPU time over the window; 0.30 s over 30 s is 1 % of one core. Measured on the 14-inch MacBook Pro, the
+author's layout (every atom placed), the build just before the atoms became packages against the build after:
+
+| Scenario | Before (atoms built in) | After (all packages) |
+|---|---|---|
+| at rest, mean of 3 | 0.37 s / 30 s (1.2 %), 102 to 108 MB, 7 to 9 threads | 0.33 s / 30 s (1.1 %), 104 to 110 MB, 6 to 9 threads |
+| at rest, every core busy | 0.11 s / 30 s | 0.09 s / 30 s |
+| card open: date, battery, workspaces, weather, usage | 1.7 to 2.0 % | 1.4 to 1.9 % |
+| card open: fans, network | 2.8 %, 3.6 % | 2.7 %, 3.5 % |
+| card open: CPU and memory (vitals) | 6.6 % | 6.1 % |
+| card open: volume (mixer) | 8.1 % | 4.6 to 8.4 % (was 12.5 % in the first package build) |
+
+Reading it: nothing at rest costs more than before, memory is the same, and a package adds no threads. The expensive things are open cards,
+not the bars: the mixer (a tap on the audio output and a meter at 8 Hz) and the vitals card (a process scan every other second and a redraw
+every second) are the two to watch. The mixer's meter now steps from the audio callback instead of a clock, and redraws at 4 Hz while nothing
+plays. Single runs are noisy by about 0.1 s; compare means.
+
 ## What runs at rest (the author's layout, 14" notch display)
 | Source | Cadence | Cost |
 |---|---|---|

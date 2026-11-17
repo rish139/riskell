@@ -32,6 +32,10 @@ final class AudioTap {
     private var pL: Float = 0, pR: Float = 0
     private var g: Float = 1
     private(set) var ok = false
+    /// Called on the main queue at most every 0.125 s, from the audio callback itself: the meter steps when sound data arrives, so the card needs no
+    /// clock of its own while a tap is running.
+    var onKick: (() -> Void)?
+    private var lastKick: UInt64 = 0
     var gain: Double { get { lock.lock(); defer { lock.unlock() }; return Double(g) } set { lock.lock(); g = Float(max(0, min(1, newValue))); lock.unlock() } }
 
     /// processes == nil: everything that plays (a stereo mixdown of the whole output). Otherwise just those processes.
@@ -72,6 +76,10 @@ final class AudioTap {
             var pl: Float = 0, pr: Float = 0
             vDSP_maxmgv(l, vDSP_Stride(ls), &pl, vDSP_Length(frames)); vDSP_maxmgv(r, vDSP_Stride(rs), &pr, vDSP_Length(frames))
             self.lock.lock(); self.pL = max(self.pL, pl); self.pR = max(self.pR, pr); let gain = self.g; self.lock.unlock()
+            if let kick = self.onKick {
+                let now = DispatchTime.now().uptimeNanoseconds
+                if now &- self.lastKick >= 125_000_000 { self.lastKick = now; DispatchQueue.main.async { kick() } }
+            }
             guard playback else { return }
             let outs = UnsafeMutableAudioBufferListPointer(outData)
             for (i, ob) in outs.enumerated() {
@@ -118,7 +126,7 @@ final class Mixer: ObservableObject {
     private(set) var streams: [AudioStream] = []
 
     private var sink: AudioTap?
-    private var users = 0, tick = 0
+    private var users = 0, tick = 0, wasQuiet = false
     private var peakAcc = 0.0                             // the loudest peak since the last history sample
     private var appTaps: [String: (tap: AudioTap, ids: [AudioObjectID], pid: Int32, bundle: String, name: String)] = [:]
     private var lastGain: [String: Double] = [:]       // what a muted app goes back to
@@ -134,7 +142,7 @@ final class Mixer: ObservableObject {
             hist = (0..<240).map { i in LoudSample(t: now - Double(240 - i) * 0.25, db: Demo.dbAt(i), vol: Double(VolumeState.shared.volume)) }
         }
         if let last = hist.last, Date().timeIntervalSince1970 - last.t > 1 { hist.append(LoudSample(t: Date().timeIntervalSince1970, db: .nan, vol: Double(VolumeState.shared.volume))) }
-        if ProcessInfo.processInfo.environment["RK_NO_TAP"] == nil { sink = AudioTap(processes: nil, playback: false); meterable = sink?.ok ?? false }
+        if ProcessInfo.processInfo.environment["RK_NO_TAP"] == nil { sink = AudioTap(processes: nil, playback: false); meterable = sink?.ok ?? false; sink?.onKick = { [weak self] in self?.kick() } }
         refreshDevices(); refreshStreams()
     }
     func stop() {
@@ -146,7 +154,10 @@ final class Mixer: ObservableObject {
 
     private static func db(_ p: Float) -> Double { p > 1e-5 ? max(-60, 20 * log10(Double(p))) : -99 }
 
-    /// One meter step. The card's `MeterClock` calls it every 0.125 s while the card is open; the mixer owns no timer.
+    /// The tap's audio callback asks for a step (see `AudioTap.onKick`); only while the card is open.
+    func kick() { if users > 0 { step() } }
+
+    /// One meter step: every 0.125 s while the card is open, from the tap's audio callback (or the card's `MeterClock` when there is no tap).
     func step() {
         tick += 1
         let now = Date().timeIntervalSince1970
@@ -169,7 +180,10 @@ final class Mixer: ObservableObject {
         if !appTaps.isEmpty { streams = streams.map { var x = $0; x.level = levels[$0.id] ?? 0; return x } }
         if tick % 8 == 0 { refreshStreams() }
         if tick % 16 == 1 { refreshDevices() }
-        objectWillChange.send()
+        // silence: nothing moves between history samples (every other step), so the card is redrawn at 4 Hz instead of 8 Hz
+        let quiet = levelL < 0.005 && levelR < 0.005 && wasQuiet && appTaps.isEmpty
+        wasQuiet = levelL < 0.005 && levelR < 0.005
+        if !quiet || tick % 2 == 0 { objectWillChange.send() }
     }
 
     // MARK: devices

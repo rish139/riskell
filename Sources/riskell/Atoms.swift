@@ -11,16 +11,3 @@ struct AtomView: View {
         else if id == "compat" { CompatAtom() }
     }
 }
-
-struct StubAtom: View {
-    let text: String
-    var vertical = false
-    var body: some View {
-        Text(text).foregroundStyle(Pal.text3)
-            .rotationEffect(.degrees(vertical ? -90 : 0)).fixedSize()
-            .frame(width: vertical ? 14 : nil, height: vertical ? 40 : nil)
-    }
-}
-
-
-

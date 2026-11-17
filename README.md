@@ -31,7 +31,7 @@ The project began as a port of a Quickshell setup from Linux. It works alongside
 [Planned](#planned) ·
 [Troubleshooting](#troubleshooting) ·
 [Documentation](#documentation) ·
-[License and contributing](#license-and-contributing)
+[License](#license)
 
 ---
 
@@ -493,29 +493,11 @@ scroll guard also needs the Accessibility permission; until it is granted, riske
 
 The pictures in this document are produced by `scripts/make-screenshots` from fake data, so that they can be regenerated after a change.
 
-## License and contributing
+## License
 
-The application is **source-available, not open source**. It is licensed under the
-[PolyForm Noncommercial License 1.0.0](LICENSE): it may be used, modified and shared for any noncommercial purpose, including personal
-use, research, hobby projects, and use by charities, educational institutions and government bodies. Commercial use requires a separate
-license from the author; open an issue to inquire.
+The application is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE); commercial use needs a license from the author
+(open an issue). [RiskellKit](https://github.com/rish139/riskell-kit), `risk ext`, the manifest schema and the examples are Apache-2.0, and
+an extension keeps whatever license its author chooses. Colour schemes: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-| Part | License |
-|---|---|
-| the application (`Sources/riskell`, `Sources/riskell-setup`, scripts, docs) | PolyForm Noncommercial 1.0.0 |
-| [`RiskellKit`](https://github.com/rish139/riskell-kit) (its own repository), `risk ext` (`Sources/riskell-ext`), the manifest schema, `Examples/` | Apache-2.0 (each folder and repository contains its own `LICENSE`) |
-| extensions written by others | the license their authors choose, commercial included |
-
-Running riskell to develop and test an extension, including a commercial one, does not require a commercial license. Third-party
-material (colour schemes) is listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
-
-Contributing is designed to add as little friction as possible:
-
-- **Extensions: no agreement.** An extension lives in its own repository under its author's license.
-- **The Apache-2.0 parts** (the kit, `risk ext`, the schema and the examples): contributions are accepted under Apache-2.0 on the same
-  terms as the project. No agreement and no sign-off are required.
-- **The application itself** (PolyForm): a one-time [Contributor License Agreement](CLA.md), signed with a comment on the first pull
-  request. It exists only so that the application can also be offered under commercial licenses; copyright stays with the contributor.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Vulnerabilities are reported privately, as
-described in [SECURITY.md](SECURITY.md).
+Contributing: [CONTRIBUTING.md](CONTRIBUTING.md) (a one-time [CLA](CLA.md) for the application only; nothing for extensions or the Apache-2.0
+parts), the [Code of Conduct](CODE_OF_CONDUCT.md), and private vulnerability reports in [SECURITY.md](SECURITY.md).
