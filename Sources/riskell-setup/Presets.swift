@@ -43,7 +43,7 @@ enum Presets {
     }
 
     private static var top: [String: Any] {
-        bar(start: [island("compat", ["compat"])], end: [island("status", ["bat", "clock"])])
+        bar(start: [island("compat", ["compat"])], end: [island("status", ["bat", "ext:clock"])])
     }
 
     private static var link: [String: Any] { island("link", ["net", "vol"]) }

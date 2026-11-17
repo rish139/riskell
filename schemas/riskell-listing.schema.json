@@ -57,9 +57,10 @@
     "home": {
       "enum": [
         "app",
-        "kit"
+        "kit",
+        "package"
       ],
-      "description": "app: stays in the application (it needs internals the kit does not expose). kit: can move out as a package once the kit's feeds carry what it reads."
+      "description": "package: already moved out (a package in this repository, installed by extensions.lock.json). app: stays in the application (it needs internals the kit does not expose). kit: can move out as a package once the kit's feeds carry what it reads."
     },
     "homeNote": {
       "type": "string"

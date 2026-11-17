@@ -59,7 +59,7 @@ enum SelfTest {
 
     /// Every preset must be accepted by riskell itself: `riskell --dump` with RISKELL_LAYOUT pointing at the generated file.
     static func presets(repo: URL?) {
-        let known: Set<String> = ["workspaces", "appicon", "usage", "fan", "bat", "clock", "vol", "net", "cpu", "weather", "compat"]
+        let known: Set<String> = ["workspaces", "appicon", "usage", "fan", "bat", "ext:clock", "vol", "net", "cpu", "weather", "compat"]
         for p in Preset.allCases {
             for mode in BarMode.allCases {
                 for cards in [CardStyle.flush, CardStyle.chat] {

@@ -209,17 +209,17 @@ if args.contains("--edit-test") {      // debug: the drop rules, driven through 
         func pt(_ b: BarKey, _ x: CGFloat, _ y: CGFloat) -> CGPoint { let w = c.windows[b]!.frame; return CGPoint(x: w.minX + x, y: w.maxY - y) }
         let fr = c.frames[.top] ?? [:]
         print("edit-test frames top:", fr.keys.sorted())
-        if let bat = fr["atom:bat"], let clk = fr["atom:clock"], let isl = fr["isl:status"] {
-            let before = c.plan("clock", mouse: pt(.top, bat.minX + 2, bat.midY))
+        if let bat = fr["atom:bat"], let clk = fr["atom:ext:clock"], let isl = fr["isl:status"] {
+            let before = c.plan("ext:clock", mouse: pt(.top, bat.minX + 2, bat.midY))
             print("edit-test clock -> before bat:", before.map { "\($0.0)" } ?? "nil", "island", isl)
-            if let (d, _) = before { c.apply("clock", d) }
+            if let (d, _) = before { c.apply("ext:clock", d) }
             print("edit-test top end:", c.spec(.top).end.map { $0.atoms })
             _ = clk
         }
         let empty = c.plan("bat", mouse: pt(.top, 900, 28)); print("edit-test bat to empty middle:", empty.map { "\($0.0)" } ?? "nil")
         if let (d, _) = empty { c.apply("bat", d) }
         print("edit-test top:", c.spec(.top).start.map { $0.atoms }, c.spec(.top).end.map { $0.atoms })
-        print("edit-test clock on left (illegal):", c.plan("clock", mouse: pt(.left, 26, 400)) == nil ? "refused" : "ALLOWED")
+        print("edit-test clock on left (illegal):", c.plan("ext:clock", mouse: pt(.left, 26, 400)) == nil ? "refused" : "ALLOWED")
         fflush(stdout)
     }
 }

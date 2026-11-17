@@ -81,7 +81,7 @@ A card is a plain SwiftUI view with a static size. In `Registry.swift`, `card(_:
 
 - `id`: the popout id the atom passes to `.popout(...)`.
 - `size`: a closure from the stage (1 is the glance, 2 is expanded) to a `CGSize`. Use `{ _ in FooCard.size }` for one size, or
-  `{ DateCard.size(stage: $0) }` when the size depends on the stage.
+  a closure on the stage when the size depends on it (the clock's date card, in `Packages/clock`, is 252 tall at a glance and grows when expanded).
 - `content`: a closure that returns the view, `{ FooCard() }`.
 
 ```swift

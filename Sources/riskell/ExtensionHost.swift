@@ -56,6 +56,7 @@ final class PopoutBridge: PopoutHooks {
     func reanchor(_ id: String, _ anchor: CGRect, island: CGRect?) { Popout.shared.reanchor(id, anchor, island: island) }
     func leave(_ id: String) { Popout.shared.leave(id) }
     func toggleStage(_ id: String) { Popout.shared.toggleStage(id) }
+    func setStage(_ stage: Int) { Popout.shared.setStage(stage) }
     func holdOpen() { Popout.shared.holdOpen = true }
 }
 
@@ -143,7 +144,7 @@ struct CustomAtomView<A: CustomAtom>: View {
     var body: some View {
         Group {
             if vertical { atom.vertical(env).frame(maxWidth: 40).clipped() }
-            else { atom.horizontal(env).fixedSize(horizontal: true, vertical: false).frame(maxWidth: maxWidth, maxHeight: G.pill, alignment: .leading).clipped() }
+            else { atom.horizontal(env).fixedSize(horizontal: true, vertical: false).frame(maxWidth: maxWidth, maxHeight: G.pill, alignment: .leading).clipped().fixedSize(horizontal: true, vertical: false) }      // hugs its content, at most `maxWidth` (a bare maxWidth frame would grow to the room the bar offers)
         }
         .modifier(ActiveWhenShown(attach: { life.attach() }, detach: { life.detach() }))
     }

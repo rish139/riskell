@@ -8,9 +8,9 @@ import RiskellKit
 final class Popout: ObservableObject {
     static let shared = Popout()
 
-    @Published private(set) var card: String? = nil     // the card on the panel (kept until the close spring is done)
+    @Published private(set) var card: String? = nil { didSet { PopState.shared.sync(card: card, stage: stage) } }     // the card on the panel (kept until the close spring is done)
     @Published private(set) var open = false           // the spring target
-    @Published private(set) var stage = 1                // 1 glance (closes on leave), 2 expanded (pinned: closes on a click elsewhere)
+    @Published private(set) var stage = 1 { didSet { PopState.shared.sync(card: card, stage: stage) } }                // 1 glance (closes on leave), 2 expanded (pinned: closes on a click elsewhere)
     @Published private(set) var edge = PopEdge.below
     /// A strip's card is pushed back inside the area between the top and bottom bars; the island it opens from floats by the margin part of
     /// that push (SwiftUI points, positive = down) so the two stay together. Zero for cards of the top and bottom bars.

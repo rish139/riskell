@@ -38,7 +38,6 @@ enum Registry {
         atom("usage", "AI usage", priority: 5, card: card("usage", size: { _ in UsageCard.size }) { UsageCard() }, blank: { _ in !AppConfig.shared.claudeEnabled && AppConfig.shared.opencodeWorkspace == nil }) { UsageAtom(vertical: $0) },
         atom("fan", "Fan", priority: 3, card: card("fan", size: { _ in FanCard.size }) { FanCard() }) { FanAtom(vertical: $0) },
         atom("bat", "Battery", priority: 9, card: card("bat", size: { _ in BatteryCard.size }) { BatteryCard() }) { BatAtom(vertical: $0) },
-        atom("clock", "Clock", priority: 9, card: card("date", size: { DateCard.size(stage: $0) }) { DateCard() }) { ClockAtom(vertical: $0) },
         atom("vol", "Volume", priority: 4, card: card("vol", size: { _ in VolumeCard.size }) { VolumeCard() }) { VolAtom(vertical: $0) },
         atom("net", "Network", priority: 4, card: card("net", size: { _ in NetworkCard.size }) { NetworkCard() }) { NetAtom(vertical: $0) },
         atom("cpu", "CPU", priority: 5, card: card("vitals", size: { _ in VitalsCard.size }) { VitalsCard() }) { CpuAtom(vertical: $0) },

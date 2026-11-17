@@ -1,3 +1,10 @@
 [
-
+  {
+    "entry" : "ClockPackage",
+    "id" : "clock",
+    "module" : "ClockExt",
+    "package" : "clock",
+    "path" : "Packages\/clock",
+    "product" : "ClockExt"
+  }
 ]

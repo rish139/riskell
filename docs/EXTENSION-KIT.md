@@ -13,6 +13,7 @@ result the only easy one (the API has no way to say "wrong"), not from reviewing
 | RiskellKit, in [its own repository](https://github.com/rish139/riskell-kit) (tokens, primitives, reading renderer, popout hook, extension API, feeds) | built; the app depends on it by URL |
 | the app draws pills and extension readings with the same kit code | built; snapshots identical to before the split |
 | `reading` and `atom` extensions, linked through `extensions.lock.json` | built, tested end to end (`Examples/load-ext`) |
+| the first built-in atom moved out: the clock is a package, `Packages/clock` (kit 0.2.0 added `PopState` for its two-stage card) | built; placed as `ext:clock`, an older layout.json's `clock` is read as it |
 | `risk ext` (`validate`, `new`, `add`, `remove`, `list`, `sync`) | built |
 | `schemas/riskell-extension.schema.json`, `AGENTS.md`, `docs/WRITING-EXTENSIONS.md` | written |
 | settings card in riskell preferences (EXTENSIONS) | built: `settings` in the manifest, written to `~/.config/riskell/ext/<id>.json`, applies at once; `riskell --ext-selftest` |

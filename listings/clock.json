@@ -4,13 +4,15 @@
   "name": "Clock",
   "kind": "atom",
   "builtin": true,
-  "summary": "Time and date, with a card holding the calendar.",
+  "summary": "Time with a seconds drain and the date, with a card holding today and a month calendar.",
   "license": "MIT",
   "repository": "https://github.com/rish139/riskell",
   "source": [
-    "Sources/riskell/ClockAtom.swift",
-    "Sources/riskell/DateCard.swift"
+    "Packages/clock/riskell.json",
+    "Packages/clock/Sources/ClockExt/ClockPackage.swift",
+    "Packages/clock/Sources/ClockExt/ClockFace.swift",
+    "Packages/clock/Sources/ClockExt/DateCard.swift"
   ],
-  "home": "kit",
-  "homeNote": "the first candidate: it needs only the minute feed"
+  "home": "package",
+  "homeNote": "the first built-in atom moved out of the application: a package in this repository, installed by extensions.lock.json, placed as ext:clock"
 }

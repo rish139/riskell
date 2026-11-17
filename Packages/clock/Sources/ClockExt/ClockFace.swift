@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
 
@@ -7,33 +10,8 @@ import RiskellKit
 /// On the left strip (`vertical`) it stands up as a column: HH over MM, the drain as a short bar under them, the meridiem chip
 /// (12 h), a hairline, then the date tier (MON over the day number). Same figures, same tones, same hover.
 /// Time comes from two TimelineViews (the minute, and the drain once a second) so only what changed is drawn.
-/// One timer for every clock reader, aligned to the second. `minute` only changes once a minute, so the digits and the date
-/// redraw once a minute and only the drain redraws every second.
-final class ClockSeconds: ObservableObject {
-    @Published private(set) var second = Calendar.current.component(.second, from: Date())
-    func set(_ s: Int) { if s != second { second = s } }
-}
-
-final class Clock: ObservableObject {
-    static let shared = Clock()
-    @Published private(set) var minute = Date()
-    /// Its own object: the atom observes only `minute`, so the seconds tick redraws just the drain.
-    let seconds = ClockSeconds()
-    private var timer: DispatchSourceTimer?
-    func start() {
-        let t = DispatchSource.makeTimerSource(queue: .main)
-        t.schedule(deadline: .now() + (1 - Date().timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1)), repeating: 1, leeway: .milliseconds(15))
-        t.setEventHandler { [unowned self] in
-            let now = Date(), s = Calendar.current.component(.second, from: now)
-            seconds.set(s)
-            if s == 0 { minute = now }
-        }
-        t.resume(); timer = t
-    }
-}
-
-struct ClockAtom: View {
-    @ObservedObject private var clock = Clock.shared
+struct ClockFace: View {
+    @ObservedObject private var clock = ClockModel.shared
     @State private var hot = false
     let vertical: Bool
     static let twelve = (DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: .current) ?? "").contains("a")

@@ -1,10 +1,13 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
 
 /// The date card. Stage 1 (hover): today at a glance. Stage 2 (click): the same card grows down into the month.
 /// The panchang rows (a Hindu calendar detail) are not shown: there is no data source for them yet.
 struct DateCard: View {
-    @ObservedObject private var pop = Popout.shared
+    @ObservedObject private var pop = PopState.shared
     @State private var viewMonth = Date()          // any date within the month shown
     @State private var selected = Date()
     @State private var hoverDay: Date?
@@ -39,7 +42,7 @@ struct DateCard: View {
 
     private var glance: some View {
         Group {
-            let now = Clock.shared.minute
+            let now = ClockModel.shared.minute
             let doy = cal.ordinality(of: .day, in: .year, for: now) ?? 1
             let ylen = cal.range(of: .day, in: .year, for: now)?.count ?? 365
             let week = cal.component(.weekOfYear, from: now)
@@ -92,7 +95,7 @@ struct DateCard: View {
 
                 Spacer(minLength: 0)
                 Rectangle().fill(Pal.amberGhost).frame(height: 1)
-                Button { Popout.shared.setStage(pop.stage == 1 ? 2 : 1) } label: {
+                Button { PopState.shared.setStage(pop.stage == 1 ? 2 : 1) } label: {
                     HStack {
                         VStack(alignment: .leading, spacing: 1) {
                             label("MONTH ENDS · \(mlen - dom == 0 ? "TODAY" : "\(mlen - dom) DAYS")", 12, color: Pal.text1, tracking: 1)

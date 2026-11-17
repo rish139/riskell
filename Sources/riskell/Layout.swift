@@ -80,7 +80,7 @@ final class Config: ObservableObject {
     private var saveWork: DispatchWorkItem?
 
     static let defaults: [BarKey: BarSpec] = [
-        .top: BarSpec(start: [Island(id: "compat", atoms: ["compat"])], end: [Island(id: "status", atoms: ["bat", "clock"])]),
+        .top: BarSpec(start: [Island(id: "compat", atoms: ["compat"])], end: [Island(id: "status", atoms: ["bat", "ext:clock"])]),
         .bottom: BarSpec(center: [Island(id: "cpu", atoms: ["cpu"])], end: [Island(id: "link", atoms: ["net", "vol"]), Island(id: "sky", atoms: ["weather"])]),
         .left: BarSpec(start: [Island(id: "workspaces", atoms: ["workspaces", "appicon"])], end: [Island(id: "system", atoms: ["usage", "fan"])]),
         .right: BarSpec(),
@@ -239,6 +239,8 @@ final class Config: ObservableObject {
         var right: BarSpec?, hugRight: Bool?, on: [String: Bool]?      // added later: an older file lacks them
         var spill: [String: String]?                                    // per bar, "fill" or "chat"; absent or unknown = fill
     }
+    /// Atoms that became packages keep working from an older layout.json (the clock became ext:clock).
+    static let legacyIDs = ["clock": "ext:clock"]
     private static var url: URL { URL(fileURLWithPath: ProcessInfo.processInfo.environment["RISKELL_LAYOUT"] ?? NSHomeDirectory() + "/.config/riskell/layout.json") }
 
     private func load() {
@@ -248,7 +250,7 @@ final class Config: ObservableObject {
             var out = BarSpec()
             for z in b.zones {
                 for isl in spec[z] {
-                    let atoms = isl.atoms.filter { a in
+                    let atoms = isl.atoms.map { Config.legacyIDs[$0] ?? $0 }.filter { a in
                         if a == "compat" { return b == .top && z == .start }
                         guard AtomCatalog.fits(a, b), !seen.contains(a) else { return false }
                         seen.insert(a); return true
