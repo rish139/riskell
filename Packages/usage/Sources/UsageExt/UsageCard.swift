@@ -66,7 +66,7 @@ struct UsageCard: View {
         let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "HH:mm"
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
             t("USAGE", 10, Pal.text4, 2.6)
-            Text("RATE LIMITS").font(Pal.font(15, .bold)).foregroundStyle(Pal.text1)
+            Text((state.claude?.five?.counted == true || state.claude?.seven?.counted == true) ? "RATE LIMITS" : "TOKENS").font(Pal.font(15, .bold)).foregroundStyle(Pal.text1)
             Spacer()
             t("UPDATED " + (fetched > 0 ? f.string(from: Date(timeIntervalSince1970: fetched)) : "—"), 9, stale ? Pal.warn : Pal.text4, bold: false, 1)
             Circle().fill(stale ? Pal.warn : Pal.accent).frame(width: 7, height: 7).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
@@ -75,7 +75,8 @@ struct UsageCard: View {
 
     /// The one footnote: where the numbers come from and what the % is of. Shortened to fit the card's width.
     private var note: some View {
-        t("LOCAL CLAUDE CODE LOGS · % OF YOUR LIMIT OR 30-DAY PEAK", 9, Pal.text4, bold: false, 0.4)
+        let limited = state.claude?.five?.counted == true || state.claude?.seven?.counted == true
+        return t(limited ? "LOCAL CLAUDE CODE LOGS · % OF YOUR LIMITS" : "LOCAL LOGS · TOKENS · SET usage.fiveHourTokens FOR A %", 9, Pal.text4, bold: false, 0.4)
             .lineLimit(1).minimumScaleFactor(0.7)
             .frame(height: Self.noteH, alignment: .leading)
     }
@@ -104,9 +105,9 @@ struct UsageCard: View {
     }
 
     private func windowRow(_ r: Row, now: Double, hot: Bool) -> some View {
-        let w = r.win, pct = w?.pct ?? 0, frac = w?.frac(len: r.len, now: now)
+        let w = r.win, counted = w?.counted == true, pct = counted ? (w?.pct ?? 0) : 0, frac = w?.frac(len: r.len, now: now)
         let sev: Color = pct >= 90 ? Pal.crit : pct >= 75 ? Pal.warn : Pal.accent
-        let ahead = frac.map { Double(pct) > $0 * 100 + 10 && pct >= 20 } ?? false
+        let ahead = counted ? (frac.map { Double(pct) > $0 * 100 + 10 && pct >= 20 } ?? false) : false      // without a limit there is no percentage to be ahead of the pace
         return HStack(spacing: 9) {
             t(r.code, 9, hot ? Pal.text1 : Pal.text3, 1.2).frame(width: 48, alignment: .leading).lineLimit(1)
             GeometryReader { g in
@@ -118,7 +119,7 @@ struct UsageCard: View {
             }.frame(height: 16)
             HStack(spacing: 2) {
                 if ahead { Text("▲").font(Pal.font(7)).foregroundStyle(Pal.warn) }
-                Text(w == nil ? "—" : "\(pct)%").font(Pal.font(13, .bold)).foregroundStyle(pct >= 90 ? Pal.critInk : hot ? Pal.accent : Pal.text1).monospacedDigit()
+                Text(w == nil ? "—" : counted ? "\(pct)%" : UsageWin.short(w?.used ?? 0)).font(Pal.font(counted ? 13 : 12, .bold)).foregroundStyle(pct >= 90 ? Pal.critInk : hot ? Pal.accent : Pal.text1).monospacedDigit()
             }.frame(width: 48, alignment: .trailing)
             t(w?.resets.map { spanText($0 - now) } ?? "—", 9, hot ? Pal.text1 : Pal.text3, bold: false, 0.4).frame(width: 50, alignment: .trailing).lineLimit(1)
         }
@@ -138,7 +139,7 @@ struct UsageCard: View {
         if let rs = w.resets, let frac = w.frac(len: r.len, now: now) {
             parts.append("\(Int((frac * 100).rounded()))% THROUGH")
             let elapsed = r.len * frac
-            if frac > 0.03, w.pct > 0, w.pct < 100 {
+            if w.counted, frac > 0.03, w.pct > 0, w.pct < 100 {
                 let toLimit = (100 - Double(w.pct)) / (Double(w.pct) / elapsed)
                 if toLimit < rs - now { parts.append("OUT IN " + spanText(toLimit).uppercased()) }
             }

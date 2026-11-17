@@ -40,12 +40,12 @@ struct UsageFace: View {
                     .frame(width: vertical ? G.strip : nil, height: vertical ? nil : G.pill)
             } else if vertical {
                 VStack(spacing: 10) {
-                    vendor(mark: Brand.claude, markW: 13, markH: 13, value: c?.rep ?? -1, base: Pal.accent, stale: c?.stale == true)
+                    vendor(mark: Brand.claude, markW: 13, markH: 13, value: c?.rep ?? -1, text: c?.tokenText, base: Pal.accent, stale: c?.stale == true)
                 }
                 .frame(width: G.strip)
             } else {
                 HStack(spacing: 0) {
-                    row(mark: Brand.claude, markW: 13, markH: 13, value: c?.rep ?? -1, stale: c?.stale == true)
+                    row(mark: Brand.claude, markW: 13, markH: 13, value: c?.rep ?? -1, text: c?.tokenText, stale: c?.stale == true)
                 }
                 .frame(height: G.pill)
             }
@@ -59,13 +59,13 @@ struct UsageFace: View {
     }
 
     /// The mark on a horizontal bar: the mark, the figure (right-aligned in a fixed bay so the bar does not shift), the bar.
-    private func row(mark: NSImage?, markW: CGFloat, markH: CGFloat, value: Int, stale: Bool) -> some View {
+    private func row(mark: NSImage?, markW: CGFloat, markH: CGFloat, value: Int, text: String?, stale: Bool) -> some View {
         let spent = value >= 100
         let tone: Color = value > 80 ? Pal.crit : value > 60 ? Pal.warn : Pal.accent
         return HStack(spacing: T.gap) {
             Group { if let mark { Image(nsImage: mark).resizable().interpolation(.high).aspectRatio(contentMode: .fit) } }
                 .frame(width: markW, height: markH).scaleEffect(hot ? 1.18 : 1)
-            Num(value: value < 0 ? "—" : spent ? "MAX" : String(value), unit: value >= 0 && !spent ? "%" : nil,
+            Num(value: text ?? (value < 0 ? "—" : spent ? "MAX" : String(value)), unit: value >= 0 && !spent ? "%" : nil,
                 tone: spent ? Pal.critInk : Pal.text1, hot: hot && !spent)
                 .frame(minWidth: 30, alignment: .trailing)
             Bar(value: value < 0 ? 0 : Double(value) / 100, tone: tone, hot: hot, width: 34)
@@ -73,14 +73,14 @@ struct UsageFace: View {
         .opacity(stale ? 0.6 : 1)
     }
 
-    private func vendor(mark: NSImage?, markW: CGFloat, markH: CGFloat, value: Int, base: Color, stale: Bool) -> some View {
+    private func vendor(mark: NSImage?, markW: CGFloat, markH: CGFloat, value: Int, text: String?, base: Color, stale: Bool) -> some View {
         let spent = value >= 100
         let tone: Color = value > 80 ? Pal.crit : value > 60 ? Pal.warn : base
         return VStack(spacing: 3) {
             Group { if let mark { Image(nsImage: mark).resizable().interpolation(.high).aspectRatio(contentMode: .fit) } }
                 .frame(width: markW, height: markH).scaleEffect(hot ? 1.18 : 1)
             HStack(alignment: .firstTextBaseline, spacing: 0.5) {
-                Text(value < 0 ? "—" : spent ? "MAX" : String(value)).font(Pal.font(11, .bold)).foregroundStyle(spent ? Pal.critInk : hot ? Pal.accent : Pal.text1)
+                Text(text ?? (value < 0 ? "—" : spent ? "MAX" : String(value))).font(Pal.font(text == nil ? 11 : 9.5, .bold)).foregroundStyle(spent ? Pal.critInk : hot ? Pal.accent : Pal.text1)
                 if value >= 0 && !spent { Text("%").font(Pal.font(8)).foregroundStyle(Pal.text4) }
             }
             Bar(value: value < 0 ? 0 : Double(value) / 100, tone: tone, hot: hot, width: 26)

@@ -195,8 +195,8 @@ enum ClaudeLogs {
             used5 = Double(last.tokens)
             resets5 = last.start + sessionLength
         }
-        let five = UsageWin(pct: pct(used5, l5), resets: resets5, used: used5, limit: l5)
-        let seven = UsageWin(pct: pct(Double(used7), l7), resets: nil, used: Double(used7), limit: l7)
+        let five = UsageWin(pct: pct(used5, l5), resets: resets5, used: used5, limit: l5, limitSet: (fiveLimit ?? 0) > 0)
+        let seven = UsageWin(pct: pct(Double(used7), l7), resets: nil, used: Double(used7), limit: l7, limitSet: (sevenLimit ?? 0) > 0)
         return ClaudeUse(five: five, seven: seven, sonnet: nil, opus: nil, fetched: now, stale: false)
     }
 }

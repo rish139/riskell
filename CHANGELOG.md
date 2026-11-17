@@ -5,6 +5,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [Unreleased]
 
 ### Fixed
+- AI usage no longer shows a percentage it cannot know. Claude Code's local logs have token counts but not your plan's limits, so a percentage was
+  only "of your own peak" and read 100 % whenever you were at it. Without `usage.fiveHourTokens` / `usage.sevenDayTokens` in `config.json` the atom
+  and card now show the tokens used (the running 5-hour session and the last 7 days); with them, a real percentage, as before.
 - The three-finger swipe could end up reversed until riskell restarted: its direction was guessed from the first Space change after a swipe, and a
   Space change from another cause close to a swipe taught it the wrong way. The direction now follows System Settings > Trackpad > Natural scrolling,
   read each time, and a Space that moves against a swipe is only noted in the log.
