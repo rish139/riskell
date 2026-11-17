@@ -19,7 +19,7 @@
     │ 100% ▮▮▮▮▯    │ │ 02:41 PM │ │ ● │
     ╰───────────────╯ ╰──────────╯ ╰───╯
 
-   ctrl-alt-,    open the layout editor
+   ctrl-alt-,    open riskell preferences
    risk status   check it
    risk log 30   the recent log
 

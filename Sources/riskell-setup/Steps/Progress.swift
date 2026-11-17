@@ -87,7 +87,7 @@ extension App {
             y += 5
         }
         let next: [(String, String)] = [
-            ("ctrl-alt-,", "open the layout editor"),
+            ("ctrl-alt-,", "open riskell preferences"),
             ("risk status", "check it"),
             ("risk log 30", "the recent log"),
         ]

@@ -112,7 +112,7 @@ enum Modes {
                 print("  ✗ \(stepNames[i]): \(m)")
                 for t in tail { print("      \(t)") }
             case .finished:
-                print("riskell is running. Next: ctrl-alt-, (layout editor), risk status, risk log 30")
+                print("riskell is running. Next: ctrl-alt-, (riskell preferences), risk status, risk log 30")
             }
         }
         return failed ? 1 : 0

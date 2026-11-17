@@ -12,7 +12,7 @@
    [0;1;38;2;184;187;38m✓[0m Start the launch agent   [0;2;38;2;132;122;110mwritten and started[0m                               [0m
    [0;1;38;2;184;187;38m✓[0m Health check             [0;2;38;2;132;122;110mrunning, socket up, no errors in the log[0m          [0m
                                                                                 [0m
-   ctrl-alt-,    [0;2;38;2;132;122;110mopen the layout editor[0m                                         [0m
+   ctrl-alt-,    [0;2;38;2;132;122;110mopen riskell preferences[0m                                       [0m
    risk status   [0;2;38;2;132;122;110mcheck it[0m                                                       [0m
    risk log 30   [0;2;38;2;132;122;110mthe recent log[0m                                                 [0m
                                                                                 [0m

@@ -185,6 +185,6 @@ extension App {
             g.putRight(b.x + 12 + cells, y + 1, "2.00", Ink.dim)
         }
         y += 3
-        g.put(b.x, y, "Fine-tune spacing later with ctrl-alt-, in the layout editor.", Ink.dim, max: b.w)
+        g.put(b.x, y, "Fine-tune spacing later with ctrl-alt-, in riskell preferences.", Ink.dim, max: b.w)
     }
 }
