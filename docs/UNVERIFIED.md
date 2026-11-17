@@ -37,6 +37,11 @@ verified, move it to the "Verified" list with the date, the macOS version and th
 
 | **Workspaces and the app icon as a package** | `risk dev`, then: click, swipe and middle-click on the rail; hover to open the card, drag a tile to another workspace and to the `+` slot, right-click a tile to close it; focus a window and watch the app icon; switch the window manager (yabai, AeroSpace, command, none). | Compared with the built-in versions on a scratch instance (the rail, the icon and the card matched, apart from live text); the drag and drop, the swipe following and the other window managers were not exercised. The actions go through the kit's `WindowActions`. |
 
+### Packaging
+| Item | What to try | Why it is unverified |
+|---|---|---|
+| **Homebrew tap** (`rish139/homebrew-riskell`) | After the kit and riskell are public: `brew tap rish139/riskell && brew install --HEAD riskell`, then `risk install`. | The build cannot fetch the private kit inside Homebrew's environment, so it never ran end to end. The keg layout (the tree and the release build in `libexec`, `risk` linked into the path, `risk ext list` and `risk status` through the link) was checked by hand. |
+
 ### Display and system
 | Item | What to try | Why it is unverified |
 |---|---|---|

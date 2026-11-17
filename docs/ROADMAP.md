@@ -6,8 +6,8 @@ promised. riskell supports Apple silicon only.
 ## Before a public release
 - Verification on other Apple-silicon Macs and window managers (`docs/UNVERIFIED.md`): yabai, AeroSpace, command actions, other displays,
   macOS 14 and 15, a clean-machine install.
-- Packaging: a Homebrew tap exists (`rish139/homebrew-riskell`, `brew install --HEAD riskell`); it needs the repository to be public, or the
-  user's GitHub credentials, to fetch.
+- Packaging: a Homebrew tap exists (`rish139/homebrew-riskell`, `brew install --HEAD riskell`); it works once the kit and riskell are public (the
+  build cannot fetch a private kit).
 
 ## Done: every atom is a package
 Each atom that ships with riskell (clock, weather, AI usage, battery, CPU, fans, volume, network, workspaces, application icon) is a package in
