@@ -10,7 +10,7 @@ enum Needs {
     private struct Rule { let atoms: Set<String>; let start: () -> Void; let stop: () -> Void }
     private static var rules: [String: Rule] = [:]
     private static var running: Set<String> = []
-    private static var armed = false      // off until main has registered the rules (the layout loads, and calls apply, while Config is still being created)
+    private static var armed = false      // off until main has registered the rules
 
     static func register(_ name: String, atoms: Set<String>, start: @escaping () -> Void, stop: @escaping () -> Void) {
         rules[name] = Rule(atoms: atoms, start: start, stop: stop)

@@ -2,7 +2,7 @@
 
 **A desktop shell framework for macOS.**
 
-riskell provides the building blocks of a desktop shell (status bars, hover cards, a workspace overview, a layout editor, themes and window
+riskell provides the building blocks of a desktop shell (status bars, hover cards, a workspace overview, riskell preferences (a layout editor), themes and window
 manager integration) in one native Swift application, together with an extension system for adding to them. Extensions are written by
 people or by their coding agents, checked by a command line validator, and shared as ordinary Swift packages.
 
@@ -48,7 +48,7 @@ against it matches the shell in every theme and at every screen size.
 | Bars (top, bottom, left, right) | built | atoms: widgets that sit in islands |
 | Hover cards | built | the card an atom opens |
 | Workspace overview | built | not yet |
-| Layout editor | built | settings for an extension (planned) |
+| riskell preferences (layout editor) | built | the EXTENSIONS card: settings an extension declares in its manifest |
 
 Design rules that apply to the shell and to every extension:
 
@@ -145,13 +145,13 @@ be selected per bar.
 | Weather | temperature | hourly and daily forecast ([Open-Meteo](https://open-meteo.com)) |
 | AI usage | Claude Code and OpenCode usage, when enabled | limits and reset times |
 
-### The layout editor
+### riskell preferences
 
 **ctrl-alt-,** opens the editor. Every atom receives a dashed outline. Atoms are dragged between islands and bars, dropped on an empty
 bar to start a new island, and removed with the **x**. The panel sets which bars are on, whether each is a hug band or floating islands,
 the card style, spacing, roundness, scale and the theme. The layout is saved to `~/.config/riskell/layout.json`.
 
-![The layout editor: the settings panel and the top and bottom bars in edit mode](docs/images/editor.png)
+![riskell preferences: the settings panel and the top and bottom bars in edit mode](docs/images/editor.png)
 
 ### Themes
 
@@ -331,7 +331,7 @@ certificate named `riskell-dev` when one exists. Without it, macOS asks again fo
 
 | | |
 |---|---|
-| **ctrl-alt-,** | open or close the layout editor |
+| **ctrl-alt-,** | open or close riskell preferences |
 | **ctrl-alt-space** | open or close the workspace overview |
 | three fingers sideways or up | switch workspace or open the overview (when [gestures](#gestures) are enabled) |
 
@@ -425,8 +425,8 @@ Nothing here is a commitment, and the order is not fixed. [docs/ROADMAP.md](docs
 - [ ] A registry and storefront for atoms, themes and presets. The built-in atoms are its first listings: each one gets a manifest, so it can
   be read as a reference, installed and removed like any other, and the storefront starts populated ([docs/STOREFRONT.md](docs/STOREFRONT.md)).
   Extensions are pinned to a commit and checked by continuous integration that renders each one on several displays, bars and themes.
-- [ ] Preferences: settings for extensions in the layout editor, which is then renamed riskell preferences, so that an extension needs no
-  settings interface of its own.
+- [x] riskell preferences: the layout editor is renamed, and extensions declare typed settings in their manifest (number, switch, choice)
+  that appear in its EXTENSIONS card, so an extension needs no settings interface of its own.
 - [ ] Preset bundles (layout, pills, theme and extensions together), `risk ext publish` and `risk ext search`.
 - [ ] Background-behaviour extensions from outside the application, with a review policy.
 

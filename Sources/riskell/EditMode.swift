@@ -290,6 +290,7 @@ struct SettingsView: View {
     @AppStorage("layout.card.theme") private var themeOpen = false
     @AppStorage("layout.card.spacing") private var spacingOpen = false
     @AppStorage("layout.card.widgets") private var widgetsOpen = true
+    @AppStorage("layout.card.ext") private var extOpen = true
     /// The check (`--check-panel`): every card open and no scroll cap, so the natural height is measured.
     var allOpen: Bool
     /// The check forces a column mode to measure it; nil lets the screen decide (`SettingsPanel.twoColumns`).
@@ -305,7 +306,7 @@ struct SettingsView: View {
         let two = forceTwoColumns ?? SettingsPanel.twoColumns(visible: SettingsPanel.visible, k: Real.k)
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Text("Layout").font(Pal.font(14, .semibold)).foregroundStyle(Pal.text1)
+                Text("riskell preferences").font(Pal.font(14, .semibold)).foregroundStyle(Pal.text1)
                 Spacer()
                 Text("esc to close").font(T.sub).foregroundStyle(Pal.text4)
                 Chip(text: "Done") { SettingsPanel.shared.close() }
@@ -317,11 +318,11 @@ struct SettingsView: View {
                         if two {
                             // two columns: the bars and the spacing on the left, the theme and the widgets on the right
                             HStack(alignment: .top, spacing: 12) {
-                                VStack(alignment: .leading, spacing: 12) { barsCard; spacingCard }.frame(maxWidth: .infinity)
+                                VStack(alignment: .leading, spacing: 12) { barsCard; spacingCard; extensionsCard }.frame(maxWidth: .infinity)
                                 VStack(alignment: .leading, spacing: 12) { themeCard(); widgetsCard(columns: 3) }.frame(maxWidth: .infinity)
                             }
                         } else {
-                            VStack(alignment: .leading, spacing: 12) { barsCard; themeCard(); spacingCard; widgetsCard(columns: 3) }
+                            VStack(alignment: .leading, spacing: 12) { barsCard; themeCard(); spacingCard; widgetsCard(columns: 3); extensionsCard }
                         }
                     }
                     .id("panel.content")
@@ -341,11 +342,19 @@ struct SettingsView: View {
         .onChange(of: themeOpen) { _, o in SettingsPanel.shared.fit(after: o ? 0 : 0.22) }
         .onChange(of: spacingOpen) { _, o in SettingsPanel.shared.fit(after: o ? 0 : 0.22) }
         .onChange(of: widgetsOpen) { _, o in SettingsPanel.shared.fit(after: o ? 0 : 0.22) }
+        .onChange(of: extOpen) { _, o in SettingsPanel.shared.fit(after: o ? 0 : 0.22) }
         .scaleEffect(appear.shown ? 1 : 0.97).opacity(appear.shown ? 1 : 0)
         .animation(.easeOut(duration: 0.15), value: appear.shown)
         .padding(18).frame(width: two ? SettingsPanel.wideWidth : SettingsPanel.narrowWidth)
         .background(RoundedRectangle(cornerRadius: G.cardRadius).fill(Pal.cardSolid))
         .overlay(RoundedRectangle(cornerRadius: G.cardRadius).stroke(Pal.hairline, lineWidth: 1))
+    }
+
+    /// Only when an installed extension declares settings; nothing is drawn (and no space taken) otherwise.
+    @ViewBuilder private var extensionsCard: some View {
+        if !installedSettings.isEmpty {
+            CollapsibleCard(title: "EXTENSIONS", open: bound($extOpen), summary: { Text(ExtensionsCard.summary()).font(T.sub) }) { ExtensionsCard() }
+        }
     }
 
     private var barsCard: some View {

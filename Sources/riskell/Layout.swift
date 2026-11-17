@@ -60,11 +60,11 @@ enum WindowGap {
 final class Config: ObservableObject {
     static let shared = Config()
 
-    @Published private(set) var specs: [BarKey: BarSpec] = Config.defaults { didSet { Needs.apply() } }
+    @Published private(set) var specs: [BarKey: BarSpec] = Config.defaults { didSet { if ready { Needs.apply() } } }
     @Published private(set) var hug: [BarKey: Bool] = Config.defaultHug
     @Published private(set) var spillStyle: [BarKey: Spill] = [:]
     @Published private(set) var gap: CGFloat = 8
-    @Published private(set) var enabled: [BarKey: Bool] = Config.defaultOn { didSet { Needs.apply() } }
+    @Published private(set) var enabled: [BarKey: Bool] = Config.defaultOn { didSet { if ready { Needs.apply() } } }
     @Published var editing = false
     @Published var dragging: String? = nil
     @Published var hint: Hint? = nil
@@ -88,7 +88,9 @@ final class Config: ObservableObject {
     static let defaultHug: [BarKey: Bool] = [.top: false, .bottom: false, .left: true, .right: true]
     static let defaultOn: [BarKey: Bool] = [.top: true, .bottom: true, .left: true, .right: false]
 
-    private init() { load() }
+    /// False while the saved layout is being read in `init`: the services are not asked about a layout that is not complete (and `Config.shared` is not reachable yet).
+    private var ready = false
+    private init() { load(); ready = true }
 
     func spec(_ b: BarKey) -> BarSpec { specs[b] ?? BarSpec() }
     func isHug(_ b: BarKey) -> Bool { hug[b] ?? false }

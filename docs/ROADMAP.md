@@ -18,8 +18,8 @@ storefront's first listings, so they have to look like any other listing. In ord
    window manager or the notch (workspaces, application icon, media) stay in the application longest.
 
 ## Extensions
-- Preferences: settings for extensions in the layout editor, which is then renamed riskell preferences. An extension declares typed
-  settings and ships no settings interface of its own.
+- Done: riskell preferences. The panel is renamed, and an extension declares typed settings in its manifest (`settings`: number, bool, choice)
+  that appear in its EXTENSIONS card and apply at once. Text settings stay in the file.
 - The registry and storefront (`docs/STOREFRONT.md`), with CI that renders every listing across displays, bars and themes. This needs a check
   that the snapshot harness runs headless on a CI runner.
 - Preset bundles, `risk ext publish`, `risk ext search`.

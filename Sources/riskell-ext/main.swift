@@ -9,7 +9,7 @@ import Foundation
 //   risk ext add <dir|git-url> [rev]   record a package in extensions.lock.json and regenerate the import list
 //   risk ext remove <id>               take it out again
 //   risk ext list                      what is installed
-//   risk ext sync                      regenerate Sources/riskell/Generated/InstalledPackages.swift from the lock
+//   risk ext sync                      regenerate Sources/riskell/Generated/InstalledPackages.swift and InstalledSettings.swift from the lock
 // Exit status: 0 ok, 1 findings or a failed command, 2 usage.
 
 let fm = FileManager.default
@@ -69,6 +69,27 @@ func validateManifest(_ dir: String) -> [String: Any]? {
         if files.isEmpty { report("manifest.required", "riskell.json", nil, "\"files\" is required for kind \(k)", fix: "list the files to install, e.g. [\"pill.json\"]") }
         for f in files where !fm.fileExists(atPath: dir + "/" + f) { report("manifest.files", "riskell.json", nil, "\"\(f)\" is listed but not in the repo", fix: "add the file or remove it from \"files\"") }
     }
+    if let list = j["settings"] {
+        if let k = str("kind"), !compiled.contains(k) { report("manifest.settings", "riskell.json", nil, "\"settings\" is for compiled kinds", fix: "remove it, or make the kind reading, atom or behaviour") }
+        guard let items = list as? [[String: Any]] else { report("manifest.settings", "riskell.json", nil, "\"settings\" must be a list of objects", fix: "write [{\"key\": ..., \"label\": ..., \"type\": ..., \"default\": ...}]"); return j }
+        var seen = Set<String>()
+        for (i, s) in items.enumerated() {
+            let at = "settings[\(i)]"
+            guard let key = s["key"] as? String, matches(key, "^[A-Za-z][A-Za-z0-9_]*$"), seen.insert(key).inserted else { report("manifest.settings", "riskell.json", nil, "\(at): \"key\" must be plain letters and digits and unique", fix: "e.g. \"warnAt\""); continue }
+            if let l = s["label"] as? String, !l.isEmpty, l.count <= 24 {} else { report("manifest.settings", "riskell.json", nil, "\(at) (\(key)): \"label\" is required and at most 24 characters", fix: "add a short label for the card") }
+            switch s["type"] as? String {
+            case "number":
+                guard let lo = (s["min"] as? NSNumber)?.doubleValue, let hi = (s["max"] as? NSNumber)?.doubleValue, let st = (s["step"] as? NSNumber)?.doubleValue, let d = (s["default"] as? NSNumber)?.doubleValue, lo < hi, st > 0, d >= lo, d <= hi
+                else { report("manifest.settings", "riskell.json", nil, "\(at) (\(key)): a number needs min < max, step > 0 and a default between them", fix: "add min, max, step and default"); continue }
+            case "bool":
+                if !(s["default"] is Bool) { report("manifest.settings", "riskell.json", nil, "\(at) (\(key)): a bool needs \"default\": true or false", fix: "add the default") }
+            case "choice":
+                guard let o = s["options"] as? [String], o.count >= 2, o.count <= 4, Set(o).count == o.count, let d = s["default"] as? String, o.contains(d)
+                else { report("manifest.settings", "riskell.json", nil, "\(at) (\(key)): a choice needs 2 to 4 distinct options and a default among them", fix: "add options and default"); continue }
+            default: report("manifest.settings", "riskell.json", nil, "\(at) (\(key)): \"type\" must be number, bool or choice", fix: "use one of them (text settings stay in the file)")
+            }
+        }
+    }
     if let a = j["atoms"] as? [String] {
         var seen = Set<String>()
         for id in a where !matches(id, "^[A-Za-z0-9_-]+$") || !seen.insert(id).inserted { report("manifest.atoms", "riskell.json", nil, "atom id \"\(id)\" is not plain or is repeated", fix: "letters, digits, - and _, each once") }
@@ -127,7 +148,9 @@ func allSource(_ dir: String) -> String? {
 
 // MARK: lock and generated list
 
-struct Locked: Codable { var id: String; var module: String; var entry: String; var product: String; var package: String; var path: String?; var url: String?; var revision: String? }
+/// A setting as the manifest declares it, kept in the lock so the generated list does not need the package's source (a git package is cloned to a temporary folder).
+struct SettingDecl: Codable { var key: String; var label: String; var type: String; var min: Double?; var max: Double?; var step: Double?; var number: Double?; var on: Bool?; var options: [String]?; var choice: String? }
+struct Locked: Codable { var id: String; var module: String; var entry: String; var product: String; var package: String; var path: String?; var url: String?; var revision: String?; var settings: [SettingDecl]? }
 func loadLock(_ r: String) -> [Locked] { (read(r + "/extensions.lock.json").flatMap { try? JSONDecoder().decode([Locked].self, from: Data($0.utf8)) }) ?? [] }
 func saveLock(_ l: [Locked], _ r: String) {
     let e = JSONEncoder(); e.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -139,6 +162,19 @@ func sync(_ r: String) {
     out += "\n// Generated by `risk ext sync` from extensions.lock.json. Do not edit.\n"
     out += "let installedPackages: [(id: String, package: any RiskellPackage.Type)] = [" + l.map { "(\"\($0.id)\", \($0.module).\($0.entry).self)" }.joined(separator: ", ") + "]\n"
     write(out, r + "/Sources/riskell/Generated/InstalledPackages.swift")
+    func q(_ s: String) -> String { "\"" + s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\"" }
+    let decls: [String] = l.flatMap { e in (e.settings ?? []).compactMap { s -> String? in
+        let kind: String
+        switch s.type {
+        case "number": guard let lo = s.min, let hi = s.max, let st = s.step, let d = s.number else { return nil }; kind = ".number(min: \(lo), max: \(hi), step: \(st), def: \(d))"
+        case "bool": kind = ".bool(def: \(s.on ?? false))"
+        case "choice": guard let o = s.options, let d = s.choice else { return nil }; kind = ".choice([" + o.map(q).joined(separator: ", ") + "], def: \(q(d)))"
+        default: return nil
+        }
+        return "    ExtSetting(ext: \(q(e.id)), key: \(q(s.key)), label: \(q(s.label)), kind: \(kind))"
+    } }
+    write("// Generated by `risk ext sync` from extensions.lock.json. Do not edit.\nlet installedSettings: [ExtSetting] = [" + (decls.isEmpty ? "]" : "\n" + decls.joined(separator: ",\n") + "\n]") + "\n",
+          r + "/Sources/riskell/Generated/InstalledSettings.swift")
     // the same list as a literal inside Package.swift (see the comment there)
     func lit(_ v: String?) -> String { v.map { "\"" + $0 + "\"" } ?? "nil" }
     let rows = l.map { "    Locked(module: \(lit($0.module)), product: \(lit($0.product)), package: \(lit($0.package)), path: \(lit($0.path)), url: \(lit($0.url)), revision: \(lit($0.revision)))" }
@@ -176,7 +212,13 @@ func add(_ source: String, rev: String?) {
     let pkg = ((url ?? dir) as NSString).lastPathComponent.replacingOccurrences(of: ".git", with: "")
     // a path is stored relative to the checkout when it is inside it, so the lock can be committed
     let rel = url == nil ? (dir.hasPrefix(r + "/") ? String(dir.dropFirst(r.count + 1)) : dir) : nil
-    l.append(Locked(id: id, module: module, entry: entry, product: module, package: pkg, path: rel, url: url, revision: revision))
+    let decls: [SettingDecl] = (j["settings"] as? [[String: Any]] ?? []).compactMap { s in
+        guard let key = s["key"] as? String, let label = s["label"] as? String, let type = s["type"] as? String else { return nil }
+        func n(_ k: String) -> Double? { (s[k] as? NSNumber)?.doubleValue }
+        return SettingDecl(key: key, label: label, type: type, min: n("min"), max: n("max"), step: n("step"), number: type == "number" ? n("default") : nil,
+                           on: type == "bool" ? s["default"] as? Bool : nil, options: s["options"] as? [String], choice: type == "choice" ? s["default"] as? String : nil)
+    }
+    l.append(Locked(id: id, module: module, entry: entry, product: module, package: pkg, path: rel, url: url, revision: revision, settings: decls.isEmpty ? nil : decls))
     saveLock(l, r); sync(r)
     print("added \(id); the lock and the import list are updated. `risk dev` rebuilds and restarts riskell (`risk ext add` does that for you).")
 }

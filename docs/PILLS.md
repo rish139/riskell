@@ -1,7 +1,7 @@
 # Script pills
 
 A pill is an atom you define in `~/.config/riskell/config.json` with a shell command. No Swift, no rebuild: the config is applied live, open
-the layout editor (ctrl-alt,) and the pill is under **Not on a bar**, ready to place like any other atom.
+riskell preferences (ctrl-alt,) and the pill is under **Not on a bar**, ready to place like any other atom.
 
 ```json
 "pills": [

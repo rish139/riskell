@@ -1,6 +1,6 @@
 # Themes
 
-riskell's colours come from a theme. The default is the original gruvbox dark. Pick another in the layout editor (ctrl-alt-, then the
+riskell's colours come from a theme. The default is the original gruvbox dark. Pick another in riskell preferences (ctrl-alt-, then the
 **THEME** row): it applies at once and is saved as `"theme"` in `~/.config/riskell/config.json`. Or set it by hand:
 
 ```json

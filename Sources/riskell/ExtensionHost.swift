@@ -149,9 +149,39 @@ struct CustomAtomView<A: CustomAtom>: View {
     }
 }
 
+/// One setting an extension declares in its manifest (`settings`), shown in the EXTENSIONS card of riskell preferences. The generated list is
+/// Generated/InstalledSettings.swift; the values live in `~/.config/riskell/ext/<id>.json` and are read through `env.prefs`.
+struct ExtSetting: Identifiable {
+    enum Kind { case number(min: Double, max: Double, step: Double, def: Double), bool(def: Bool), choice([String], def: String) }
+    let ext: String, key: String, label: String, kind: Kind
+    var id: String { ext + "." + key }
+}
+
+enum ExtPrefs {
+    static func file(_ ext: String) -> URL { AppConfig.directory.appendingPathComponent("ext").appendingPathComponent(ext + ".json") }
+    static func json(_ ext: String) -> [String: Any] {
+        (try? Data(contentsOf: file(ext))).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+    }
+    static func number(_ s: ExtSetting, def: Double) -> Double { (json(s.ext)[s.key] as? NSNumber)?.doubleValue ?? def }
+    static func bool(_ s: ExtSetting, def: Bool) -> Bool { (json(s.ext)[s.key] as? NSNumber)?.boolValue ?? def }
+    static func choice(_ s: ExtSetting, def: String) -> String { json(s.ext)[s.key] as? String ?? def }
+
+    /// Writes one value (the others kept) and rebuilds the extension atoms, so the change shows at once.
+    static func set(_ ext: String, _ key: String, _ value: Any) {
+        var j = json(ext)
+        j[key] = value
+        let f = file(ext)
+        try? FileManager.default.createDirectory(at: f.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if let d = try? JSONSerialization.data(withJSONObject: j, options: [.prettyPrinted, .sortedKeys]) { try? d.write(to: f, options: .atomic) }
+        PackageAtoms.reload(); Registry.rebuild(); ThemeState.shared.epoch += 1
+    }
+}
+
 /// The atoms of the packages in `installedPackages` (Generated/InstalledPackages.swift), as `AtomDef`s with the id `ext:<id>`.
 enum PackageAtoms {
-    static let all: [AtomDef] = build()
+    private(set) static var all: [AtomDef] = build()
+    /// Fresh atoms, which read the preferences again (after a setting changed).
+    static func reload() { all = build() }
 
     private static func build() -> [AtomDef] {
         var out: [AtomDef] = [], seen = Set<String>()
@@ -171,11 +201,7 @@ enum PackageAtoms {
         return out
     }
 
-    private static func prefs(_ id: String) -> Prefs {
-        let url = AppConfig.directory.appendingPathComponent("ext").appendingPathComponent(id + ".json")
-        let j = (try? Data(contentsOf: url)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
-        return Prefs(json: j)
-    }
+    private static func prefs(_ id: String) -> Prefs { Prefs(json: ExtPrefs.json(id)) }
 
     private static func reading(_ t: any ReadingAtom.Type) -> AtomDef {
         let m = t.meta
@@ -197,5 +223,30 @@ enum PackageAtoms {
                        blank: { _ in atom.isBlank() },
                        view: { v in AnyView(CustomAtomView(atom: atom, env: env, life: life, vertical: v, maxWidth: m.maxWidth)) },
                        priority: m.priority)
+    }
+}
+
+/// `riskell --ext-selftest` (with RISKELL_CONFIG pointing at a scratch config, never the real one): a change made in the EXTENSIONS card is
+/// written, read back, and shows in the rebuilt atoms; the grid snapping stays inside the range. PASS / FAIL per case, exit 1 on a FAIL.
+enum ExtSelfTest {
+    static func run() -> Never {
+        var bad = 0
+        func check(_ name: String, _ ok: Bool) { print((ok ? "PASS " : "FAIL ") + name); if !ok { bad += 1 } }
+        guard let s = installedSettings.first(where: { if case .number = $0.kind { return true } else { return false } }), case let .number(lo, hi, step, def) = s.kind else {
+            print("no extension with a number setting is installed (risk ext add Examples/load-ext)"); exit(2)
+        }
+        let before = Registry.byID.keys.filter { $0.hasPrefix("ext:") }.count
+        check("snap: below the range", ExtensionsCard.snap(lo - 1000, lo, hi, step) == lo)
+        check("snap: above the range", ExtensionsCard.snap(hi + 1000, lo, hi, step) == hi)
+        check("snap: stays on the step grid", ExtensionsCard.snap(lo + step * 1.4, lo, hi, step) == lo + step)
+        let target = ExtensionsCard.snap(def + step, lo, hi, step)
+        ExtPrefs.set(s.ext, s.key, target)
+        check("a number is written and read back", ExtPrefs.number(s, def: def) == target)
+        check("the file is where the config is", FileManager.default.fileExists(atPath: ExtPrefs.file(s.ext).path) && ExtPrefs.file(s.ext).path.hasPrefix(AppConfig.directory.path))
+        check("the extension atoms are rebuilt", Registry.byID.keys.filter { $0.hasPrefix("ext:") }.count == before && before > 0)
+        ExtPrefs.set(s.ext, "other", "x")
+        check("a second key keeps the first", ExtPrefs.number(s, def: def) == target && ExtPrefs.json(s.ext)["other"] as? String == "x")
+        try? FileManager.default.removeItem(at: ExtPrefs.file(s.ext))
+        exit(bad == 0 ? 0 : 1)
     }
 }

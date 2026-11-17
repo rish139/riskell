@@ -105,4 +105,4 @@ Force the worst-case values (full, empty, the longest text) in the source, snaps
 ## The no-Swift alternative
 
 If the atom only shows the output of a command, you do not need any of the above. Add a script pill to `config.json`. It appears
-under **Not on a bar** in the layout editor. See [`docs/PILLS.md`](PILLS.md).
+under **Not on a bar** in riskell preferences. See [`docs/PILLS.md`](PILLS.md).

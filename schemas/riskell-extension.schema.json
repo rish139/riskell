@@ -19,6 +19,25 @@
     "entry": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "description": "The type in `module` that conforms to RiskellPackage." },
     "atoms": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" }, "uniqueItems": true, "description": "The AtomMeta ids the package registers; placed in a layout as ext:<id>." },
     "files": { "type": "array", "items": { "type": "string" }, "description": "For pill, theme and preset: the files copied into ~/.config/riskell/." },
+    "settings": {
+      "type": "array",
+      "description": "Settings the user may change in riskell preferences (the EXTENSIONS card); read with env.prefs. Compiled kinds only. Text settings are not offered in the card.",
+      "items": {
+        "type": "object",
+        "required": ["key", "label", "type", "default"],
+        "additionalProperties": false,
+        "properties": {
+          "key": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
+          "label": { "type": "string", "minLength": 1, "maxLength": 24 },
+          "type": { "enum": ["number", "bool", "choice"] },
+          "default": {},
+          "min": { "type": "number" },
+          "max": { "type": "number" },
+          "step": { "type": "number", "exclusiveMinimum": 0 },
+          "options": { "type": "array", "items": { "type": "string" }, "minItems": 2, "maxItems": 4, "uniqueItems": true }
+        }
+      }
+    },
     "repository": { "type": "string", "format": "uri" },
     "homepage": { "type": "string", "format": "uri" },
     "authors": { "type": "array", "items": { "type": "string" } },

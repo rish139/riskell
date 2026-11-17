@@ -85,3 +85,50 @@ struct SpacingCard: View {
                                      radius: radius.map { c($0, Spacing.radiusRange) } ?? Double(s.corner)))
     }
 }
+
+/// The EXTENSIONS card: the settings the installed extensions declare in their manifests (`settings`), grouped by extension. A change is
+/// written to `~/.config/riskell/ext/<id>.json` and applies at once. An extension ships no settings interface of its own.
+struct ExtensionsCard: View {
+    @ObservedObject private var theme = ThemeState.shared      // a write bumps the epoch, which redraws the values here
+
+    static var exts: [String] { var seen = Set<String>(); return installedSettings.map(\.ext).filter { seen.insert($0).inserted } }
+    static func summary() -> String { "\(exts.count) with settings" }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(Self.exts, id: \.self) { e in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(e).font(T.sub).foregroundStyle(Pal.text4)
+                    ForEach(installedSettings.filter { $0.ext == e }) { row($0) }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func row(_ s: ExtSetting) -> some View {
+        HStack(spacing: 6) {
+            Text(s.label).font(Pal.font(12, .semibold)).foregroundStyle(Pal.text1)
+            Spacer()
+            switch s.kind {
+            case let .number(lo, hi, step, def):
+                let v = min(hi, max(lo, ExtPrefs.number(s, def: def)))
+                Chip(text: "−") { ExtPrefs.set(s.ext, s.key, Self.snap(v - step, lo, hi, step)) }
+                Text(Self.text(v)).font(Pal.font(12, .semibold)).foregroundStyle(Pal.text1).frame(width: 44)
+                Chip(text: "+") { ExtPrefs.set(s.ext, s.key, Self.snap(v + step, lo, hi, step)) }
+            case let .bool(def):
+                let on = ExtPrefs.bool(s, def: def)
+                Chip(text: on ? "On" : "Off", on: on) { ExtPrefs.set(s.ext, s.key, !on) }
+            case let .choice(options, def):
+                let cur = ExtPrefs.choice(s, def: def)
+                ForEach(options, id: \.self) { o in Chip(text: o, on: o == cur) { ExtPrefs.set(s.ext, s.key, o) } }
+            }
+        }
+    }
+
+    /// A value on the setting's own grid (`min + n * step`), inside its range.
+    static func snap(_ v: Double, _ lo: Double, _ hi: Double, _ step: Double) -> Double {
+        let n = ((v - lo) / step).rounded()
+        return min(hi, max(lo, lo + n * step))
+    }
+    private static func text(_ v: Double) -> String { v == v.rounded() ? String(Int(v)) : String(format: "%.2f", v) }
+}

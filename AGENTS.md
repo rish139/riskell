@@ -23,7 +23,7 @@ The loop:
 2. `risk ext validate <dir>` after every change. It prints `file:line: rule <id>: <what>. Fix: <how>.` and exits 1 on a problem. Fix every
    line it prints; do not work around a rule.
 3. For a compiled kind, `swift build` inside the package must succeed.
-4. To try it in a running bar: `risk ext add <dir>` (rebuilds with `scripts/risk dev`), place `ext:<id>` in the layout editor.
+4. To try it in a running bar: `risk ext add <dir>` (rebuilds with `scripts/risk dev`), place `ext:<id>` in riskell preferences.
 
 Rules the validator enforces, and why (read these, they are the whole design):
 
@@ -36,6 +36,8 @@ Rules the validator enforces, and why (read these, they are the whole design):
   `env.on(feed)` (readings) or `env.repeating` (custom atoms, started in `activate`). riskell stops them whenever the atom is not on a
   showing bar; that is what keeps idle CPU at zero.
 - **Both forms are required** (`horizontal` and `vertical`); the compiler enforces it. Do not open windows (`NSWindow`, `NSPanel`).
+- **Settings are declared, never drawn.** Put a `settings` list in `riskell.json` (number, bool or choice) and riskell preferences shows it; read
+  it with `env.prefs`. Do not build a settings view.
 - Prefer `reading` over `atom`. The kit draws a `Reading` exactly like the built-in atoms, in both forms, with the hover card.
 
 The API is the [reference in the kit repository](https://github.com/rish139/riskell-kit/blob/main/docs/KIT-API.md) (generated from the public symbols) and the walkthrough is `docs/WRITING-EXTENSIONS.md`. The working

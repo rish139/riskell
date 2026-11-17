@@ -329,7 +329,7 @@ def make_editor():
     run(["--settings"], s, layout(), stay=8)
     items = []
     if os.path.exists(s + "/settings.png"):
-        items.append((Image.open(s + "/settings.png").convert("RGBA"), "The layout editor's panel (ctrl-alt-,)"))
+        items.append((Image.open(s + "/settings.png").convert("RGBA"), "riskell preferences (ctrl-alt-,)"))
     for n, label in (("top", "Top bar while editing: dashed outlines, drag to move, x to remove"), ("bottom", "Bottom bar while editing")):
         items.append((join(islands(Image.open("%s/%s.png" % (d, n)).convert("RGBA")), 40), label))
     save(grid(items, 1), "editor.png", 2400)

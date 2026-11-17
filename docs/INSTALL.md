@@ -98,7 +98,7 @@ Without a terminal (stdout is not a TTY) the guided flow does not start: the ins
 1. `swift build -c release`
 2. Copy `scripts/risk` somewhere on your `PATH` (or link it), then `risk install`.
 3. To choose settings, edit `~/.config/riskell/config.json` (keys in `docs/CONFIG.md`) and `layout.json` (`docs/BARS.md`), or use the
-   layout editor with ctrl-alt-,.
+   riskell preferences with ctrl-alt-,.
 
 ## Privacy
 

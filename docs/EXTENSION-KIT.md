@@ -15,7 +15,7 @@ result the only easy one (the API has no way to say "wrong"), not from reviewing
 | `reading` and `atom` extensions, linked through `extensions.lock.json` | built, tested end to end (`Examples/load-ext`) |
 | `risk ext` (`validate`, `new`, `add`, `remove`, `list`, `sync`) | built |
 | `schemas/riskell-extension.schema.json`, `AGENTS.md`, `docs/WRITING-EXTENSIONS.md` | written |
-| settings card in the layout editor | not built (values are read from `~/.config/riskell/ext/<id>.json`) |
+| settings card in riskell preferences (EXTENSIONS) | built: `settings` in the manifest, written to `~/.config/riskell/ext/<id>.json`, applies at once; `riskell --ext-selftest` |
 | disabling an installed extension from `config.json` (`disabledExtensions`) | built |
 | the registry and its CI render matrix, `risk publish` | not built (`docs/STOREFRONT.md` is the plan) |
 | `behaviour` extensions from outside the app (the closed list in `Extensions/Extension.swift` is unchanged) | not built |
@@ -121,7 +121,7 @@ it harder; expect to find fit bugs in the app as well as in extensions.
 
 1. Does the render matrix run headless on a CI runner? `--snap` makes real windows; test before the registry's gate depends on it.
 2. Feeds are not yet reference counted down to the services: a service runs if any of its atoms is placed, not per subscriber.
-3. A settings card in the layout editor, so an extension ships no settings UI.
+3. Text settings in the card (today the card offers number, bool and choice; text stays in the file).
 4. Card size for `reading` is content-derived within a fixed width; do `atom` cards get a maximum?
 5. `behaviour` extensions: a review policy for community code that touches input.
 6. Publishing the kit as its own repository, and the package-identity rule that comes with it (section 2).

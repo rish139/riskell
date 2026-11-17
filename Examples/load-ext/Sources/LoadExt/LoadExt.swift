@@ -21,10 +21,12 @@ public struct Load: ReadingAtom {
     public static let meta = AtomMeta(id: "load", name: "Load average", priority: 4, maxWidth: 320)
     public init() {}
     public func readings(_ env: Env) -> AsyncStream<Reading?> {
-        env.every(.seconds(5)) {
+        // settings declared in riskell.json, changed in riskell preferences
+        let hotAt = env.prefs.number("hotAt", default: 100) / 100, icon = env.prefs.bool("icon", default: true)
+        return env.every(.seconds(5)) {
             let l = loadAverages(), cores = Double(ProcessInfo.processInfo.activeProcessorCount)
-            let busy = min(1, l[0] / cores)
-            return Reading(text: String(format: "%.2f", l[0]), icon: "gauge.with.dots.needle.33percent", tone: .heat(busy), value: busy,
+            let busy = min(1, l[0] / (cores * hotAt))
+            return Reading(text: String(format: "%.2f", l[0]), icon: icon ? "gauge.with.dots.needle.33percent" : nil, tone: .heat(busy), value: busy,
                            lines: [String(format: "1 min   %.2f", l[0]), String(format: "5 min   %.2f", l[1]), String(format: "15 min  %.2f", l[2])],
                            values: [Metric(label: "5M", text: String(format: "%.1f", l[1])), Metric(label: "15M", text: String(format: "%.1f", l[2]))])
         }

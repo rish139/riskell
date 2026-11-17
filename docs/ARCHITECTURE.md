@@ -7,7 +7,7 @@ next is `docs/ROADMAP.md`; what has not been tested on real hardware is `docs/UN
 - `Sources/riskell/`: the app. `main.swift` wires everything (panels, hosts, services). `Frame.swift` (host-only `G` geometry), `Layout.swift`
   (`Config`: bars, islands, hug/floating, card style, saved to `~/.config/riskell/layout.json`), `Registry.swift` (the ONE list of atoms and
   their cards), one `*Atom.swift` and `*Card.swift` per widget, `Popout.swift` and `ChatCard.swift` (the single popout host and the chat-card
-  geometry), `Bars.swift` (HBar/VBar), `EditMode.swift` + `SettingsCards.swift` (layout editor and its panel), `Scale.swift` + `Display.swift` +
+  geometry), `Bars.swift` (HBar/VBar), `EditMode.swift` + `SettingsCards.swift` (riskell preferences: the layout editor and its panel), `Scale.swift` + `Display.swift` +
   `WingFit.swift` (one scale factor, the screen/notch model, top-bar fitting), `Spacing.swift`, `Overview.swift` (the workspace overview),
   `Wings.swift` (notch wings), `PillAtom.swift` (script pills and extension readings), `ExtensionHost.swift` (the app's side of the kit).
 - `Services/`: data and system access. `AppConfig.swift` (`~/.config/riskell/config.json`), `ConfigWatcher.swift` (live reload of config, pill

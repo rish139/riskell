@@ -92,13 +92,27 @@ own, so an extension costs nothing at rest.
 ## Settings
 
 Values the user may change live in `~/.config/riskell/ext/<id>.json` (numbers, booleans, strings). Read them with `env.prefs.number("key",
-default: 85)`, `.bool`, `.string`. (A settings card in the layout editor is planned; for now the file is edited by hand.)
+default: 85)`, `.bool`, `.string`.
+
+Declare a setting in `riskell.json` and riskell preferences shows it in the EXTENSIONS card, so you write no settings interface:
+
+```json
+"settings": [
+  { "key": "hotAt", "label": "Gauge full at %", "type": "number", "min": 50, "max": 200, "step": 25, "default": 100 },
+  { "key": "icon", "label": "Show icon", "type": "bool", "default": true },
+  { "key": "unit", "label": "Unit", "type": "choice", "options": ["C", "F"], "default": "C" }
+]
+```
+
+`number` (with `min`, `max`, `step`), `bool` and `choice` (2 to 4 `options`) are offered; the label is at most 24 characters. A change is written to
+the file and the atoms are rebuilt at once, so read the values when the atom starts (in `readings` or `activate`), as `Examples/load-ext` does.
+A text setting is not offered in the card; it stays a file you edit.
 
 ## Check, try, share
 
 1. `risk ext validate <dir>`: every finding is `file:line: rule <id>: <what>. Fix: <how>.`
 2. `swift build` in the package.
-3. `risk ext add <dir>` then `scripts/risk dev`; open the layout editor (ctrl-alt-,) and place `ext:<id>` from the tray. Look at it on the
+3. `risk ext add <dir>` then `scripts/risk dev`; open riskell preferences (ctrl-alt-,) and place `ext:<id>` from the tray. Look at it on the
    top bar, a strip, and with a different theme (`docs/THEMES.md`).
 4. Publish the repo with a tag `vX.Y.Z`, the GitHub topic `riskell-extension`, a `LICENSE` and a screenshot. In a compiled extension's
    `Package.swift` depend on the kit by URL: `.package(url: "https://github.com/rish139/riskell-kit", from: "1.0.0")`.

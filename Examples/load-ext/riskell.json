@@ -9,5 +9,25 @@
   "summary": "The 1, 5 and 15 minute load averages, as a reading atom and as a hand-drawn gauge.",
   "module": "LoadExt",
   "entry": "LoadPackage",
-  "atoms": ["load", "pulse"]
+  "atoms": [
+    "load",
+    "pulse"
+  ],
+  "settings": [
+    {
+      "key": "hotAt",
+      "label": "Gauge full at %",
+      "type": "number",
+      "min": 50,
+      "max": 200,
+      "step": 25,
+      "default": 100
+    },
+    {
+      "key": "icon",
+      "label": "Show icon",
+      "type": "bool",
+      "default": true
+    }
+  ]
 }
