@@ -1,5 +1,9 @@
 # Adding an atom
 
+> **Write new atoms as packages**: [`docs/WRITING-EXTENSIONS.md`](WRITING-EXTENSIONS.md). The clock, weather, AI usage, battery, CPU and fans are packages in
+> `Packages/` and are the worked examples. This page describes the built-in route, which the atoms that still need the application's own services
+> use (workspaces, app icon, volume, network).
+
 An atom is one module on a bar: a figure, a gauge, a glass cell, a list of readings. Each atom has a horizontal form (for the top and
 bottom bars) and a vertical form (for the left and right strips), and it must fit any bar. The house rules are in `docs/BARS.md`; this
 page is the procedure.
@@ -46,7 +50,7 @@ struct FooAtom: View {
 - Colours only from `Pal` (`Pal.ok`, `Pal.warn`, `Pal.crit`, `Pal.text1`, `Pal.text4`, `Pal.accent`), type only from `T`
   (`T.value`, `T.unit`, `T.cap`, `T.sub`) and the spacing constants `T.gap` and `G.pill`.
 - The vertical form has no rotated text and no content wider than 40 pt (52 on a strip).
-- `Rule` (the 24 pt hairline between modules in a column) is private to `CpuAtom.swift`. Copy it into your file, or make it
+- `Rule` (the 24 pt hairline between modules in a column) is private to the CPU atom (`Packages/system/Sources/SystemExt/CpuFace.swift`). Copy it into your file, or make it
   internal first in its own change.
 - The bar, not the atom, decides which side the card opens to. Pass `edge:` as the other atoms do.
 
@@ -72,7 +76,7 @@ arms a timer, and writes through `Store` setters.
   reading never redraws). Services write on the main queue.
 - A number that changes on a timer (CPU, memory, power, temperature) belongs in `Gauges`, so a tick redraws only the views that show it.
 - Create the service in `Sources/riskell/main.swift` next to the others and call its `start()`.
-- A card that needs data that is costly to read should start the work when it appears and stop it when it goes, as `Vitals.shared`
+- A card that needs data that is costly to read should start the work when it appears and stop it when it goes, as the system package's `Vitals`
   does. Closed means no timer and no work.
 
 ## 4. Declare its card (only if it opens one): `CardDef`

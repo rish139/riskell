@@ -9,13 +9,13 @@ import Foundation
 enum Needs {
     /// Which atoms need which service. The whole list in one place; main.swift gives each service its start and stop.
     static let table: [String: Set<String>] = [
-        "sys": ["cpu", "bat", "vol", "fan"],      // CPU and memory, battery, power, volume, microphone
-        "thermal": ["fan", "cpu"],                // the SMC reading and the fan history
+        "sys": ["vol"],      // the battery, the volume and the microphone (a feed subscriber also keeps it running)
         "wifi": ["net"],                          // also the Location prompt for Wi-Fi names
     ]
     private struct Rule { let start: () -> Void; let stop: () -> Void }
     private static var rules: [String: Rule] = [:]
     private static var running: Set<String> = []
+    private static var holds: [String: Int] = [:]      // feed subscribers: an extension subscribed to a feed keeps its service running
     private static var armed = false      // off until main has registered the rules
 
     static func register(_ name: String, start: @escaping () -> Void, stop: @escaping () -> Void) {
@@ -25,6 +25,14 @@ enum Needs {
 
     static func isRunning(_ name: String) -> Bool { running.contains(name) }
 
+    /// A feed subscriber needs `name` for as long as it is subscribed; call the returned closure when it leaves. Main thread.
+    static func hold(_ name: String) -> () -> Void {
+        holds[name, default: 0] += 1
+        apply()
+        var done = false
+        return { if !done { done = true; holds[name, default: 1] -= 1; apply() } }
+    }
+
     /// Main calls this once, after registering every rule.
     static func begin() { armed = true; apply() }
 
@@ -33,7 +41,7 @@ enum Needs {
         guard armed else { return }
         let placed = Config.shared.placedAtoms
         for (name, rule) in rules {
-            let want = !(table[name] ?? []).isDisjoint(with: placed)
+            let want = !(table[name] ?? []).isDisjoint(with: placed) || (holds[name] ?? 0) > 0
             if want, !running.contains(name) { running.insert(name); rule.start() }
             else if !want, running.contains(name) { running.remove(name); rule.stop() }
         }

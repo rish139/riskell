@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
 
@@ -6,25 +9,24 @@ import RiskellKit
 /// deck, swells and gleams the meters and warms the captions. Click-free: hover opens the vitals card, right-click opens Activity Monitor.
 /// On the left strip (`vertical`) it stands up as a column of the same modules: CPU, the core deck, RAM, then PW with its trace, each
 /// module a caption over its figure over a short bar, separated by the strip's hairline. Same data, tones and hover.
-struct CpuAtom: View {
-    @EnvironmentObject var s: Store
-    @EnvironmentObject var gauges: Gauges      // redraws on the timer-driven numbers
+struct CpuFace: View {
+    @ObservedObject private var gauges = SystemGauges.shared      // redraws on the timer-driven numbers
     @State private var hot = false
     @State private var phase: Double = 1
     let vertical: Bool
 
     var body: some View {
-        let cpuTone = Pal.heat(Double(s.cpu) / 100), ramTone = Pal.heat(Double(s.mem) / 100)
-        let p = s.powerW ?? 0
+        let cpuTone = Pal.heat(Double(gauges.cpu) / 100), ramTone = Pal.heat(Double(gauges.mem) / 100)
+        let p = gauges.powerW ?? 0
         Group {
             if vertical {
                 VStack(spacing: 0) {
-                    Stat(cap: "CPU", value: String(s.cpu), tone: cpuTone, fraction: Double(s.cpu) / 100, hot: hot)
+                    Stat(cap: "CPU", value: String(gauges.cpu), tone: cpuTone, fraction: Double(gauges.cpu) / 100, hot: hot)
                     Rule()
-                    CoreDeck(cores: s.cores, phase: phase, vertical: true)
+                    CoreDeck(cores: gauges.cores, phase: phase, vertical: true)
                     Rule()
-                    Stat(cap: "RAM", value: String(s.mem), tone: ramTone, fraction: Double(s.mem) / 100, hot: hot)
-                    if s.powerW != nil {
+                    Stat(cap: "RAM", value: String(gauges.mem), tone: ramTone, fraction: Double(gauges.mem) / 100, hot: hot)
+                    if gauges.powerW != nil {
                         Rule()
                         VStack(spacing: 0) {
                             Cap(text: "PW", hot: hot)
@@ -32,7 +34,7 @@ struct CpuAtom: View {
                             // 40 pt: whole watts from 10 up ("−16 W"), one decimal below ("−8.0 W")
                             Num(value: (p >= 0 ? "+" : "−") + String(format: abs(p) >= 10 ? "%.0f" : "%.1f", abs(p)), unit: "W")
                             Color.clear.frame(height: T.gap)
-                            PowerTrace(hist: s.powerHist).frame(width: 38, height: 15)
+                            PowerTrace(hist: gauges.powerHist).frame(width: 38, height: 15)
                             Color.clear.frame(height: 6)      // the pill's bottom edge is not the trace's baseline
                         }
                     }
@@ -42,26 +44,26 @@ struct CpuAtom: View {
             } else {
                 HStack(spacing: T.gap) {
                     Cap(text: "CPU", hot: hot)
-                    Num(value: String(s.cpu), unit: "%", tone: cpuTone)
-                    Bar(value: Double(s.cpu) / 100, tone: cpuTone, hot: hot, width: 34)
+                    Num(value: String(gauges.cpu), unit: "%", tone: cpuTone)
+                    Bar(value: Double(gauges.cpu) / 100, tone: cpuTone, hot: hot, width: 34)
                     Sep(height: 18).padding(.horizontal, 5)
-                    CoreDeck(cores: s.cores, phase: phase)
+                    CoreDeck(cores: gauges.cores, phase: phase)
                     Sep(height: 18).padding(.horizontal, 5)
                     Cap(text: "RAM", hot: hot)
-                    Num(value: String(s.mem), unit: "%", tone: ramTone)
-                    Bar(value: Double(s.mem) / 100, tone: ramTone, hot: hot, width: 34)
-                    if s.powerW != nil {
+                    Num(value: String(gauges.mem), unit: "%", tone: ramTone)
+                    Bar(value: Double(gauges.mem) / 100, tone: ramTone, hot: hot, width: 34)
+                    if gauges.powerW != nil {
                         Sep(height: 18).padding(.horizontal, 5)
                         Cap(text: "PW", hot: hot)
                         Num(value: (p >= 0 ? "+" : "−") + String(format: "%.1f", abs(p)), unit: "W")
-                        PowerTrace(hist: s.powerHist).frame(width: 38, height: 15)
+                        PowerTrace(hist: gauges.powerHist).frame(width: 38, height: 15)
                     }
                 }
                 .frame(height: G.pill)
             }
         }
         .animation(.easeOut(duration: 0.15), value: hot)
-        .overlay(RightClick { NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app")) })
+        .onRightClick { NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app")) }
         .popout("vitals", edge: .above, hot: $hot)
         .onChange(of: hot) { _, h in
             guard h else { return }
@@ -135,4 +137,15 @@ private struct PowerTrace: View {
             }
         }
     }
+}
+
+/// The CPU atom: the core deck and the figures in both forms, and the vitals card (STATS) on hover. Its numbers come from the package's
+/// `SystemEngine`, which runs only while this atom is on a showing bar.
+public struct CpuAtom: CustomAtom {
+    public static let meta = AtomMeta(id: "cpu", name: "CPU", priority: 5, maxWidth: 460)
+    public init() {}
+    public func horizontal(_ env: Env) -> some View { CpuFace(vertical: false) }
+    public func vertical(_ env: Env) -> some View { CpuFace(vertical: true) }
+    public var card: Card? { Card(id: "vitals", size: { _ in VitalsCard.size }) { VitalsCard() } }
+    public func activate(_ env: Env) -> (() -> Void)? { SystemEngine.shared.retainAll(env) }
 }

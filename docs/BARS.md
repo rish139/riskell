@@ -30,7 +30,7 @@ House rules for the two forms (match them for any new atom):
 - **Horizontal:** a row, `.frame(height: G.pill)` (36), spacing `T.gap` (7), `Sep(height: 18).padding(.horizontal, 5)` between modules.
 - **Vertical:** a centred column, content at most 40 pt wide (strip 52; a floating island's content is 42 wide), stacked, no rotated text.
   A level is drawn as caption or glyph **above**, a vertical gauge in the middle (`VGauge` in RiskellKit, the vertical twin of `Bar`),
-  the number **under** it. Modules in one atom are separated by a 24 pt hairline (`Rule` in `CpuAtom.swift`).
+  the number **under** it. Modules in one atom are separated by a 24 pt hairline (`Rule` in `Packages/system/Sources/SystemExt/CpuFace.swift`).
 - Colours only through `Pal`, type only through `T`. The horizontal form of an atom that already had one must stay pixel-identical
   when a vertical form is added (compare snapshots, see "Snapshot harness").
 - The popout card an atom opens is chosen by the **bar**, not the atom: `HBar` / `VBar` put `\.popEdge` in the environment and the

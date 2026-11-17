@@ -1,0 +1,10 @@
+// swift-tools-version:5.9
+import PackageDescription
+
+let package = Package(
+    name: "system",
+    platforms: [.macOS(.v14)],
+    products: [.library(name: "SystemExt", targets: ["SystemExt"])],
+    dependencies: [.package(url: "https://github.com/rish139/riskell-kit", from: "0.4.0")],
+    targets: [.target(name: "SystemExt", dependencies: [.product(name: "RiskellKit", package: "riskell-kit")])]
+)

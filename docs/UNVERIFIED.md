@@ -31,6 +31,8 @@ verified, move it to the "Verified" list with the date, the macOS version and th
 
 | **Weather and AI usage as packages** | Place weather and AI usage, change `location` in `config.json` while running, and toggle `usage.claude`; the atoms follow without a restart. Check the keychain prompt for Claude usage appears once, after the rebuild. | Weather was run live in a scratch instance (fetch, and a location change refetching); usage was checked only with `--fake-usage`, never against the real keychain or OpenCode. The weather glyphs now take `Pal.font` instead of the system font: layout matched, but day and night glyphs were compared on different data. |
 
+| **Battery, CPU and fans as a package** | `risk dev`, then hover each of the three and open the CPU card (search, kill a process, right-click the CPU figure for Activity Monitor); unplug and plug the charger; check the fan card's live reading. Remove all three from every bar and confirm in Activity Monitor that riskell stops waking. | Compared with the built-in versions on identical layouts (bars and cards matched apart from live numbers) and run in scratch instances only. The weather-style real-data comparison, charger events and a process kill were not exercised. Idle CPU was noisy on a busy machine (0.25 to 0.35 s per 30 s for the full layout, as before). |
+
 ### Display and system
 | Item | What to try | Why it is unverified |
 |---|---|---|

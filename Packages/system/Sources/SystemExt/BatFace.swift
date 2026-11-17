@@ -1,5 +1,19 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
+
+/// The battery atom: the figure and the glass cell in both forms, with its card. The numbers come from `SystemState` and
+/// `SystemEngine` retains the samplers only while this atom is on a showing bar.
+public struct BatAtom: CustomAtom {
+    public static let meta = AtomMeta(id: "bat", name: "Battery", priority: 9, maxWidth: 260)
+    public init() {}
+    public func horizontal(_ env: Env) -> some View { BatFace(vertical: false) }
+    public func vertical(_ env: Env) -> some View { BatFace(vertical: true) }
+    public var card: Card? { Card(id: "bat", size: { _ in BatteryCard.size }) { BatteryCard() } }
+    public func activate(_ env: Env) -> (() -> Void)? { SystemEngine.shared.retainAll(env) }
+}
 
 /// The battery: the figure first (bold, dim micro-%), then the glass cell and nothing else at rest. The cell is the icon: a pressed
 /// body, a hairline edge, a terminal nub, the charge as a fill with a crown on its crest, and 25/50/75 engravings cut through the bore.
@@ -7,19 +21,19 @@ import RiskellKit
 /// Below 20 % and not charging the whole atom pulses.
 /// On the left strip (`vertical`) it stands up as a column: a tall cell (nub on top, charge rising from the bottom) with the figure under it,
 /// and the runtime unfolds underneath it instead of sideways.
-struct BatAtom: View {
-    @EnvironmentObject var s: Store
+struct BatFace: View {
+    @ObservedObject private var state = SystemState.shared
     @State private var hot = false
     @State private var runtimeW: CGFloat = 0
     @State private var pulse = false
     let vertical: Bool
 
     var body: some View {
-        if let pct = s.batPct {
-            let charging = s.charging
+        if let pct = state.batPct {
+            let charging = state.charging
             let tone = Self.tone(pct, charging)
             let low = pct < 20 && !charging
-            let rt = Self.runtime(s.batDetail.minutes, pct: pct, charging: charging)
+            let rt = Self.runtime(state.batDetail.minutes, pct: pct, charging: charging)
             Group {
                 if vertical {
                     // The left strip: a column. The glass cell is the whole picture; the figure under it, and the runtime unfolding below

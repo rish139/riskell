@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
 
@@ -6,10 +9,9 @@ import RiskellKit
 /// using the machine grouped by application, sortable, searchable, with a confirmed END. Everything is read in-process, and only
 /// while this card is open (Vitals.start/stop).
 struct VitalsCard: View {
-    @EnvironmentObject var s: Store
-    @EnvironmentObject var gauges: Gauges      // redraws on the timer-driven numbers
+    @ObservedObject private var gauges = SystemGauges.shared      // redraws on the timer-driven numbers
+    @ObservedObject private var state = SystemState.shared
     @ObservedObject private var v = Vitals.shared
-    @ObservedObject private var pop = Popout.shared
 
     static let pad: CGFloat = 16, width: CGFloat = 468
     static let rowH: CGFloat = 31, rowsShown = 6
@@ -37,8 +39,8 @@ struct VitalsCard: View {
         else if v.pressure >= 2 { a.append(Alert(text: "MEMORY PRESSURE · \(gb(v.available)) AVAILABLE", crit: false)) }
         let cores = Double(max(1, ProcessInfo.processInfo.processorCount)), q = v.load[0] / cores * 100
         if q >= 150 { a.append(Alert(text: "CPU OVERLOADED · LOAD \(String(format: "%.1f", v.load[0])) ON \(Int(cores)) CORES", crit: q >= 250)) }
-        if let t = store.thermal.tempC, t >= 85 { a.append(Alert(text: "CPU HOT · \(Int(t.rounded()))°C", crit: t >= 95)) }
-        if let b = store.batPct, !store.onAC, b <= 15 { a.append(Alert(text: "BATTERY \(b)%", crit: b <= 8)) }
+        if let t = SystemGauges.shared.thermal.tempC, t >= 85 { a.append(Alert(text: "CPU HOT · \(Int(t.rounded()))°C", crit: t >= 95)) }
+        if let b = SystemState.shared.batPct, !SystemState.shared.onAC, b <= 15 { a.append(Alert(text: "BATTERY \(b)%", crit: b <= 8)) }
         if let hog = v.procs.max(by: { $0.cpu < $1.cpu }), hog.cpu >= 2.5 { a.append(Alert(text: "\(hog.name.uppercased()) USING \(String(format: "%.1f", hog.cpu)) CORES", crit: false)) }
         return a
     }
@@ -58,8 +60,8 @@ struct VitalsCard: View {
         .padding(.horizontal, Self.pad).padding(.top, 14).padding(.bottom, Self.pad)
         .frame(width: Self.width, alignment: .topLeading)
         .onAppear { Vitals.shared.start() }
-        .onDisappear { Vitals.shared.stop(); if searching { Popout.shared.setKeyable(false) }; searching = false; query = ""; confirm = nil }
-        .onChange(of: alerts.count) { _, _ in Popout.shared.refit() }
+        .onDisappear { Vitals.shared.stop(); if searching { PopState.shared.setKeyable(false) }; searching = false; query = ""; confirm = nil }
+        .onChange(of: alerts.count) { _, _ in PopState.shared.refit() }
     }
 
     // MARK: pieces
@@ -83,7 +85,7 @@ struct VitalsCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 t("CPU · \(Self.chip)", 10, Pal.amberDim, 1.4).lineLimit(1)
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text("\(s.cpu)").font(Pal.font(27, .bold)).foregroundStyle(Pal.text1)
+                    Text("\(gauges.cpu)").font(Pal.font(27, .bold)).foregroundStyle(Pal.text1)
                     Text("%").font(Pal.font(11, .bold)).foregroundStyle(Pal.text3)
                 }
                 t("LOAD " + v.load.map { String(format: "%.2f", $0) }.joined(separator: " · "), 9, Pal.text4, bold: false).lineLimit(1)
@@ -109,7 +111,7 @@ struct VitalsCard: View {
 
     // the die: one block per cluster, each core a cell whose heat is its real load (one canvas, and no easing: the loads are 2 s samples, and a 0.4 s ease redraws it at the display's rate for a fifth of the time)
     private var die: some View {
-        DieCanvas(u: LoadVec(s.cores.map(Double.init)))
+        DieCanvas(u: LoadVec(gauges.cores.map(Double.init)))
             .frame(height: 90)
     }
 
@@ -118,18 +120,18 @@ struct VitalsCard: View {
     private var facts: some View {
         let w = (Self.width - 2 * Self.pad - 28) / 3
         let gb = { (b: Double) in String(format: "%.1f GB", b / 1_073_741_824) }
-        let d = store.batDetail, bp = store.batPct
-        let temp = store.thermal.tempC, rpm = store.thermal.fanRPM
+        let d = state.batDetail, bp = state.batPct
+        let temp = gauges.thermal.tempC, rpm = gauges.thermal.fanRPM
         let cores = Double(max(1, ProcessInfo.processInfo.processorCount))
         return VStack(spacing: 0) {
             Grid(alignment: .topLeading, horizontalSpacing: 14, verticalSpacing: 12) {
                 GridRow {
-                    tile("MEMORY", String(format: "%.1f / %.0f", s.memUsedG, s.memTotalG), "GB", g1: s.memTotalG > 0 ? s.memUsedG / s.memTotalG : -1,
-                         g2: s.memTotalG > 0 ? min(v.cached, v.available) / 1_073_741_824 / s.memTotalG : 0,
+                    tile("MEMORY", String(format: "%.1f / %.0f", gauges.memUsedG, gauges.memTotalG), "GB", g1: gauges.memTotalG > 0 ? gauges.memUsedG / gauges.memTotalG : -1,
+                         g2: gauges.memTotalG > 0 ? min(v.cached, v.available) / 1_073_741_824 / gauges.memTotalG : 0,
                          sub: "\(gb(v.available).uppercased()) AVAILABLE",
                          sub2: v.swapTotal > 0 ? "SWAP \(gb(v.swapUsed)) / \(gb(v.swapTotal))".uppercased() : "NO SWAP").frame(width: w)
                     tile("BATTERY", bp.map(String.init) ?? "—", "%", g1: bp.map { Double($0) / 100 } ?? -1,
-                         gColor: (bp ?? 100) <= 20 && !store.onAC ? Pal.crit : Pal.accent,
+                         gColor: (bp ?? 100) <= 20 && !state.onAC ? Pal.crit : Pal.accent,
                          sub: batSub(bp: bp, eta: d.minutes),
                          sub2: d.health.map { "HEALTH \(Int($0.rounded()))% · \(d.cycles ?? 0) CYC" } ?? "").frame(width: w)
                     tile("THERMAL", temp.map { String(Int($0.rounded())) } ?? "—", "°C", g1: temp.map { max(0, min(1, ($0 - 25) / 65)) } ?? -1,
@@ -151,9 +153,9 @@ struct VitalsCard: View {
 
     private func batSub(bp: Int?, eta: Int?) -> String {
         guard bp != nil else { return "NO BATTERY" }
-        let p = abs(s.powerW ?? 0), e = eta.map { $0 >= 60 ? "\($0 / 60)H \(String(format: "%02d", $0 % 60))M" : "\($0)M" }
-        if store.charging { return "+\(String(format: "%.1f", p)) W" + (e.map { " · \($0) TO FULL" } ?? " CHARGING") }
-        if !store.onAC { return "\(String(format: "%.1f", p)) W DRAW" + (e.map { " · \($0) LEFT" } ?? "") }
+        let p = abs(gauges.powerW ?? 0), e = eta.map { $0 >= 60 ? "\($0 / 60)H \(String(format: "%02d", $0 % 60))M" : "\($0)M" }
+        if state.charging { return "+\(String(format: "%.1f", p)) W" + (e.map { " · \($0) TO FULL" } ?? " CHARGING") }
+        if !state.onAC { return "\(String(format: "%.1f", p)) W DRAW" + (e.map { " · \($0) LEFT" } ?? "") }
         return "NOT CHARGING · ON AC"
     }
 
@@ -265,15 +267,15 @@ struct VitalsCard: View {
                 }
             }
             Button { searching ? closeSearch() : openSearch() } label: {
-                Image(systemName: "magnifyingglass").font(.system(size: 12, weight: .semibold)).foregroundStyle(searching ? Pal.accent : Pal.text3)
+                Image(systemName: "magnifyingglass").font(Pal.font(12, .semibold)).foregroundStyle(searching ? Pal.accent : Pal.text3)
                     .frame(width: 24, height: 24).contentShape(Rectangle())
             }.buttonStyle(.plain)
         }
         .animation(.spring(duration: 0.3, bounce: 0.05), value: searching)
     }
 
-    private func openSearch() { searching = true; Popout.shared.setKeyable(true); DispatchQueue.main.async { searchFocus = true } }
-    private func closeSearch() { searching = false; query = ""; searchFocus = false; Popout.shared.setKeyable(false) }
+    private func openSearch() { searching = true; PopState.shared.setKeyable(true); DispatchQueue.main.async { searchFocus = true } }
+    private func closeSearch() { searching = false; query = ""; searchFocus = false; PopState.shared.setKeyable(false) }
 
     private func row(_ g: ProcGroup, top: Double) -> some View {
         let frac = max(0, min(1, (sortCPU ? g.cpu : Double(g.rss)) / top))
@@ -338,7 +340,7 @@ struct VitalsCard: View {
         }.frame(height: 24).animation(.easeOut(duration: 0.15), value: linkHot)
     }
     private func link(_ label: String, _ action: @escaping () -> Void) -> some View {
-        Button { action(); Popout.shared.close() } label: {
+        Button { action(); PopState.shared.close() } label: {
             t(label, 9, linkHot == label ? Pal.accent : Pal.amberDim, 1.4).padding(.vertical, 4).contentShape(Rectangle())
         }.buttonStyle(.plain).onHover { linkHot = $0 ? label : (linkHot == label ? nil : linkHot) }
     }

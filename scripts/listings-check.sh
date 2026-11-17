@@ -19,7 +19,8 @@ for id in atoms:
     if id not in files: fail("no listing for built-in atom %s (listings/%s.json)" % (id, id))
 for id, d in files.items():
     if files[id].get("home") == "package":      # moved out: its package is installed by the lock, and is no longer in the app's own list
-        if id not in lock: fail("listings/%s.json: home is package but %s is not in extensions.lock.json" % (id, id))
+        pk = {x for x in (src.split("/")[1] for src in files[id].get("source", []) if src.startswith("Packages/"))}
+        if id not in lock and not (pk & lock): fail("listings/%s.json: home is package but no package of its source is in extensions.lock.json" % id)
         if id in atoms: fail("listings/%s.json: home is package but the app still has a built-in %s" % (id, id))
         atoms[id] = {"name": files[id].get("name")}
     elif id not in atoms: fail("listings/%s.json is not a built-in atom" % id); continue

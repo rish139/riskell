@@ -1,17 +1,20 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
 
 /// The battery card: what the atom does not already say, six readings in a grid. No header (the atom you are hovering is the title).
 /// Power is signed (+ charging, - discharging), temperature and health carry the shell's tone chains.
 struct BatteryCard: View {
-    @EnvironmentObject var s: Store
-    @EnvironmentObject var gauges: Gauges      // redraws on the timer-driven numbers
-    @ObservedObject private var pop = Popout.shared
+    @ObservedObject private var state = SystemState.shared
+    @ObservedObject private var gauges = SystemGauges.shared      // redraws on the timer-driven numbers
+    @ObservedObject private var pop = PopState.shared
     static let pad: CGFloat = 15
     static let size = CGSize(width: 182, height: 164)
 
     var body: some View {
-        let d = s.batDetail, p = s.powerW ?? 0
+        let d = state.batDetail, p = gauges.powerW ?? 0
         let temp = d.tempC, health = d.health
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 13) {
             GridRow {

@@ -80,9 +80,9 @@ final class Config: ObservableObject {
     private var saveWork: DispatchWorkItem?
 
     static let defaults: [BarKey: BarSpec] = [
-        .top: BarSpec(start: [Island(id: "compat", atoms: ["compat"])], end: [Island(id: "status", atoms: ["bat", "ext:clock"])]),
-        .bottom: BarSpec(center: [Island(id: "cpu", atoms: ["cpu"])], end: [Island(id: "link", atoms: ["net", "vol"]), Island(id: "sky", atoms: ["ext:weather"])]),
-        .left: BarSpec(start: [Island(id: "workspaces", atoms: ["workspaces", "appicon"])], end: [Island(id: "system", atoms: ["ext:usage", "fan"])]),
+        .top: BarSpec(start: [Island(id: "compat", atoms: ["compat"])], end: [Island(id: "status", atoms: ["ext:bat", "ext:clock"])]),
+        .bottom: BarSpec(center: [Island(id: "cpu", atoms: ["ext:cpu"])], end: [Island(id: "link", atoms: ["net", "vol"]), Island(id: "sky", atoms: ["ext:weather"])]),
+        .left: BarSpec(start: [Island(id: "workspaces", atoms: ["workspaces", "appicon"])], end: [Island(id: "system", atoms: ["ext:usage", "ext:fan"])]),
         .right: BarSpec(),
     ]
     static let defaultHug: [BarKey: Bool] = [.top: false, .bottom: false, .left: true, .right: true]
@@ -240,7 +240,7 @@ final class Config: ObservableObject {
         var spill: [String: String]?                                    // per bar, "fill" or "chat"; absent or unknown = fill
     }
     /// Atoms that became packages keep working from an older layout.json (the clock became ext:clock).
-    static let legacyIDs = ["usage": "ext:usage", "weather": "ext:weather", "clock": "ext:clock"]
+    static let legacyIDs = ["bat": "ext:bat", "cpu": "ext:cpu", "fan": "ext:fan", "usage": "ext:usage", "weather": "ext:weather", "clock": "ext:clock"]
     private static var url: URL { URL(fileURLWithPath: ProcessInfo.processInfo.environment["RISKELL_LAYOUT"] ?? NSHomeDirectory() + "/.config/riskell/layout.json") }
 
     private func load() {

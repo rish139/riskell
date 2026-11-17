@@ -4,6 +4,7 @@ import SwiftUI
 import Combine
 import RiskellKit
 import WeatherExt
+import SystemExt
 
 // riskell: the bars. usage: riskell [--snap DIR] [--stay SECONDS] [--dump]
 //   --trace     log timestamped space-change sources (window manager, NSWorkspace, SkyLight events)
@@ -45,7 +46,6 @@ let wm: WindowManager = WM.make(store: store)
 WM.shared = wm
 let sys = Sys(store: store)
 let spaceWatch = SpaceWatch(store: store, wm: wm)
-let thermal = Thermal(store: store)
 let wifi = Wifi(store: store)
 let nowPlaying = NowPlaying()
 tracing = args.contains("--trace")
@@ -85,7 +85,7 @@ func panel(_ frame: CGRect, _ view: NSView, above: Int = 1) -> NSPanel {
 }
 
 func hosting<V: View>(_ v: V) -> NSHostingView<AnyView> {
-    let h = NSHostingView(rootView: AnyView(ThemeRoot(content: v.environmentObject(store).environmentObject(store.gauges))))
+    let h = NSHostingView(rootView: AnyView(ThemeRoot(content: v.environmentObject(store))))
     h.sizingOptions = []      // riskell sets every window frame itself; the content's own size (design units) must not constrain the window
     return h
 }
@@ -102,8 +102,7 @@ Extensions.apply(AppConfig.shared)      // the optional extensions: gestures sta
 if !args.contains("--dump") { Compat.shared.start() }
 ConfigWatcher.shared.start()
 // The built-in services run only while an atom that needs them is placed on a bar that is on (Services/Needs.swift).
-Needs.register("sys", start: sys.start, stop: sys.stop)      // CPU and memory, battery, power, volume, microphone
-Needs.register("thermal", start: { thermal.start(); FanLive.shared.startHistory() }, stop: { FanLive.shared.stopHistory() })
+Needs.register("sys", start: sys.start, stop: sys.stop)      // the battery, the volume and the microphone
 Needs.register("wifi", start: wifi.start, stop: wifi.stop)      // also the Location prompt for Wi-Fi names
 Needs.begin()
 if tracing { Sky.trace(1300...1460) { t in tlog("SkyLight event \(t)") } }
@@ -112,7 +111,7 @@ func shutdown() { nowPlaying.stop(); wm.stop(); events.stop(); Extensions.stopAl
 
 if args.contains("--dump") {
     DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-        print(store.dump()); print("services:", Needs.active.joined(separator: " ")); print("tray:", Config.shared.tray.joined(separator: " ")); if args.contains("--smc") { print(thermal.describe()) }; shutdown(); exit(0)
+        print(store.dump()); print("services:", Needs.active.joined(separator: " ")); print("tray:", Config.shared.tray.joined(separator: " ")); if args.contains("--smc") { print(SystemDiagnostics.smc()) }; shutdown(); exit(0)
     }
     app.run()
 }
@@ -173,7 +172,7 @@ func relayout() {
     leftHost.useDesignUnits(); rightHost.useDesignUnits()
     left.setFrame(CGRect(x: f.minX, y: f.minY, width: Real.strip + Real.r, height: f.height), display: true)
     right.setFrame(CGRect(x: f.maxX - Real.strip - Real.r, y: f.minY, width: Real.strip + Real.r, height: f.height), display: true)
-    topHost.rootView = AnyView(ThemeRoot(content: HBar(bar: .top, bandH: G.band, shiftY: G.topShift, notchAbs: Display.current.barNotch).environmentObject(store).environmentObject(store.gauges)))
+    topHost.rootView = AnyView(ThemeRoot(content: HBar(bar: .top, bandH: G.band, shiftY: G.topShift, notchAbs: Display.current.barNotch).environmentObject(store)))
     applyGeometry()
     if writeGaps { wm.reserve(Config.shared) }
     ThemeState.shared.epoch += 1      // every hosting root rebuilds and re-reads the design values (Theme.swift)
@@ -200,15 +199,15 @@ if args.contains("--edit-test") {      // debug: the drop rules, driven through 
         func pt(_ b: BarKey, _ x: CGFloat, _ y: CGFloat) -> CGPoint { let w = c.windows[b]!.frame; return CGPoint(x: w.minX + x, y: w.maxY - y) }
         let fr = c.frames[.top] ?? [:]
         print("edit-test frames top:", fr.keys.sorted())
-        if let bat = fr["atom:bat"], let clk = fr["atom:ext:clock"], let isl = fr["isl:status"] {
+        if let bat = fr["atom:ext:bat"], let clk = fr["atom:ext:clock"], let isl = fr["isl:status"] {
             let before = c.plan("ext:clock", mouse: pt(.top, bat.minX + 2, bat.midY))
             print("edit-test clock -> before bat:", before.map { "\($0.0)" } ?? "nil", "island", isl)
             if let (d, _) = before { c.apply("ext:clock", d) }
             print("edit-test top end:", c.spec(.top).end.map { $0.atoms })
             _ = clk
         }
-        let empty = c.plan("bat", mouse: pt(.top, 900, 28)); print("edit-test bat to empty middle:", empty.map { "\($0.0)" } ?? "nil")
-        if let (d, _) = empty { c.apply("bat", d) }
+        let empty = c.plan("ext:bat", mouse: pt(.top, 900, 28)); print("edit-test bat to empty middle:", empty.map { "\($0.0)" } ?? "nil")
+        if let (d, _) = empty { c.apply("ext:bat", d) }
         print("edit-test top:", c.spec(.top).start.map { $0.atoms }, c.spec(.top).end.map { $0.atoms })
         print("edit-test clock on left (illegal):", c.plan("ext:clock", mouse: pt(.left, 26, 400)) == nil ? "refused" : "ALLOWED")
         fflush(stdout)

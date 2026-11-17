@@ -143,7 +143,7 @@ final class Popout: ObservableObject {
             if floatY != 0 { floatY = 0 }
         }
         if panel == nil {
-            let h = NSHostingView(rootView: AnyView(ThemeRoot(content: PopRoot().environmentObject(store).environmentObject(store.gauges))))
+            let h = NSHostingView(rootView: AnyView(ThemeRoot(content: PopRoot().environmentObject(store))))
             h.autoresizingMask = [.width, .height]
             h.sizingOptions = []      // riskell sets every window frame itself; the SwiftUI content's own size (in design units) must not set a minimum
             let p = PopPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)

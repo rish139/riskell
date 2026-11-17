@@ -424,7 +424,7 @@ Nothing here is a commitment, and the order is not fixed. [docs/ROADMAP.md](docs
 **Framework**
 - [ ] A registry and storefront for atoms, themes and presets. The built-in atoms are its first listings: each already has one in
   [`listings/`](listings) (checked against the app by `scripts/listings-check.sh`), and they are being moved out of the application into
-  packages, simplest first, as the kit's feeds grow to carry what they read (done: the clock, weather and AI usage, in `Packages/`) ([docs/STOREFRONT.md](docs/STOREFRONT.md)).
+  packages, simplest first, as the kit's feeds grow to carry what they read (done: the clock, weather, AI usage, battery, CPU and fans, in `Packages/`; left: volume, network, workspaces and the app icon) ([docs/STOREFRONT.md](docs/STOREFRONT.md)).
   Extensions are pinned to a commit and checked by continuous integration that renders each one on several displays, bars and themes.
 - [x] riskell preferences: the layout editor is renamed, and extensions declare typed settings in their manifest (number, switch, choice)
   that appear in its EXTENSIONS card, so an extension needs no settings interface of its own.

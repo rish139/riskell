@@ -1,20 +1,23 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
 
-/// FAN, read-only: a status box (OFF when the fans rest, AUTO while the system runs them, MAX near their limit), the speed in rpm with ONE
-/// trace under it (the last ~3 minutes, newest last, normalised to its own peak) and the hottest sensor in degrees. Stood up on the strip;
-/// on a horizontal bar (`vertical` false) it is one 36 pt row: the status box, the rpm with its trace, the hottest sensor.
+/// The fan atom: what it draws. FAN, read-only: a status box (OFF when the fans rest, AUTO while the system runs them, MAX near their limit),
+/// the speed in rpm with ONE trace under it (the last ~3 minutes, newest last, normalised to its own peak) and the hottest sensor in degrees.
+/// Stood up on the strip; on a horizontal bar (`vertical` false) it is one 36 pt row: the status box, the rpm with its trace, the hottest sensor.
 /// Hover runs a scan along the trace and warms the captions, and opens the thermal card.
-struct FanAtom: View {
-    @EnvironmentObject var s: Store
-    @EnvironmentObject var gauges: Gauges      // redraws on the timer-driven numbers
+struct FanFace: View {
+    @ObservedObject private var gauges = SystemGauges.shared      // redraws on the timer-driven numbers (the thermal reading is one)
     @ObservedObject private var live = FanLive.shared
     @State private var hot = false
     @State private var phase: Double = 1
     let vertical: Bool
 
     var body: some View {
-        let rpm = s.thermal.fanRPM ?? 0, hottest = s.thermal.hottest ?? s.thermal.tempC
+        let th = gauges.thermal
+        let rpm = th.fanRPM ?? 0, hottest = th.hottest ?? th.tempC
         let maxRPM = live.snap.maxRPM, off = rpm < 50
         let state = off ? "OFF" : (maxRPM > 0 && Double(rpm) >= maxRPM * 0.9) ? "MAX" : "AUTO"
         let tone: Color = (hottest ?? 0) > 85 ? Pal.crit : (hottest ?? 0) > 70 ? Pal.warn : Pal.text1
@@ -33,7 +36,7 @@ struct FanAtom: View {
                     Trace(rpms: live.hist.suffix(20).map(\.rpm), phase: phase).frame(width: 29, height: 8)
                     Rectangle().fill(Pal.hairline).frame(width: 22, height: 1)
                     HStack(alignment: .firstTextBaseline, spacing: 1) {
-                        Image(systemName: "thermometer.medium").font(.system(size: 8.5)).foregroundStyle(Pal.text4)
+                        Image(systemName: "thermometer.medium").font(Pal.font(8.5)).foregroundStyle(Pal.text4)
                         Text(hottest.map { String(Int($0.rounded())) } ?? "—").font(Pal.font(11.5, .bold)).foregroundStyle(hottest == nil ? Pal.text4 : tone)
                         if hottest != nil { Text("°C").font(Pal.font(8)).foregroundStyle(Pal.text4) }
                     }
@@ -54,7 +57,7 @@ struct FanAtom: View {
                     Trace(rpms: live.hist.suffix(20).map(\.rpm), phase: phase).frame(width: 34, height: 14)
                     Sep(height: 18).padding(.horizontal, 5)
                     HStack(alignment: .firstTextBaseline, spacing: 2) {
-                        Image(systemName: "thermometer.medium").font(.system(size: 9.5)).foregroundStyle(Pal.text4)
+                        Image(systemName: "thermometer.medium").font(Pal.font(9.5)).foregroundStyle(Pal.text4)
                         Num(value: hottest.map { String(Int($0.rounded())) } ?? "—", unit: hottest == nil ? nil : "°C",
                             tone: hottest == nil ? Pal.text4 : tone)
                     }

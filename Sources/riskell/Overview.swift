@@ -653,7 +653,7 @@ final class Overview: ObservableObject {
         p.collectionBehavior = [.ignoresCycle]
         p.isReleasedWhenClosed = false
         p.acceptsMouseMovedEvents = true
-        p.contentView = NSHostingView(rootView: AnyView(ThemeRoot(content: OverviewView().environmentObject(store).environmentObject(store.gauges))))
+        p.contentView = NSHostingView(rootView: AnyView(ThemeRoot(content: OverviewView().environmentObject(store))))
         p.setFrame(f, display: false)
         Sky.pin([p])
         return p

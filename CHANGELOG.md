@@ -21,6 +21,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   `scripts/listings-check.sh`, which keeps the listings in step with the app.
 
 ### Changed
+- Battery, CPU and fans are one package, `Packages/system` (`ext:bat`, `ext:cpu`, `ext:fan`; older layouts are read as them). The package owns its
+  samplers (CPU and memory, the smart battery, the SMC, the process list) behind one engine that runs only while one of the three is on a showing bar.
+  RiskellKit 0.4.0 adds `PopState.setKeyable` and `refit`, `View.onRightClick` and `Demo` (the screenshot placeholders). The application's own `Sys`
+  now reads only the battery and the volume, with no timer.
+- An atom that draws nothing until its data arrives is now started: the host gives every custom atom a zero-size anchor, because an empty view never
+  "appears". An extension subscribed to a feed keeps the service behind it running.
 - Weather and AI usage are packages too (`Packages/weather`, `Packages/usage`, placed as `ext:weather` and `ext:usage`; older layouts are read as
   them). They read the location and the usage providers from `config.json` through the kit's new `env.config`, keep their caches in `env.cache`, and
   start only while on a showing bar. RiskellKit 0.3.0 adds `HostConfig`, `Env.config`, `Env.cache`, `PopState.open` and `.close()`, and

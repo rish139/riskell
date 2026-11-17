@@ -35,11 +35,8 @@ enum Registry {
     private static let builtins: [AtomDef] = [
         atom("workspaces", "Workspaces", priority: 8, card: card("workspaces", size: { _ in let l = WsLayout.current(); return CGSize(width: l.width, height: l.height) }) { WorkspacesCard() }, blank: { $0.spaces.isEmpty }) { WorkspacesAtom(vertical: $0) },
         atom("appicon", "App icon", priority: 6, blank: { s in !s.windows.contains(where: { $0.focused }) }) { AppIconAtom(vertical: $0) },
-        atom("fan", "Fan", priority: 3, card: card("fan", size: { _ in FanCard.size }) { FanCard() }) { FanAtom(vertical: $0) },
-        atom("bat", "Battery", priority: 9, card: card("bat", size: { _ in BatteryCard.size }) { BatteryCard() }) { BatAtom(vertical: $0) },
         atom("vol", "Volume", priority: 4, card: card("vol", size: { _ in VolumeCard.size }) { VolumeCard() }) { VolAtom(vertical: $0) },
         atom("net", "Network", priority: 4, card: card("net", size: { _ in NetworkCard.size }) { NetworkCard() }) { NetAtom(vertical: $0) },
-        atom("cpu", "CPU", priority: 5, card: card("vitals", size: { _ in VitalsCard.size }) { VitalsCard() }) { CpuAtom(vertical: $0) },
     ]
 
     /// The built-in atoms' ids, for `riskell --list-atoms` and the listings check.

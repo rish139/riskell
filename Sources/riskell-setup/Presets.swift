@@ -43,7 +43,7 @@ enum Presets {
     }
 
     private static var top: [String: Any] {
-        bar(start: [island("compat", ["compat"])], end: [island("status", ["bat", "ext:clock"])])
+        bar(start: [island("compat", ["compat"])], end: [island("status", ["ext:bat", "ext:clock"])])
     }
 
     private static var link: [String: Any] { island("link", ["net", "vol"]) }
@@ -56,8 +56,8 @@ enum Presets {
         case .classic:
             bars = [
                 "top": top,
-                "bottom": bar(center: [island("cpu", ["cpu"])], end: [link, island("sky", ["ext:weather"])]),
-                "left": bar(start: [island("workspaces", ["workspaces", "appicon"])], end: [island("system", ["ext:usage", "fan"])]),
+                "bottom": bar(center: [island("cpu", ["ext:cpu"])], end: [link, island("sky", ["ext:weather"])]),
+                "left": bar(start: [island("workspaces", ["workspaces", "appicon"])], end: [island("system", ["ext:usage", "ext:fan"])]),
                 "right": bar(),
             ]
             on = [true, true, true, false]
@@ -67,8 +67,8 @@ enum Presets {
         case .full:
             bars = [
                 "top": top,
-                "bottom": bar(center: [island("cpu", ["cpu"])], end: [island("sky", ["ext:weather"])]),
-                "left": bar(start: [island("workspaces", ["workspaces", "appicon"])], end: [island("system", ["ext:usage", "fan"])]),
+                "bottom": bar(center: [island("cpu", ["ext:cpu"])], end: [island("sky", ["ext:weather"])]),
+                "left": bar(start: [island("workspaces", ["workspaces", "appicon"])], end: [island("system", ["ext:usage", "ext:fan"])]),
                 "right": bar(end: [link]),
             ]
             on = [true, true, true, true]

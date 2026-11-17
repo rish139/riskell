@@ -8,11 +8,22 @@
   "license": "MIT",
   "repository": "https://github.com/rish139/riskell",
   "source": [
-    "Sources/riskell/FanAtom.swift",
-    "Sources/riskell/FanCard.swift",
-    "Sources/riskell/Services/FanLive.swift",
-    "Sources/riskell/Services/SMC.swift"
+    "Packages/system/riskell.json",
+    "Packages/system/Sources/SystemExt/BatFace.swift",
+    "Packages/system/Sources/SystemExt/BatteryCard.swift",
+    "Packages/system/Sources/SystemExt/CpuFace.swift",
+    "Packages/system/Sources/SystemExt/FanAtom.swift",
+    "Packages/system/Sources/SystemExt/FanCard.swift",
+    "Packages/system/Sources/SystemExt/FanFace.swift",
+    "Packages/system/Sources/SystemExt/FanLive.swift",
+    "Packages/system/Sources/SystemExt/SMC.swift",
+    "Packages/system/Sources/SystemExt/SystemEngine.swift",
+    "Packages/system/Sources/SystemExt/SystemModel.swift",
+    "Packages/system/Sources/SystemExt/SystemPackage.swift",
+    "Packages/system/Sources/SystemExt/Thermal.swift",
+    "Packages/system/Sources/SystemExt/Vitals.swift",
+    "Packages/system/Sources/SystemExt/VitalsCard.swift"
   ],
-  "home": "kit",
-  "homeNote": "needs a thermal feed in the kit"
+  "home": "package",
+  "homeNote": "moved out of the application with battery, CPU and fans as one package (Packages/system), placed as ext:fan; they share one engine because their cards read each other's numbers"
 }

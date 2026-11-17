@@ -58,6 +58,8 @@ final class PopoutBridge: PopoutHooks {
     func toggleStage(_ id: String) { Popout.shared.toggleStage(id) }
     func setStage(_ stage: Int) { Popout.shared.setStage(stage) }
     func closeCard() { Popout.shared.close() }
+    func setKeyable(_ on: Bool) { Popout.shared.setKeyable(on) }
+    func refit() { Popout.shared.refit() }
     func holdOpen() { Popout.shared.holdOpen = true }
 }
 
@@ -66,12 +68,13 @@ final class PopoutBridge: PopoutHooks {
 final class FeedBridge: FeedHub {
     static let shared = FeedBridge()
 
-    private final class Sub { var bag: [AnyCancellable] = []; var timer: DispatchSourceTimer? }
+    private final class Sub { var bag: [AnyCancellable] = []; var timer: DispatchSourceTimer?; var release: (() -> Void)? }
 
     func subscribe(_ key: String, _ yield: @escaping @Sendable (Any) -> Void) -> () -> Void {
         let sub = Sub()
         DispatchQueue.main.async {
             let s = store
+            if key == "battery" || key == "volume" { sub.release = Needs.hold("sys") }      // the battery and the volume are read by the sys service
             switch key {
             case "battery":
                 sub.bag = [Publishers.CombineLatest3(s.$batPct, s.$onAC, s.$charging).map { BatteryState(percent: $0, onAC: $1, charging: $2) }
@@ -93,7 +96,7 @@ final class FeedBridge: FeedHub {
             default: break
             }
         }
-        return { DispatchQueue.main.async { sub.bag = []; sub.timer?.cancel(); sub.timer = nil } }
+        return { DispatchQueue.main.async { sub.bag = []; sub.timer?.cancel(); sub.timer = nil; sub.release?(); sub.release = nil } }
     }
 }
 
@@ -143,11 +146,16 @@ struct CustomAtomView<A: CustomAtom>: View {
     let vertical: Bool
     let maxWidth: CGFloat
     var body: some View {
-        Group {
-            if vertical { atom.vertical(env).frame(maxWidth: 40).clipped() }
-            else { atom.horizontal(env).fixedSize(horizontal: true, vertical: false).frame(maxWidth: maxWidth, maxHeight: G.pill, alignment: .leading).clipped().fixedSize(horizontal: true, vertical: false) }      // hugs its content, at most `maxWidth` (a bare maxWidth frame would grow to the room the bar offers)
+        // The anchor is a view of its own: an atom that draws nothing until its data arrives (the battery, before its first reading) resolves to an
+        // empty view, which never "appears", so it would never start the work that fetches the data. It has no size, so the layout is unchanged.
+        ZStack {
+            Color.clear.frame(width: 0, height: 0)
+                .modifier(ActiveWhenShown(attach: { life.attach() }, detach: { life.detach() }))
+            Group {
+                if vertical { atom.vertical(env).frame(maxWidth: 40).clipped() }
+                else { atom.horizontal(env).fixedSize(horizontal: true, vertical: false).frame(maxWidth: maxWidth, maxHeight: G.pill, alignment: .leading).clipped().fixedSize(horizontal: true, vertical: false) }      // hugs its content, at most `maxWidth` (a bare maxWidth frame would grow to the room the bar offers)
+            }
         }
-        .modifier(ActiveWhenShown(attach: { life.attach() }, detach: { life.detach() }))
     }
 }
 

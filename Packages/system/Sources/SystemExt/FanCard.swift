@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
 
@@ -7,8 +10,8 @@ import RiskellKit
 /// the battery's flow, CPU load) and the thermal chart: the last 30 minutes of every sensor group over a faint band of fan speed. The rows
 /// under it are the legend: hover one to light its trace, click to hide it.
 struct FanCard: View {
-    @EnvironmentObject var s: Store
-    @EnvironmentObject var gauges: Gauges      // redraws on the timer-driven numbers
+    @ObservedObject private var state = SystemState.shared      // the battery
+    @ObservedObject private var gauges = SystemGauges.shared    // redraws on the timer-driven numbers (CPU load)
     @ObservedObject private var live = FanLive.shared
     @State private var hover: Int? = nil
     @State private var hoverRow: Int? = nil
@@ -63,8 +66,8 @@ struct FanCard: View {
         let batt = sn.battW ?? 0
         let cells: [(String, String, String, Double?)] = [
             ("SYSTEM", sn.sysW.map { String(format: "%.1f W", $0) } ?? "—", sn.dcW.map { "DC IN " + String(format: "%.1f W", $0) } ?? "", nil),
-            ("BATTERY", sn.battW.map { String(format: "%.1f W", abs($0)) } ?? "—", s.charging ? "CHARGING" : s.onAC ? "ON AC" : batt > 0.5 ? "DISCHARGING" : "IDLE", nil),
-            ("CPU LOAD", "\(s.cpu)%", "ALL CORES", Double(s.cpu) / 100),
+            ("BATTERY", sn.battW.map { String(format: "%.1f W", abs($0)) } ?? "—", state.charging ? "CHARGING" : state.onAC ? "ON AC" : batt > 0.5 ? "DISCHARGING" : "IDLE", nil),
+            ("CPU LOAD", "\(gauges.cpu)%", "ALL CORES", Double(gauges.cpu) / 100),
         ]
         return HStack(spacing: 0) {
             ForEach(Array(cells.enumerated()), id: \.offset) { i, c in

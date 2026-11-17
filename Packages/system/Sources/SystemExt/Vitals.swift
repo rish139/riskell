@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import Foundation
 import IOKit
 import Darwin
@@ -36,7 +39,8 @@ final class Vitals: ObservableObject {
     private(set) var pressure = 1                          // kern.memorystatus_vm_pressure_level: 1 normal, 2 warning, 4 critical
     private(set) var freePct = 100                         // kern.memorystatus_level
 
-    private var timer: Timer?
+    /// Stops the 1 s reading while a card is open (the kit's `env.repeating`, from the environment of the atom that retained last).
+    private var stopTick: (() -> Void)?
     private let queue = DispatchQueue(label: "riskell.vitals", qos: .utility)
     private var prevCPU: (UInt32, UInt32, UInt32, UInt32)?
     private var prevProc: [Int32: UInt64] = [:]                       // pid -> cpu time (ns) at the last sample
@@ -51,22 +55,21 @@ final class Vitals: ObservableObject {
     /// A card that needs the data calls start() when it appears and stop() when it goes.
     func start() {
         users += 1
-        guard timer == nil else { return }
+        guard stopTick == nil, let env = SystemEngine.shared.env else { return }
         ticks = 0
+        if let last = hist.last, Date().timeIntervalSince1970 - last.t > 3 { hist.append(HistSample(t: Date().timeIntervalSince1970, cpu: .nan, mem: .nan)) }
+        prevCPU = nil; prevProc = [:]; prevIO = nil
+        // the first firing is immediate, so the first reading comes now
         if Demo.on && hist.isEmpty {      // screenshots: a minute of plausible history, so the graph is not empty
             let now = Date().timeIntervalSince1970
             hist = (0..<60).map { i in HistSample(t: now - Double(60 - i), cpu: Demo.cpuAt(i), mem: Demo.memAt(i)) }
         }
-        if let last = hist.last, Date().timeIntervalSince1970 - last.t > 3 { hist.append(HistSample(t: Date().timeIntervalSince1970, cpu: .nan, mem: .nan)) }
-        prevCPU = nil; prevProc = [:]; prevIO = nil
-        tick()
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
-        timer?.tolerance = 0.1
+        stopTick = env.repeating(.seconds(1)) { [weak self] in self?.tick() }
     }
     func stop() {
         users = max(0, users - 1)
         guard users == 0 else { return }
-        timer?.invalidate(); timer = nil
+        stopTick?(); stopTick = nil
     }
 
     private func pub() { objectWillChange.send() }
@@ -81,7 +84,7 @@ final class Vitals: ObservableObject {
         let cpu = sampleCPU()
         readMemory()
         if let cpu {
-            hist.append(HistSample(t: now, cpu: cpu, mem: Double(store.mem)))
+            hist.append(HistSample(t: now, cpu: cpu, mem: Double(SystemGauges.shared.mem)))
             hist.removeAll { $0.t < now - 75 }
         }
         pressure = Int(Self.sysctlInt("kern.memorystatus_vm_pressure_level") ?? 1)
@@ -95,7 +98,7 @@ final class Vitals: ObservableObject {
         queue.async { [weak self] in
             let r = Vitals.scanProcesses(prev: prev, prevAt: prevT, numer: tbn, denom: tbd)
             DispatchQueue.main.async {
-                guard let self, self.timer != nil else { return }
+                guard let self, self.stopTick != nil else { return }
                 self.prevProc = r.times; self.prevAt = r.at
                 if r.groups != self.procs { self.procs = r.groups; self.pub() }
             }
