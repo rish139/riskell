@@ -13,7 +13,7 @@ fails=0
 ok() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; fails=$((fails+1)); fi }
 mkdir -p $T/root $T/cfg $T/repos $T/reg/listings $T/cache
 (cd $root && git archive HEAD | tar -x -C $T/root); cp -R $reg/scripts $reg/schema $T/reg/
-export RISKELL_ROOT=$T/root RISKELL_CONFIG=$T/cfg/config.json RISKELL_CACHE_DIR=$T/cache RISKELL_REGISTRY=$T/reg REGISTRY_ALLOW_FILE=1 RISKELL_EXT=$X
+export RISKELL_ALLOW_FILE=1 RISKELL_ROOT=$T/root RISKELL_CONFIG=$T/cfg/config.json RISKELL_CACHE_DIR=$T/cache RISKELL_REGISTRY=$T/reg REGISTRY_ALLOW_FILE=1 RISKELL_EXT=$X
 echo '{}' > $T/cfg/config.json
 mkrepo() { (cd $T/repos/$1 && git init -q -b main && git add -A && git -c user.email=t@t -c user.name=t commit -q -m init && git tag v$2); }
 cp -R $root/Examples/load-ext $T/repos/load-ext; rm -rf $T/repos/load-ext/.build
@@ -41,10 +41,10 @@ index
 ok "search finds by name" "[[ \$($X search load) == *load-ext* ]]"
 ok "search finds by keyword" "[[ \$($X search mytheme) == *mytheme* ]]"
 ok "info shows the pin" "[[ \$($X info load-ext) == *'pinned to'* ]]"
-$X add load-ext >/dev/null 2>&1; rc=$?
+$X add load-ext --yes >/dev/null 2>&1; rc=$?
 ok "a compiled add asks for a rebuild (exit 10)" "[[ $rc == 10 ]]"
 ok "the lock has it, with its version" "grep -q '\"version\" : \"1.0.0\"' $T/root/extensions.lock.json"
-ok "a pill is installed as a file" "$X add upinfo >/dev/null 2>&1 && [[ -f $T/cfg/pills/upinfo.json ]]"
+ok "a pill is installed as a file" "$X add upinfo --yes >/dev/null 2>&1 && [[ -f $T/cfg/pills/upinfo.json ]]"
 ok "a theme is installed as a file" "$X add mytheme >/dev/null 2>&1 && [[ -f $T/cfg/themes/mytheme.yaml ]]"
 ok "list shows all three" "[[ \$($X list | grep -cE '^(load-ext|upinfo|mytheme) ') == 3 ]]"
 # the pill's author ships 0.2.0
@@ -58,10 +58,38 @@ ok "update shows the change and applies nothing" "[[ \$($X update) == *'nothing 
 ok "update --yes applies it" "$X update --yes >/dev/null 2>&1 && grep -q 'echo 43' $T/cfg/pills/upinfo.json"
 ok "then it is up to date" "[[ \$($X update) == *'up to date'* ]]"
 python3 -c "import json;p='$T/reg/listings/load-ext.json';d=json.load(open(p));d['version']='9.9.9';json.dump(d,open(p,'w'))"; (cd $T/reg && python3 scripts/build-index.py >/dev/null)
-ok "a listing that disagrees with the manifest is refused" "! $X add load-ext >/dev/null 2>&1"
+ok "a listing that disagrees with the manifest is refused" "! $X add load-ext --yes >/dev/null 2>&1"
 ok "an unknown name is refused" "! $X add nothing-here >/dev/null 2>&1"
 ok "remove takes a pill's files away" "$X remove upinfo >/dev/null 2>&1 && [[ ! -e $T/cfg/pills/upinfo.json ]]"
 ok "remove takes a theme's files away" "$X remove mytheme >/dev/null 2>&1 && [[ ! -e $T/cfg/themes/mytheme.yaml ]]"
 $X remove load-ext >/dev/null 2>&1; rc=$?
 ok "remove of a compiled one asks for a rebuild" "[[ $rc == 10 ]]"
+# the strict parts: what a hostile listing or URL must not be able to do
+python3 - $T <<'PY'
+import json,sys
+T=sys.argv[1]
+def put(name,**kw):
+    d={"id":name,"kind":"pill","name":name,"summary":"x","repo":"https://example.invalid/x","rev":"0"*40,"version":"1.0.0","license":"MIT"}; d.update(kw)
+    json.dump(d,open(f"{T}/reg/listings/{name}.json","w"))
+put("evil-transport",repo="ext::sh -c touch /tmp/riskell-pwned")
+put("evil-rev",rev="--upload-pack=touch /tmp/riskell-pwned")
+put("evil-id-x",id="Evil Id")
+PY
+(cd $T/reg && python3 scripts/build-index.py >/dev/null)
+rm -f /tmp/riskell-pwned
+ok "an ext:: repository in a listing is refused" "! $X add evil-transport --yes >/dev/null 2>&1 && [[ ! -e /tmp/riskell-pwned ]]"
+ok "a listing with an option-shaped commit is refused" "! $X add evil-rev --yes >/dev/null 2>&1 && [[ ! -e /tmp/riskell-pwned ]]"
+ok "an ext:: URL typed on the command line is refused" "! $X add 'ext::sh -c touch /tmp/riskell-pwned' --yes >/dev/null 2>&1 && [[ ! -e /tmp/riskell-pwned ]]"
+ok "an http registry is refused" "! RISKELL_REGISTRY=http://example.invalid/index.json $X search x >/dev/null 2>&1"
+# a pill that names a file outside its repository, and one that is a symlink
+mkdir -p $T/repos/trav && (cd $T/repos/trav && $X new pill trav >/dev/null 2>&1 && mv trav/* . && rmdir trav && python3 - <<'PY'
+import json; m=json.load(open("riskell.json")); m["files"]=["../../etc/hosts.json"]; json.dump(m,open("riskell.json","w"))
+PY
+git init -q -b main && git add -A && git -c user.email=t@t -c user.name=t commit -q -m i && git tag v0.1.0)
+list trav; (cd $T/reg && python3 scripts/build-index.py >/dev/null)
+ok "a manifest file that leaves its repository is refused" "! $X add trav --yes >/dev/null 2>&1 && [[ ! -e $T/cfg/pills/trav.json ]]"
+mkdir -p $T/repos/sym && (cd $T/repos/sym && $X new pill sym >/dev/null 2>&1 && mv sym/* . && rmdir sym && rm pill.json && ln -s /etc/hosts pill.json && git init -q -b main && git add -A && git -c user.email=t@t -c user.name=t commit -q -m i && git tag v0.1.0)
+list sym; (cd $T/reg && python3 scripts/build-index.py >/dev/null)
+ok "a symlinked pill file is refused" "! $X add sym --yes >/dev/null 2>&1 && [[ ! -e $T/cfg/pills/sym.json ]]"
+ok "a pill without --yes and without a terminal is not installed" "! $X add upinfo </dev/null >/dev/null 2>&1"
 echo; [[ $fails == 0 ]] && echo "all checks passed" || { echo "$fails check(s) failed"; exit 1; }

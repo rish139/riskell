@@ -4,6 +4,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-17
+
+### Security
+- The AI usage atom reads no credential and makes no network request: it computes the Claude meters from Claude Code's own local session logs (token
+  counts; an active 5-hour session and the last 7 days, measured against limits you set in `config.json` or your own 30-day peak). The first version
+  read the Claude Code OAuth token from the keychain and called an unofficial Anthropic endpoint, which Anthropic's terms do not allow for third-party
+  tools, and a provider that copied a browser's cookie database; both were removed before release, along with the OpenCode provider.
+- `risk ext add` and `update` are strict about what they install: https repositories only (git's `ext::` transport, prompts and hooks are off), every
+  field of a listing is checked, a pill or theme file must be a plain small regular file inside the repository, the registry index is fetched over
+  https only, and installing someone else's code or a pill's shell commands needs your confirmation after you are shown the author, license, commit
+  and commands (`--yes` for scripts).
+- GitHub Actions are pinned to commits and run with a read-only token; Dependabot, CODEOWNERS and `scripts/harden-github` (secret scanning, push
+  protection, private vulnerability reporting, fork-PR approval) are set up; `SECURITY.md` says what is built in and how to report.
+- `scripts/release` makes a release only from a clean, checked main; `riskell --version` and `scripts/version-check.sh` keep one version number.
+
 ### Licensing
 - The app is source-available under the PolyForm Noncommercial License 1.0.0; RiskellKit, `risk ext`, the schema and the examples are
   Apache-2.0. Contributions need a CLA. Added a Code of Conduct and a security policy.
@@ -60,7 +75,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - A custom atom's horizontal form hugs its content (at most `maxWidth`) instead of growing to the room the bar offers.
 - Built-in services (CPU, battery, volume and microphone, thermals, weather, Wi-Fi, AI usage) start only while an atom that needs them is
   placed on a bar that is on, and stop when it is removed (`Services/Needs.swift`). A layout with no weather or network atom makes no request,
-  and asks for no Location or keychain access.
+  and asks for no Location access.
 - Script pills and extension readings are drawn by the same code (the kit's `ReadingBody` and `ReadingCardContent`). No pixel changed.
 
 ### Documentation

@@ -4,6 +4,7 @@ import SwiftUI
 import Combine
 import RiskellKit
 import WeatherExt
+import UsageExt
 import SystemExt
 
 // riskell: the bars. usage: riskell [--snap DIR] [--stay SECONDS] [--dump]
@@ -29,11 +30,13 @@ InstanceLock.selfTest(args)      // --lock-test hold|try <file>: the lock logic 
 if args.contains("--check-fit") { CheckFit.run() }      // the wings on each fake display, PASS / FAIL, exit 1 on FAIL (WingFit.swift)
 if args.contains("--key-test") { exit(SettingsPanel.keyTest() ? 0 : 1) }      // the editor's close keys, PASS / FAIL per case, then exit
 if args.contains("--check-panel") { exit(SettingsPanel.checkPanel() ? 0 : 1) }      // the editor panel's real size and place at each scale and screen, then exit
+if args.contains("--version") { print("riskell \(Build.version)"); exit(0) }
 if args.contains("--list-atoms") {      // JSON: each built-in atom with its card and the services its placement starts (listings/ is checked against this)
     let rows = Registry.builtinIDs.compactMap { id in Registry.byID[id].map { ["id": id, "name": $0.name, "card": $0.card?.id ?? "", "services": Needs.services(for: id)] as [String: Any] } }
     print(String(decoding: (try? JSONSerialization.data(withJSONObject: rows, options: [.sortedKeys])) ?? Data(), as: UTF8.self)); exit(0)
 }
 if args.contains("--ext-selftest") { ExtSelfTest.run() }      // the preferences card's writes and the live rebuild (needs RISKELL_CONFIG at a scratch config)
+if args.contains("--usage-selftest") { UsageExt.UsageSelfTest.run() }      // the Claude log windows on synthetic events
 if args.contains("--weather-selftest") { WeatherExt.WeatherSelfTest.run() }      // the fast forecast parser against the first version, on synthetic data
 if args.contains("--list-themes") { print(Theme.listJSON()); exit(0) }      // JSON of every scheme with its resolved tokens (the installer previews them)
 if args.contains("--check-themes") { if args.contains("tokens") { Theme.dumpTokens() } else { Theme.check() }; exit(0) }      // contrast of every scheme against its floors, then exit

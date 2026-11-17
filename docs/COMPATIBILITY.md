@@ -33,12 +33,12 @@ version", not "install an update".
 |---|---|---|---|
 | SkyLight (private): `SLSSpaceCreate`, `SLSSpaceSetAbsoluteLevel`, `SLSShowSpaces`, `SLSSpaceAddWindowsAndRemoveFromSpaces`, `SLSGetActiveSpace`, `SLSSpaceGetType` | bars pinned in a private always-shown space; hidden on native full-screen Spaces (type 4) | `Sky.swift`, `SpaceWatch.swift` | bars slide with desktop changes, or stay over full-screen apps, or vanish |
 | MultitouchSupport (private): `MTDeviceCreateList`, `MTRegisterContactFrameCallback`, `MTDeviceStart/Stop` | the 3-finger gesture (workspace swipe, overview swipe up, scroll guard's finger count). `MTTouch` layout assumed: 96 bytes, state Int32 at +20, x,y Float at +32/+36 | `Extensions/Gestures/Touch.swift` | swipe dead. `printf touch-state \| nc -U ...`: `lastFrame` keeps growing. Devices also die after sleep/lock; `Touch.attach()` is repeatable and re-runs after wake/unlock |
-| MediaRemote (via an Apple-signed `/usr/bin/perl` loading `libnowplaying.dylib`; macOS 15.4+ blocks direct third-party callers) | now playing, notch wings | `NowPlaying.swift` | no media in the wings |
+| MediaRemote (via an Apple-signed `/usr/bin/perl` loading `libnowplaying.dylib`, a technique published by ungive/mediaremote-adapter; macOS 15.4+ blocks direct third-party callers) | now playing, notch wings | `NowPlaying.swift` | no media in the wings |
 | CGEvent tap (needs Accessibility permission) | `ScrollGuard` drops trackpad scroll events while 3 fingers are down so the window under the pointer does not scroll | `Extensions/Gestures/ScrollGuard.swift` | windows scroll during a swipe |
 | OmniWM IPC (`~/Library/Application Support/com.barut.OmniWM/ipc.sock` + `.secret`, newline-delimited JSON, protocol **22**) | workspaces, windows, focus in; `switch-workspace` and window commands out | `Omni.swift`, `Omni.protocolVersion` | rail empty / commands ignored; the log shows `omniwm: ... error` lines. `omniwmctl version` prints the protocol |
 | OmniWM settings file `~/.config/omniwm/settings.toml` | read-only by riskell (the tracker); see section 3 | `Compat.swift` | see the `FIX` pill |
 | CoreAudio, IOKit/SMC, CoreWLAN, host statistics | volume, battery/fans/temps, Wi-Fi, CPU | `Services/*` | the matching atom goes blank or stale |
-| Location permission, login keychain item "Always Allow", local `riskell-dev` signing certificate | Wi-Fi names; Claude usage token; stable code identity so permissions survive rebuilds | `scripts/risk`, README | a permission prompt reappears after a rebuild |
+| Location permission, login keychain item "Always Allow", local `riskell-dev` signing certificate | Wi-Fi names; stable code identity so permissions survive rebuilds | `scripts/risk`, README | a permission prompt reappears after a rebuild |
 
 ## 3. Custom settings (what differs from stock, and why)
 

@@ -42,3 +42,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 | `github-dark-high-contrast` | Github Dark High Contrast | `Tinted Theming (https://github.com/tinted-theming)` | [base16/github-dark-high-contrast.yaml](https://github.com/tinted-theming/schemes/blob/spec-0.11/base16/github-dark-high-contrast.yaml) |
 | `gruvbox-light-medium` | Gruvbox light, medium | `Dawid Kurek, morhetz (https://github.com/morhetz/gruvbox)` | [base16/gruvbox-light-medium.yaml](https://github.com/tinted-theming/schemes/blob/spec-0.11/base16/gruvbox-light-medium.yaml) |
 | `catppuccin-latte` | Catppuccin Latte | `https://github.com/catppuccin/catppuccin` | [base16/catppuccin-latte.yaml](https://github.com/tinted-theming/schemes/blob/spec-0.11/base16/catppuccin-latte.yaml) |
+
+## Prior art: reading now-playing on macOS 15.4 and later
+
+`Sources/nowplaying/nowplaying.c` is original code (about 60 lines), but the way it is used is not our invention. macOS 15.4 stopped answering
+MediaRemote (the private framework that knows what is playing) for third-party processes, and Apple-signed ones are still answered. The technique of
+loading a small library into the system `/usr/bin/perl` to get an answer was published by
+[ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) (BSD-3-Clause), whose README describes it. riskell's helper is its own
+implementation (it prints one JSON line per change and carries only what the notch wings need); no code was taken from that project.

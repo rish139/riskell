@@ -8,7 +8,7 @@ import Foundation
 //   risk ext new <kind> <name>         scaffold: reading | atom | pill | theme
 //   risk ext search <words>            what the registry lists (RISKELL_REGISTRY points at another one)
 //   risk ext info <name>               one listing
-//   risk ext add <name|dir|git-url> [rev]   a name is installed at the commit the registry pins; a pill or theme is just files, applied live
+//   risk ext add <name|dir|git-url> [rev] [--yes]   a name is installed at the commit the registry pins; a pill or theme is just files, applied live
 //   risk ext update [name] [--yes]     what the registry pins now; shows the change first, applies only with --yes
 //   risk ext publish [dir]             check an extension is ready to be listed and print its registry listing
 //   risk ext remove <id>               take it out again
@@ -194,8 +194,9 @@ func sync(_ r: String) {
     }
 }
 
-func sh(_ args: [String], in dir: String? = nil) -> (Int32, String) {
+func sh(_ args: [String], in dir: String? = nil, env: [String: String] = [:]) -> (Int32, String) {
     let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/env"); p.arguments = args
+    if !env.isEmpty { p.environment = ProcessInfo.processInfo.environment.merging(env) { _, new in new } }
     if let dir { p.currentDirectoryURL = URL(fileURLWithPath: dir) }
     let pipe = Pipe(); p.standardOutput = pipe; p.standardError = FileHandle.nullDevice
     do { try p.run() } catch { return (127, "") }
@@ -203,15 +204,17 @@ func sh(_ args: [String], in dir: String? = nil) -> (Int32, String) {
     return (p.terminationStatus, String(decoding: d, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines))
 }
 
-func add(_ source: String, rev: String?, version: String? = nil, expectID: String? = nil) {
+func add(_ source: String, rev: String?, version: String? = nil, expectID: String? = nil, userTyped: Bool = false, yes: Bool = false) {
     let r = root()
     var dir = source, url: String?, revision = rev
     if source.contains("://") || source.hasPrefix("git@") {      // a git URL (https, ssh, file); anything else is a folder
+        guard safeRepoURL(source, userTyped: userTyped) else { fail("risk ext: \(source) is not an address this tool will clone (https only; ssh and local paths only when you type them yourself)") }
+        if let rev, !matches(rev, "^[0-9a-f]{7,40}$") { fail("risk ext: \(rev) is not a commit hash") }
         dir = NSTemporaryDirectory() + "risk-ext-" + UUID().uuidString
-        let (c, _) = sh(["git", "clone", "--quiet", source, dir])
+        let (c, _) = git(["clone", "--quiet", "--", source, dir], userTyped: userTyped)
         guard c == 0 else { fail("risk ext: could not clone \(source)") }
-        if let rev { _ = sh(["git", "checkout", "--quiet", rev], in: dir) }
-        revision = sh(["git", "rev-parse", "HEAD"], in: dir).1
+        if let rev { _ = git(["checkout", "--quiet", rev], in: dir, userTyped: userTyped) }
+        revision = git(["rev-parse", "HEAD"], in: dir, userTyped: userTyped).1
         if let rev, revision != rev { fail("risk ext: commit \(rev.prefix(10)) is not in \(source)") }
         url = source
     } else { dir = URL(fileURLWithPath: source, relativeTo: URL(fileURLWithPath: fm.currentDirectoryPath)).standardized.path }
@@ -220,6 +223,12 @@ func add(_ source: String, rev: String?, version: String? = nil, expectID: Strin
     else { fail("risk ext: not added: fix the findings above") }
     if let e = expectID, e != id { fail("risk ext: not added: the listing says \"\(e)\" but riskell.json says \"\(id)\"") }
     if let v = version, let mv = j["version"] as? String, mv != v { fail("risk ext: not added: the listing says v\(v) but riskell.json says v\(mv)") }
+    if url != nil {      // a repository you did not write: show it, and ask, before anything is built
+        let lic = j["license"] as? String ?? "?", nm = j["name"] as? String ?? id, ver = j["version"] as? String ?? "?"
+        consent("Install \"\(nm)\" (\(id))?", ["\(nm) \(ver), license \(lic)", "source: \(source) at \(revision ?? "?")",
+            "It is Swift code that is compiled into riskell and runs with your user's rights. There is no sandbox and no permission system.",
+            "Read it before you say yes."], yes: yes)
+    }
     var l = loadLock(r).filter { $0.id != id }
     let pkg = ((url ?? dir) as NSString).lastPathComponent.replacingOccurrences(of: ".git", with: "")
     // a path is stored relative to the checkout when it is inside it, so the lock can be committed
@@ -342,9 +351,10 @@ switch a.first {
 case "validate": exit(a.count > 1 && validate(a[1]) ? 0 : 1)
 case "new": if a.count == 3 { scaffold(a[1], a[2]) } else { usage() }
 case "add":
-    guard a.count >= 2 else { usage() }
+    let yes = a.contains("--yes"), args = a.filter { !$0.hasPrefix("--") }
+    guard args.count >= 2 else { usage() }
     // a name is looked up in the registry; a folder or a git URL is installed as it is
-    if a[1].contains("/") || a[1].contains(":") || fm.fileExists(atPath: a[1]) { add(a[1], rev: a.count > 2 ? a[2] : nil); exit(needsRebuild) } else { addByName(a[1]) }
+    if args[1].contains("/") || args[1].contains(":") || fm.fileExists(atPath: args[1]) { add(args[1], rev: args.count > 2 ? args[2] : nil, userTyped: true, yes: yes); exit(needsRebuild) } else { addByName(args[1], yes: yes) }
 case "remove":
     guard a.count == 2 else { usage() }
     if removeFiles(a[1]) { break }

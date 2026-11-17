@@ -55,7 +55,10 @@ commits, and applies it only with `--yes`; nothing ever updates by itself. The i
 
 ## Trust
 
-There is no permission system. The trust model is a package manager's: pinned commits, a lockfile, source you can read, and the validator's findings
+There is no permission system, but nothing is installed unsaid: `risk ext add` shows who wrote it, the license and the exact commit, says that the
+code runs with your rights, shows a pill's shell commands, and asks before anything is built (`--yes` answers for scripts). The client checks
+everything a listing says (an https repository, a full commit hash, plain names and paths, plain small files) and turns git's command-running
+`ext::` transport off. The trust model is a package manager's: pinned commits, a lockfile, source you can read, and the validator's findings
 shown at install time. `risk ext validate` can also print what the code touches (shell, network, files) as information, never as a gate.
 Behaviour extensions that touch input stay first-party or hand-reviewed.
 

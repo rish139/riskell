@@ -1,0 +1,19 @@
+#!/bin/zsh
+# GitHub security settings for riskell's repositories, applied through the gh CLI (run it again any time; every call is idempotent):
+#   scripts/harden-github [repo ...]      default: riskell riskell-kit riskell-registry homebrew-riskell
+# Works on a private repository for what GitHub allows there; secret scanning, push protection, private vulnerability reporting and the
+# fork-PR approval rule exist only for public repositories, so run it again right after making one public. Prints ok / FAIL per setting.
+owner=${GITHUB_OWNER:-rish139}
+repos=(${@:-riskell riskell-kit riskell-registry homebrew-riskell})
+for r in $repos; do
+  vis=$(gh repo view $owner/$r --json visibility -q .visibility 2>/dev/null) || { echo "== $r: not found"; continue }
+  echo "== $r ($vis)"
+  try() { out=$(eval "$2" 2>&1) && echo "  ok   $1" || echo "  FAIL $1: $(echo "$out" | head -1 | cut -c1-100)"; }
+  try "dependabot alerts and security updates" "gh api -X PUT repos/$owner/$r/vulnerability-alerts && gh api -X PUT repos/$owner/$r/automated-security-fixes"
+  try "private vulnerability reporting" "gh api -X PUT repos/$owner/$r/private-vulnerability-reporting"
+  try "workflows: read-only token, cannot approve pull requests" "gh api -X PUT repos/$owner/$r/actions/permissions/workflow -f default_workflow_permissions=read -F can_approve_pull_request_reviews=false"
+  try "workflows from fork pull requests need approval" "gh api -X PUT repos/$owner/$r/actions/permissions/fork-pr-contributor-approval -f approval_policy=all_external_contributors"
+  try "no wiki, no projects; merged branches deleted" "gh api -X PATCH repos/$owner/$r -F has_wiki=false -F has_projects=false -F delete_branch_on_merge=true"
+  try "secret scanning and push protection" "gh api -X PATCH repos/$owner/$r --input - <<< '{\"security_and_analysis\":{\"secret_scanning\":{\"status\":\"enabled\"},\"secret_scanning_push_protection\":{\"status\":\"enabled\"}}}'"
+  try "main: no force pushes, no deletion" "gh api -X PUT repos/$owner/$r/branches/main/protection --input - <<< '{\"required_status_checks\":null,\"enforce_admins\":false,\"required_pull_request_reviews\":null,\"restrictions\":null,\"allow_force_pushes\":false,\"allow_deletions\":false}'"
+done

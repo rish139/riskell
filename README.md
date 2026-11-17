@@ -143,7 +143,7 @@ be selected per bar.
 | Volume | output level and microphone level | output and input devices and a per-application mixer |
 | Network | Wi-Fi signal | Wi-Fi details and nearby networks, with Bluetooth and VPN tabs |
 | Weather | temperature | hourly and daily forecast ([Open-Meteo](https://open-meteo.com)) |
-| AI usage | Claude Code and OpenCode usage, when enabled | limits and reset times |
+| AI usage | Claude Code usage from its local logs, when enabled | token use in the five-hour and seven-day windows |
 
 ### riskell preferences
 
@@ -387,9 +387,8 @@ listener, no network request, no permission prompt. The measurements, the profil
 
 | | |
 |---|---|
-| Network | Weather from Open-Meteo, only when a location is set (your coordinates go to Open-Meteo). The installer makes one city lookup against Open-Meteo's geocoding service while the name is typed. Claude usage, when enabled, calls Anthropic's usage endpoint with your Claude Code token (an unofficial use of it, off by default), and OpenCode usage calls OpenCode's. `risk ext search`, `add` and `update` fetch the registry index from GitHub Pages and clone the repositories you install from. Nothing else. |
-| Keychain | Claude Code usage reads the Claude Code token from the login keychain, only when enabled. |
-| Browser data | OpenCode usage reads one session cookie from a browser profile, only when enabled. |
+| Network | Weather from Open-Meteo, only when a location is set (your coordinates go to Open-Meteo). The installer makes one city lookup against Open-Meteo's geocoding service while the name is typed. `risk ext search`, `add` and `update` fetch the registry index from GitHub Pages and clone the repositories you install from. Nothing else. |
+| Local logs | Claude Code usage reads the token counts in Claude Code's own session logs (`*.jsonl` under `~/.claude/projects`), only when enabled. It reads no credentials and sends nothing. |
 | Accessibility | Only for the optional gestures (the scroll guard). |
 | Location | Only so that macOS provides Wi-Fi network names. |
 | Files | riskell writes `~/.config/riskell/`, backs up OmniWM's `settings.toml` before the first change to its gaps, and, with gestures enabled, can change two trackpad and Dock settings after saving the originals. |

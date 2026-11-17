@@ -46,7 +46,7 @@ bundle() {
   <key>CFBundleName</key><string>riskell</string>
   <key>CFBundleExecutable</key><string>riskell</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleShortVersionString</key><string>$(cat $root/VERSION 2>/dev/null || echo 0)</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSLocationUsageDescription</key><string>macOS only shows Wi-Fi network names to apps allowed Location. riskell shows the name of your network and the ones nearby in the network card, and never reads or stores your position.</string>

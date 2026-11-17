@@ -37,8 +37,9 @@ func cacheDir() -> String { ProcessInfo.processInfo.environment["RISKELL_CACHE_D
 func registry() -> [Listing] {
     let src = ProcessInfo.processInfo.environment["RISKELL_REGISTRY"] ?? defaultRegistry
     var text: String?
-    if src.hasPrefix("http://") || src.hasPrefix("https://") {
-        let (c, out) = sh(["curl", "-fsSL", "--max-time", "15", src])
+    if src.contains("://") && !src.hasPrefix("file://") {
+        guard src.hasPrefix("https://") else { fail("risk ext: the registry must be an https address (or a file or folder), not \(src)") }
+        let (c, out) = sh(["curl", "-fsSL", "--proto", "=https", "--proto-redir", "=https", "--max-time", "15", "--max-filesize", "5000000", src])
         let cache = cacheDir() + "/registry-index.json"
         if c == 0, !out.isEmpty { text = out; write(out, cache) }
         else if let cached = read(cache) { text = cached; FileHandle.standardError.write(Data("risk ext: the registry could not be reached; using the copy from the last time\n".utf8)) }
@@ -52,7 +53,7 @@ func registry() -> [Listing] {
     }
     guard let t = text, let j = (try? JSONSerialization.jsonObject(with: Data(t.utf8))) as? [String: Any], let l = j["listings"] as? [[String: Any]]
     else { fail("risk ext: the registry's index.json is not valid") }
-    return l.map { Listing(d: $0) }
+    return l.map { Listing(d: $0) }.filter { l in !l.id.isEmpty }
 }
 
 func installedIDs() -> Set<String> {
@@ -102,20 +103,30 @@ func destination(kind: String, id: String, file: String, only: Bool) -> String {
     return (kind == "pill" ? "pills/" : "themes/") + base + "." + ext
 }
 
-func installFiles(_ l: Listing) {
+func installFiles(_ l: Listing, yes: Bool = false) {
+    requireValid(l)
     let tmp = NSTemporaryDirectory() + "risk-ext-" + UUID().uuidString
-    guard sh(["git", "clone", "--quiet", l.repo, tmp]).0 == 0 else { fail("risk ext: could not clone \(l.repo)") }
-    guard sh(["git", "checkout", "--quiet", l.rev], in: tmp).0 == 0 else { fail("risk ext: commit \(l.rev.prefix(10)) is not in \(l.repo)") }
+    guard git(["clone", "--quiet", "--", l.repo, tmp]).0 == 0 else { fail("risk ext: could not clone \(l.repo)") }
+    guard git(["checkout", "--quiet", l.rev], in: tmp).0 == 0 else { fail("risk ext: commit \(l.rev.prefix(10)) is not in \(l.repo)") }
     guard validate(tmp), let j = (read(tmp + "/riskell.json").flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) }) as? [String: Any],
-          let files = j["files"] as? [String], j["id"] as? String == l.id
-    else { fail("risk ext: not installed: fix the findings above (the listing and riskell.json must agree on the id)") }
-    var done: [String] = []
+          let files = j["files"] as? [String], j["id"] as? String == l.id, j["kind"] as? String == l.kind
+    else { fail("risk ext: not installed: fix the findings above (the listing and riskell.json must agree on the id and the kind)") }
+    let exts = l.kind == "pill" ? ["json"] : ["yaml", "yml"]
+    var sources: [(String, String)] = []
     for f in files {
+        guard let p = safeFile(f, in: tmp, extensions: exts) else { fail("risk ext: not installed: \"\(f)\" is not a plain small \(exts.joined(separator: "/")) file inside the repository") }
+        sources.append((f, p))
+    }
+    if l.kind == "pill" {      // a pill runs commands on your Mac: show them
+        consent("Install the pill \"\(l.name)\" (\(l.id))?", ["source: \(l.repo) at \(l.rev)", "It will run these commands on your Mac, as you, whenever it refreshes:"] + pillCommands(sources.map(\.1)).map { "  " + $0 }, yes: yes)
+    }
+    var done: [String] = []
+    for (f, src) in sources {
         let rel = destination(kind: l.kind, id: l.id, file: f, only: files.count == 1)
         let dest = configDir() + "/" + rel
         try? fm.createDirectory(atPath: (dest as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
         try? fm.removeItem(atPath: dest)
-        guard (try? fm.copyItem(atPath: tmp + "/" + f, toPath: dest)) != nil else { fail("risk ext: could not write \(dest)") }
+        guard (try? fm.copyItem(atPath: src, toPath: dest)) != nil else { fail("risk ext: could not write \(dest)") }
         done.append(rel)
     }
     var inst = loadInstalled().filter { $0["id"] as? String != l.id }
@@ -136,8 +147,9 @@ func removeFiles(_ id: String) -> Bool {
 // MARK: add by name
 
 /// `risk ext add <name>`: the name is looked up in the registry and installed at the commit the listing pins.
-func addByName(_ name: String) {
+func addByName(_ name: String, yes: Bool = false) {
     guard let l = registry().first(where: { $0.id == name }) else { fail("risk ext: \"\(name)\" is not in the registry (`risk ext search <words>`)") }
+    requireValid(l)
     if l.bundled {
         let r = root()
         if loadLock(r).contains(where: { $0.id == l.id }) { print("\(l.id) ships with riskell and is installed already."); return }
@@ -146,9 +158,9 @@ func addByName(_ name: String) {
         exit(needsRebuild)
     }
     switch l.kind {
-    case "pill", "theme": installFiles(l)
+    case "pill", "theme": installFiles(l, yes: yes)
     case "atom", "reading":
-        add(l.repo, rev: l.rev, version: l.version, expectID: l.id)
+        add(l.repo, rev: l.rev, version: l.version, expectID: l.id, yes: yes)
         exit(needsRebuild)
     default: fail("risk ext: kind \"\(l.kind)\" cannot be installed yet")
     }
@@ -174,12 +186,13 @@ func update(_ args: [String]) {
     for it in items {
         print("\(it.l.id): \(it.from.prefix(8)) -> \(it.l.rev.prefix(8))  (v\(it.l.version))")
         let tmp = NSTemporaryDirectory() + "risk-ext-" + UUID().uuidString
-        if sh(["git", "clone", "--quiet", it.l.repo, tmp]).0 == 0, !it.from.isEmpty {
-            let stat = sh(["git", "diff", "--stat", it.from, it.l.rev], in: tmp).1
+        requireValid(it.l)
+        if git(["clone", "--quiet", "--", it.l.repo, tmp]).0 == 0, !it.from.isEmpty, matches(it.from, "^[0-9a-f]{7,40}$") {
+            let stat = git(["diff", "--stat", it.from, it.l.rev], in: tmp).1
             print(stat.isEmpty ? "  (no file changes shown)" : stat.split(separator: "\n").map { "  " + $0 }.joined(separator: "\n"))
         }
         guard yes else { continue }
-        if it.compiled { add(it.l.repo, rev: it.l.rev, version: it.l.version, expectID: it.l.id); rebuild = true } else { installFiles(it.l) }
+        if it.compiled { add(it.l.repo, rev: it.l.rev, version: it.l.version, expectID: it.l.id, yes: true); rebuild = true } else { installFiles(it.l, yes: true) }
     }
     if !yes { print("nothing was changed. `risk ext update --yes` (or `risk ext update <name> --yes`) applies the update.") }
     if rebuild { exit(needsRebuild) }

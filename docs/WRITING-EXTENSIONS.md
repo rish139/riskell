@@ -121,6 +121,9 @@ A text setting is not offered in the card; it stays a file you edit.
 
 ## Trust
 
+`risk ext add` shows the author, license and commit, shows a pill's commands, and asks before it builds or installs anything of someone else's (`--yes` to
+answer for a script).
+
 Compiled extensions run inside riskell with the user's rights. There is no permission system and no sandbox: installing one is like
 installing a Homebrew formula or a shell plugin, and the source is the thing to read. `risk ext add` shows the validator's findings
 and pins a commit; nothing updates by itself.

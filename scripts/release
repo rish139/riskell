@@ -1,0 +1,29 @@
+#!/bin/zsh
+# Cut a release:  scripts/release <version>   (for example 0.1.0)
+# Refuses unless: you are on main with a clean tree and it equals origin/main; VERSION, Version.swift and CHANGELOG.md all say <version>; the build and
+# every check pass (a clean-clone build included); and the tag is new. Then it makes the annotated tag v<version>, pushes it, and creates the GitHub
+# release with that version's changelog section as its notes. Nothing is changed before the checks have passed.
+set -e
+root=${0:A:h:h}; cd $root
+v=${1:?usage: scripts/release <version>}
+die() { print -u2 "release: $*"; exit 1 }
+[[ $(git branch --show-current) == main ]] || die "not on main"
+[[ -z $(git status --porcelain) ]] || die "the working tree is not clean"
+git fetch -q origin main; [[ $(git rev-parse HEAD) == $(git rev-parse origin/main) ]] || die "main differs from origin/main (push or pull first)"
+git rev-parse -q --verify refs/tags/v$v >/dev/null && die "v$v already exists"
+[[ $(tr -d ' \n' < VERSION) == $v ]] || die "VERSION is not $v"
+scripts/version-check.sh >/dev/null || die "the version numbers disagree (scripts/version-check.sh)"
+grep -q "^## \[$v\] - [0-9]" CHANGELOG.md || die "CHANGELOG.md has no '## [$v] - <date>' heading"
+print "== build and checks"
+swift build -c release 2>&1 | tail -1
+for c in "scripts/scrub-check.sh" "scripts/listings-check.sh" "scripts/store-check.sh" ".build/release/riskell-setup --self-test" ".build/release/riskell --weather-selftest" ".build/release/riskell --usage-selftest"; do
+  print "-- $c"; eval $c >/dev/null || die "failed: $c"
+done
+print "== a clean clone builds"
+d=$(mktemp -d); git clone -q $(git remote get-url origin) $d; (cd $d && git checkout -q $(git rev-parse HEAD 2>/dev/null || echo main) 2>/dev/null; swift build -c release 2>&1 | tail -1 | grep -q "Build complete") || die "a clean clone does not build"; rm -rf $d
+notes=$(awk -v v="$v" '$0 ~ "^## \\["v"\\]"{f=1;next} f&&/^## \\[/{exit} f' CHANGELOG.md)
+git tag -a v$v -m "riskell $v"
+git push -q origin v$v
+print "$notes" | gh release create v$v --title "riskell $v" --notes-file -
+print "released v$v: $(gh release view v$v --json url -q .url)"
+print "next: once the repository is public, pin the Homebrew formula to this tag (url + sha256 of the release tarball)."
