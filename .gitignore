@@ -3,5 +3,6 @@
 .DS_Store
 *.png
 !docs/images/*.png
+!docs/images/store/*.png
 __pycache__/
 *.pyc
