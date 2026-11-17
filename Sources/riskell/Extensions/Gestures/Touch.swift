@@ -5,11 +5,19 @@ import RiskellKit
 /// 3-finger Space swipe, read from the trackpad (MultitouchSupport, private). macOS reports a Space change only when the swipe has
 /// settled, so the workspace capsule follows the fingers instead: it is displaced by the swipe's travel and, when macOS commits the change,
 /// that displacement is replaced by the real focus. A swipe macOS does not commit springs back.
-/// The direction (natural scrolling or not) is learned from the first committed swipe, so it needs no setting.
+/// The direction follows System Settings > Trackpad > Natural scrolling, read each time (the touch frames are raw finger positions, so the setting is
+/// what says which way a swipe goes). It is not guessed from what the Space does afterwards: one Space change from another cause close to a swipe
+/// used to teach it the wrong way and reverse every swipe until riskell restarted.
 final class Touch {
     static weak var shared: Touch?
     private let store: Store
-    private var natural = (UserDefaults.standard.object(forKey: "com.apple.swipescrolldirection") as? Bool) ?? true
+    /// "Natural scrolling" from the global preference; absent means macOS's default, which is on.
+    private var natural: Bool {
+        var valid: DarwinBoolean = false
+        let v = CFPreferencesGetAppBooleanValue("com.apple.swipescrolldirection" as CFString, kCFPreferencesAnyApplication, &valid)
+        return valid.boolValue ? v : true
+    }
+    private var disagreements = 0
     private var active = false
     private var startX: Float = 0
     private var dx: Float = 0
@@ -215,13 +223,14 @@ final class Touch {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.confirmWithin, execute: w)
     }
 
-    /// Called when the system reports the active Space changed (from `old` to `new` focus index): learn the swipe direction from it.
+    /// Called when the system reports the active Space changed (from `old` to `new` focus index): it settles the prediction and notes a mismatch.
     func spaceChanged(from old: Int?, to new: Int?) {
         if !active { armRevert() }              // more swipes may still be waiting for their confirmation
         guard let old, let new, old != new, Date().timeIntervalSince(lastTouchTime) < 1.5, abs(lastDx) > 0.05 else { return }
         let expected = (natural ? -lastDx : lastDx) > 0 ? 1 : -1
         let actual = new > old ? 1 : -1
-        if expected != actual { natural.toggle(); tlog("touch: direction was wrong, flipped (natural=\(natural))") }
+        // Only recorded (no guessing): a Space that moved against the swipe is usually another cause (a click, a key, the overview).
+        if expected != actual { disagreements += 1; Self.glog("the space moved \(actual > 0 ? "+1" : "-1") after a swipe that meant \(expected > 0 ? "+1" : "-1") (natural scrolling is \(natural ? "on" : "off"); \(disagreements) so far)") }
         lastTouchTime = .distantPast
     }
 }

@@ -20,6 +20,11 @@ the overview, and trackpad scrolls are dropped while three fingers are down so t
 Switching is live: edit the file and the extension starts or stops within a second, no restart. Each change logs `extensions: gestures on`
 or `off`, and turning it on logs `trackpad attached` and `scroll guard: active`.
 
+## Direction
+Which way a swipe goes follows System Settings > Trackpad > Scroll & Zoom > Natural scrolling, read at every swipe (so toggling it applies at once). riskell does
+not guess it: the trackpad reports raw finger positions, and the setting is what says whether fingers moving right means the previous or the next workspace.
+If a Space ever moves against a swipe (a click or a key close to it, usually), `risk log` notes it: "the space moved ... after a swipe that meant ...".
+
 ## What it needs
 
 - **Accessibility permission** for the scroll guard (the event tap that drops scrolls). macOS asks once, when the extension is turned on.

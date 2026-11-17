@@ -4,6 +4,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Fixed
+- The three-finger swipe could end up reversed until riskell restarted: its direction was guessed from the first Space change after a swipe, and a
+  Space change from another cause close to a swipe taught it the wrong way. The direction now follows System Settings > Trackpad > Natural scrolling,
+  read each time, and a Space that moves against a swipe is only noted in the log.
+
 ## [0.1.0] - 2026-11-17
 
 ### Security
