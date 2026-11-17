@@ -45,6 +45,9 @@ enum Registry {
         atom("weather", "Weather", priority: 2, card: card("weather", size: { _ in WeatherCard.size }) { WeatherCard() }) { WeatherAtom(vertical: $0) },
     ]
 
+    /// The built-in atoms' ids, for `riskell --list-atoms` and the listings check.
+    static var builtinIDs: [String] { builtins.map(\.id) }
+
     /// Script pills from config.json: ids "pill:<id>". The view is keyed by its runner, so a changed pill is a fresh view that attaches itself.
     private static func pillAtoms() -> [AtomDef] {
         Pills.all.map { r in

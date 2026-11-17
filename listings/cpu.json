@@ -1,0 +1,18 @@
+{
+  "$schema": "../schemas/riskell-listing.schema.json",
+  "id": "cpu",
+  "name": "CPU",
+  "kind": "atom",
+  "builtin": true,
+  "summary": "CPU and memory load, per-core activity and power draw, with the vitals card.",
+  "license": "MIT",
+  "repository": "https://github.com/rish139/riskell",
+  "source": [
+    "Sources/riskell/CpuAtom.swift",
+    "Sources/riskell/VitalsCard.swift",
+    "Sources/riskell/Services/Vitals.swift",
+    "Sources/riskell/Services/Sys.swift"
+  ],
+  "home": "kit",
+  "homeNote": "needs a load feed (cores, memory, power) in the kit"
+}

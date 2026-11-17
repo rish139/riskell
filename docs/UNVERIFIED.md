@@ -23,6 +23,12 @@ verified, move it to the "Verified" list with the date, the macOS version and th
 | **Weather lookup over the network** | Type a real city and check the results list; then unplug the network and check the "could not reach" message and the coordinates prompt. | The lookup was tested with canned responses (`--self-test`) and an unreachable host only. |
 | **Terminal look** | Run the flow in Terminal.app, iTerm2 and a 256-colour-only terminal (`COLORTERM` unset); check the accent, the theme previews and the progress cells render as in `docs/installer-snapshots/`. | Snapshots were read as text and ANSI, not in a real terminal emulator. |
 
+### Placement and preferences
+| Item | What to try | Why it is unverified |
+|---|---|---|
+| **Services follow placement, live** (`Services/Needs.swift`) | In riskell preferences remove the weather atom from every bar, then `risk log` and Activity Monitor: no weather request, no timer. Place it again: the forecast returns. Repeat with Network (the Location prompt appears only once it is placed) and AI usage (the keychain read). | Tested at launch with scratch layouts (`riskell --dump` lists the running services) and by build; a drag in the real editor was not driven, because synthetic mouse input is not used on a running bar. Stopping and restarting Wi-Fi monitoring and the Sys battery listener in one session was never run. |
+| **EXTENSIONS card** | `risk ext add Examples/load-ext`, open riskell preferences, press the − / + and On chips; the Load atom changes at once and `~/.config/riskell/ext/load-ext.json` holds the values. | The card was drawn (`--settings`), and the write and rebuild are covered by `riskell --ext-selftest`; the click path was not driven. |
+
 ### Display and system
 | Item | What to try | Why it is unverified |
 |---|---|---|

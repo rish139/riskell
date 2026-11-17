@@ -1,0 +1,16 @@
+{
+  "$schema": "../schemas/riskell-listing.schema.json",
+  "id": "clock",
+  "name": "Clock",
+  "kind": "atom",
+  "builtin": true,
+  "summary": "Time and date, with a card holding the calendar.",
+  "license": "MIT",
+  "repository": "https://github.com/rish139/riskell",
+  "source": [
+    "Sources/riskell/ClockAtom.swift",
+    "Sources/riskell/DateCard.swift"
+  ],
+  "home": "kit",
+  "homeNote": "the first candidate: it needs only the minute feed"
+}

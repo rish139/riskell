@@ -1,0 +1,17 @@
+{
+  "$schema": "../schemas/riskell-listing.schema.json",
+  "id": "bat",
+  "name": "Battery",
+  "kind": "atom",
+  "builtin": true,
+  "summary": "Charge, charging state and runtime, with a card for health, cycles, temperature and the charger.",
+  "license": "MIT",
+  "repository": "https://github.com/rish139/riskell",
+  "source": [
+    "Sources/riskell/BatAtom.swift",
+    "Sources/riskell/BatteryCard.swift",
+    "Sources/riskell/Services/Sys.swift"
+  ],
+  "home": "kit",
+  "homeNote": "needs the kit's battery feed to carry the detail the card shows"
+}

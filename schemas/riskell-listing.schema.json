@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/rish139/riskell/main/schemas/riskell-listing.schema.json",
+  "title": "riskell registry listing for a built-in atom",
+  "description": "Metadata that points at an atom's source. For a built-in atom the source is in the riskell repository (listings/<id>.json). `riskell --list-atoms` and scripts/listings-check.sh keep these in step with the app.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "kind",
+    "builtin",
+    "summary",
+    "license",
+    "repository",
+    "source",
+    "home",
+    "homeNote"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,38}$",
+      "description": "The atom id as placed in a layout."
+    },
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "const": "atom"
+    },
+    "builtin": {
+      "const": true
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 160
+    },
+    "license": {
+      "type": "string"
+    },
+    "repository": {
+      "type": "string",
+      "format": "uri"
+    },
+    "source": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "description": "Files in the repository that make the atom, its card and its service."
+    },
+    "home": {
+      "enum": [
+        "app",
+        "kit"
+      ],
+      "description": "app: stays in the application (it needs internals the kit does not expose). kit: can move out as a package once the kit's feeds carry what it reads."
+    },
+    "homeNote": {
+      "type": "string"
+    }
+  }
+}

@@ -422,8 +422,9 @@ Nothing here is a commitment, and the order is not fixed. [docs/ROADMAP.md](docs
 - [ ] A Homebrew tap.
 
 **Framework**
-- [ ] A registry and storefront for atoms, themes and presets. The built-in atoms are its first listings: each one gets a manifest, so it can
-  be read as a reference, installed and removed like any other, and the storefront starts populated ([docs/STOREFRONT.md](docs/STOREFRONT.md)).
+- [ ] A registry and storefront for atoms, themes and presets. The built-in atoms are its first listings: each already has one in
+  [`listings/`](listings) (checked against the app by `scripts/listings-check.sh`), and the next step is moving them out of the application into
+  packages, simplest first, as the kit's feeds grow to carry what they read ([docs/STOREFRONT.md](docs/STOREFRONT.md)).
   Extensions are pinned to a commit and checked by continuous integration that renders each one on several displays, bars and themes.
 - [x] riskell preferences: the layout editor is renamed, and extensions declare typed settings in their manifest (number, switch, choice)
   that appear in its EXTENSIONS card, so an extension needs no settings interface of its own.
@@ -431,7 +432,7 @@ Nothing here is a commitment, and the order is not fixed. [docs/ROADMAP.md](docs
 - [ ] Background-behaviour extensions from outside the application, with a review policy.
 
 **Shell**
-- [ ] Run each built-in service only while its atom is placed, so that nothing runs for an atom that is not used.
+- [x] Each built-in service runs only while an atom that needs it is placed on a bar that is on, so nothing runs for an atom that is not used.
 - [ ] The notch beyond media: a shelf, quick actions and timers.
 - [ ] Draw the clock's seconds bar and the CPU deck with Core Animation layers (about 0.8 % of a core).
 

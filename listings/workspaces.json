@@ -1,0 +1,19 @@
+{
+  "$schema": "../schemas/riskell-listing.schema.json",
+  "id": "workspaces",
+  "name": "Workspaces",
+  "kind": "atom",
+  "builtin": true,
+  "summary": "The workspace rail: numbered spaces with the focused one lit, window counts, swipe and click to switch, and a card listing the windows.",
+  "license": "MIT",
+  "repository": "https://github.com/rish139/riskell",
+  "source": [
+    "Sources/riskell/WorkspacesAtom.swift",
+    "Sources/riskell/WorkspacesCard.swift",
+    "Sources/riskell/Windows.swift",
+    "Sources/riskell/Services/WindowManager.swift",
+    "Sources/riskell/Services/SpaceWatch.swift"
+  ],
+  "home": "app",
+  "homeNote": "needs the window manager and Space internals the kit does not expose"
+}

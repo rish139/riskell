@@ -24,6 +24,10 @@ InstanceLock.selfTest(args)      // --lock-test hold|try <file>: the lock logic 
 if args.contains("--check-fit") { CheckFit.run() }      // the wings on each fake display, PASS / FAIL, exit 1 on FAIL (WingFit.swift)
 if args.contains("--key-test") { exit(SettingsPanel.keyTest() ? 0 : 1) }      // the editor's close keys, PASS / FAIL per case, then exit
 if args.contains("--check-panel") { exit(SettingsPanel.checkPanel() ? 0 : 1) }      // the editor panel's real size and place at each scale and screen, then exit
+if args.contains("--list-atoms") {      // JSON: each built-in atom with its card and the services its placement starts (listings/ is checked against this)
+    let rows = Registry.builtinIDs.compactMap { id in Registry.byID[id].map { ["id": id, "name": $0.name, "card": $0.card?.id ?? "", "services": Needs.services(for: id)] as [String: Any] } }
+    print(String(decoding: (try? JSONSerialization.data(withJSONObject: rows, options: [.sortedKeys])) ?? Data(), as: UTF8.self)); exit(0)
+}
 if args.contains("--ext-selftest") { ExtSelfTest.run() }      // the preferences card's writes and the live rebuild (needs RISKELL_CONFIG at a scratch config)
 if args.contains("--weather-selftest") { WeatherSelfTest.run() }      // the fast forecast parser against the first version, on synthetic data
 if args.contains("--list-themes") { print(Theme.listJSON()); exit(0) }      // JSON of every scheme with its resolved tokens (the installer previews them)
@@ -100,11 +104,11 @@ if !args.contains("--dump") { Compat.shared.start() }
 ConfigWatcher.shared.start()
 UsageService.skipClaude = args.contains("--no-claude")
 // The built-in services run only while an atom that needs them is placed on a bar that is on (Services/Needs.swift).
-Needs.register("sys", atoms: ["cpu", "bat", "vol", "fan"], start: sys.start, stop: sys.stop)      // CPU and memory, battery, power, volume, microphone
-Needs.register("thermal", atoms: ["fan", "cpu"], start: { thermal.start(); FanLive.shared.startHistory() }, stop: { FanLive.shared.stopHistory() })
-Needs.register("weather", atoms: ["weather"], start: weather.start, stop: weather.stop)
-Needs.register("wifi", atoms: ["net"], start: wifi.start, stop: wifi.stop)      // also the Location prompt for Wi-Fi names
-if !args.contains("--no-usage") { Needs.register("usage", atoms: ["usage"], start: usage.start, stop: usage.stop) }      // reads the Claude token from the keychain (a prompt the first time)
+Needs.register("sys", start: sys.start, stop: sys.stop)      // CPU and memory, battery, power, volume, microphone
+Needs.register("thermal", start: { thermal.start(); FanLive.shared.startHistory() }, stop: { FanLive.shared.stopHistory() })
+Needs.register("weather", start: weather.start, stop: weather.stop)
+Needs.register("wifi", start: wifi.start, stop: wifi.stop)      // also the Location prompt for Wi-Fi names
+if !args.contains("--no-usage") { Needs.register("usage", start: usage.start, stop: usage.stop) }      // reads the Claude token from the keychain (a prompt the first time)
 Needs.begin()
 if tracing { Sky.trace(1300...1460) { t in tlog("SkyLight event \(t)") } }
 

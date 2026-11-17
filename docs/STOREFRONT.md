@@ -18,8 +18,10 @@ fragments that are not personal, and a list of extensions to install.
 The first listings are the built-in atoms: workspaces, application icon, clock, battery, CPU, fans, volume, network, weather and AI usage.
 Each has a manifest and an entry in the registry as a first-party listing, so the storefront is populated from the start and every
 built-in atom is also a reference for how an atom is built. They are listed before they are moved out of the application (see
-`docs/ROADMAP.md`); a listing that is built into the application is marked as such and cannot be removed until its service no longer starts
-unconditionally.
+`docs/ROADMAP.md`): `listings/<id>.json` (`schemas/riskell-listing.schema.json`), kept in step with the app by `scripts/listings-check.sh`. A
+built-in listing is marked `builtin` and says where it will live (`home`: `app` for workspaces and the application icon, which need the window
+manager and Space internals, `kit` for the rest, once the kit's feeds carry what they read). Its service now runs only while the atom is placed
+(`Services/Needs.swift`), so removing the atom from every bar stops it.
 
 ## The index
 

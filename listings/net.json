@@ -1,0 +1,18 @@
+{
+  "$schema": "../schemas/riskell-listing.schema.json",
+  "id": "net",
+  "name": "Network",
+  "kind": "atom",
+  "builtin": true,
+  "summary": "Wi-Fi or Ethernet state, throughput, with a card for interfaces, Bluetooth and VPN.",
+  "license": "MIT",
+  "repository": "https://github.com/rish139/riskell",
+  "source": [
+    "Sources/riskell/NetAtom.swift",
+    "Sources/riskell/NetworkCard.swift",
+    "Sources/riskell/Services/NetLive.swift",
+    "Sources/riskell/Services/Wifi.swift"
+  ],
+  "home": "kit",
+  "homeNote": "needs a network feed in the kit"
+}

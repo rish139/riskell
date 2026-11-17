@@ -1,0 +1,15 @@
+{
+  "$schema": "../schemas/riskell-listing.schema.json",
+  "id": "appicon",
+  "name": "App icon",
+  "kind": "atom",
+  "builtin": true,
+  "summary": "The icon of the focused application.",
+  "license": "MIT",
+  "repository": "https://github.com/rish139/riskell",
+  "source": [
+    "Sources/riskell/AppIconAtom.swift"
+  ],
+  "home": "app",
+  "homeNote": "reads the window manager's focused window"
+}

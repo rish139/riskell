@@ -7,13 +7,22 @@ import Foundation
 /// The table below is the whole list; a service that is not in it (the window manager, the notch wings' media feed, the cards' own
 /// live feeds, which already start and stop with their card) is not gated by an atom.
 enum Needs {
-    private struct Rule { let atoms: Set<String>; let start: () -> Void; let stop: () -> Void }
+    /// Which atoms need which service. The whole list in one place; main.swift gives each service its start and stop.
+    static let table: [String: Set<String>] = [
+        "sys": ["cpu", "bat", "vol", "fan"],      // CPU and memory, battery, power, volume, microphone
+        "thermal": ["fan", "cpu"],                // the SMC reading and the fan history
+        "weather": ["weather"],
+        "wifi": ["net"],                          // also the Location prompt for Wi-Fi names
+        "usage": ["usage"],                       // reads the Claude token from the keychain (a prompt the first time)
+    ]
+    private struct Rule { let start: () -> Void; let stop: () -> Void }
     private static var rules: [String: Rule] = [:]
     private static var running: Set<String> = []
     private static var armed = false      // off until main has registered the rules
 
-    static func register(_ name: String, atoms: Set<String>, start: @escaping () -> Void, stop: @escaping () -> Void) {
-        rules[name] = Rule(atoms: atoms, start: start, stop: stop)
+    static func register(_ name: String, start: @escaping () -> Void, stop: @escaping () -> Void) {
+        precondition(table[name] != nil, "Needs.table has no service \(name)")
+        rules[name] = Rule(start: start, stop: stop)
     }
 
     static func isRunning(_ name: String) -> Bool { running.contains(name) }
@@ -26,11 +35,14 @@ enum Needs {
         guard armed else { return }
         let placed = Config.shared.placedAtoms
         for (name, rule) in rules {
-            let want = !rule.atoms.isDisjoint(with: placed)
+            let want = !(table[name] ?? []).isDisjoint(with: placed)
             if want, !running.contains(name) { running.insert(name); rule.start() }
             else if !want, running.contains(name) { running.remove(name); rule.stop() }
         }
     }
+
+    /// The services that run for an atom (for the listings: which service starts when it is placed).
+    static func services(for atom: String) -> [String] { table.filter { $0.value.contains(atom) }.map(\.key).sorted() }
 
     /// For --dump and tests: the services that run right now.
     static var active: [String] { running.sorted() }

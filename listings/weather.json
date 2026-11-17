@@ -1,0 +1,19 @@
+{
+  "$schema": "../schemas/riskell-listing.schema.json",
+  "id": "weather",
+  "name": "Weather",
+  "kind": "atom",
+  "builtin": true,
+  "summary": "Current weather and a forecast card, from Open-Meteo, for the location in config.json.",
+  "license": "MIT",
+  "repository": "https://github.com/rish139/riskell",
+  "source": [
+    "Sources/riskell/WeatherAtom.swift",
+    "Sources/riskell/WeatherCard.swift",
+    "Sources/riskell/WeatherModel.swift",
+    "Sources/riskell/Sky.swift",
+    "Sources/riskell/Services/Weather.swift"
+  ],
+  "home": "kit",
+  "homeNote": "needs a feed that carries a forecast; the service is already self-contained"
+}

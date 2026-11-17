@@ -87,7 +87,7 @@ see [`docs/PILLS.md`](docs/PILLS.md).
 
 1. `swift build -c release` passes. riskell depends on [RiskellKit](https://github.com/rish139/riskell-kit) by URL; to change the kit together
    with the application, check the kit out next to this repository and run `swift package edit riskell-kit --path ../riskell-kit`.
-2. `scripts/scrub-check.sh` passes.
+2. `scripts/scrub-check.sh` passes, and `scripts/listings-check.sh` if you changed a built-in atom.
 3. Snapshots of the atoms you touched look the way they should, in both orientations.
    For an extension: `risk ext validate <dir>` passes.
 4. The commit messages and the pull request description say what changed and why.

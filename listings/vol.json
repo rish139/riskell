@@ -1,0 +1,18 @@
+{
+  "$schema": "../schemas/riskell-listing.schema.json",
+  "id": "vol",
+  "name": "Volume",
+  "kind": "atom",
+  "builtin": true,
+  "summary": "Output volume and the microphone, with a card for the mixer and device list.",
+  "license": "MIT",
+  "repository": "https://github.com/rish139/riskell",
+  "source": [
+    "Sources/riskell/VolAtom.swift",
+    "Sources/riskell/VolumeCard.swift",
+    "Sources/riskell/Services/Audio.swift",
+    "Sources/riskell/Services/Mixer.swift"
+  ],
+  "home": "kit",
+  "homeNote": "the kit's volume feed covers the figure; the mixer card needs audio taps"
+}

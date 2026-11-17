@@ -1,0 +1,18 @@
+{
+  "$schema": "../schemas/riskell-listing.schema.json",
+  "id": "fan",
+  "name": "Fan",
+  "kind": "atom",
+  "builtin": true,
+  "summary": "Fan speed and the hottest sensor, with a card holding the thermal history.",
+  "license": "MIT",
+  "repository": "https://github.com/rish139/riskell",
+  "source": [
+    "Sources/riskell/FanAtom.swift",
+    "Sources/riskell/FanCard.swift",
+    "Sources/riskell/Services/FanLive.swift",
+    "Sources/riskell/Services/SMC.swift"
+  ],
+  "home": "kit",
+  "homeNote": "needs a thermal feed in the kit"
+}
