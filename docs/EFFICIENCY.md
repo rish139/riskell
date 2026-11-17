@@ -5,7 +5,9 @@ riskell runs all day, so what it costs at rest is a feature. The rules, what was
 ## Rules
 - **Event-driven.** Kernel file events (config, themes, pills), sockets, notifications. A repeating timer needs a reason that is true right now.
 - **Off means nothing runs.** A pill that is on no bar runs no command. Gestures off start no event tap and no trackpad reader. A card that is
-  closed is not built. A stream pill is one long-lived process, never polled.
+  closed is not built. A stream pill is one long-lived process, never polled. A built-in service (CPU and battery, thermals, weather, Wi-Fi, AI usage)
+  runs only while an atom that needs it is placed on a bar that is on (`Services/Needs.swift`). Measured with `scripts/idle-cpu`, two runs each, the same
+  binary: the author's full layout used 0.26 and 0.28 s of CPU over 30 s; the same layout with only the clock placed used 0.13 and 0.12 s.
 - **Setters ignore unchanged values**, so a reading that did not change redraws nothing.
 - **Measure, then change.** Every efficiency change is an A/B on the same binary with `scripts/idle-cpu` (three runs per variant) and a profile.
 
