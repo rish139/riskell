@@ -159,7 +159,7 @@ def main():
             data = json.loads(layout.read_text())
             check("layout.json: classic top bar starts with the version pill",
                   data["top"]["start"][0]["id"] == "compat")
-            check("layout.json: classic bottom holds cpu", data["bottom"]["center"][0]["atoms"] == ["cpu"])
+            check("layout.json: classic bottom holds cpu", data["bottom"]["center"][0]["atoms"] == ["ext:cpu"])
             check("layout.json: the right bar is off", data["on"]["right"] is False)
 
         # --yes --dry-run against the same HOME: prints the plan, writes nothing.

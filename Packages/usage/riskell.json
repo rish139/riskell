@@ -6,8 +6,10 @@
   "version": "1.0.0",
   "kit": "^0.6",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "summary": "Claude and OpenCode usage meters, opt-in in config.json, with a card for windows and reset times.",
+  "summary": "Claude usage meters from your local Claude Code logs, opt-in in config.json, with a card for windows and reset times.",
   "module": "UsageExt",
   "entry": "UsagePackage",
-  "atoms": ["usage"]
+  "atoms": [
+    "usage"
+  ]
 }

@@ -4,18 +4,10 @@
    [0;2;38;2;132;122;110m──────────────────────────────────────────────────────────────────────────────────────────────[0m   [0m
                                                                                                     [0m
    [0;1mUsage[0m                                                                                            [0m
-   [0;2;38;2;132;122;110mBoth are off by default; each reads a login here.[0m                                                [0m
+   [0;2;38;2;132;122;110mOff by default.[0m                                                                                  [0m
                                                                                                     [0m
-   [0;38;2;250;189;47m●[0m Claude usage                                                            [0;2;38;2;132;122;110mon[0m                     [0m
-       [0;2;38;2;132;122;110mreads Claude Code's login from your keychain; nothing leaves your Mac[0m                        [0m
-       [0;2;38;2;132;122;110mexcept the request to Anthropic[0m                                                              [0m
-                                                                                                    [0m
-   [0;38;2;250;189;47m●[0m OpenCode usage                                                          [0;2;38;2;132;122;110mon[0m                     [0m
-       [0;2;38;2;132;122;110mreads the console of your OpenCode workspace from a browser profile on[0m                       [0m
-       [0;2;38;2;132;122;110mthis Mac[0m                                                                                     [0m
-                                                                                                    [0m
-     [0;2;38;2;132;122;110mworkspace[0m   [0;38;2;250;189;47m›[0m wrk_•••••••••••••••••••[0;38;2;250;189;47m▏[0m                                                         [0m
-     [0;2;38;2;132;122;110mprofiles[0m    [0;2;38;2;132;122;110m›[0m ~/Library/Application Support/zen/Profiles                                       [0m
+   [0;38;2;250;189;47m●[0m [0;1mClaude Code usage[0m                                                       [0;2;38;2;132;122;110mon[0m                     [0m
+       [0;2;38;2;132;122;110mfrom its local logs (no credentials, no network)[0m                                             [0m
                                                                                                     [0m
                                                                                                     [0m
                                                                                                     [0m
@@ -29,4 +21,12 @@
                                                                                                     [0m
                                                                                                     [0m
                                                                                                     [0m
-   [0;2;38;2;132;122;110m↑↓ move   space toggle   ⏎ continue   esc back[0m                                                   [0m
+                                                                                                    [0m
+                                                                                                    [0m
+                                                                                                    [0m
+                                                                                                    [0m
+                                                                                                    [0m
+                                                                                                    [0m
+                                                                                                    [0m
+                                                                                                    [0m
+   [0;2;38;2;132;122;110mspace toggle   ⏎ continue   esc back[0m                                                             [0m

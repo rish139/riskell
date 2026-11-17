@@ -3,7 +3,7 @@
 
 import Foundation
 
-/// One rate-limit window: percent used, when it resets, and (OpenCode) what was used out of what limit, in dollars.
+/// One rate-limit window: percent used, when it resets (nil when no window is running), and what was used out of what limit, in tokens.
 struct UsageWin: Equatable, Codable {
     var pct: Int
     var resets: Double? = nil          // epoch seconds
@@ -13,18 +13,11 @@ struct UsageWin: Equatable, Codable {
         resets.map { max(0, min(1, 1 - ($0 - now) / len)) }
     }
 }
+
+/// The Claude readings: the 5-hour and 7-day windows (computed from the local logs, see `ClaudeLogs`).
 struct ClaudeUse: Equatable, Codable {
     var five: UsageWin? = nil, seven: UsageWin? = nil, sonnet: UsageWin? = nil, opus: UsageWin? = nil
     var fetched = 0.0
     var stale = false
     var rep: Int { max(five?.pct ?? 0, seven?.pct ?? 0) }
-}
-struct OCUse: Equatable, Codable {
-    var roll: UsageWin? = nil, week: UsageWin? = nil, month: UsageWin? = nil
-    var plan = "go"
-    var ending = false
-    var endsAt: Double? = nil
-    var fetched = 0.0
-    var stale = false
-    var rep: Int { month?.pct ?? 0 }
 }

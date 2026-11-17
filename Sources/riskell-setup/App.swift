@@ -29,9 +29,6 @@ struct Choices {
     var theme = 0
     var weather: Place?
     var claude = false
-    var opencodeOn = false
-    var workspace = ""
-    var profiles = "~/Library/Application Support/zen/Profiles"
     var gesturesRiskell = false
     var gesturesFix = false
     var scale: Double?
@@ -68,11 +65,6 @@ struct Choices {
         }
         if let usage = e["usage"] as? [String: Any] {
             c.claude = (usage["claude"] as? Bool) ?? false
-            if let oc = usage["opencode"] as? [String: Any] {
-                c.opencodeOn = !((oc["workspace"] as? String) ?? "").isEmpty
-                c.workspace = (oc["workspace"] as? String) ?? ""
-                c.profiles = (oc["profiles"] as? String) ?? c.profiles
-            }
         }
         return c
     }
@@ -181,7 +173,7 @@ final class App {
         case .bars: return 5
         case .theme: return schemeData.count
         case .weather: return weatherRows.count
-        case .usage: return c.opencodeOn ? 4 : 2
+        case .usage: return 1
         case .gestures: return c.gesturesRiskell ? 3 : 2
         case .scale: return 2
         case .review: return (facts.layoutFound ? 1 : 0) + 3
@@ -276,14 +268,11 @@ final class App {
         } else {
             owned.append(("location", nil))
         }
-        if c.claude || c.opencodeOn {
-            var usage: [String: Any] = [:]
-            if c.claude { usage["claude"] = true }
-            if c.opencodeOn { usage["opencode"] = ["workspace": c.workspace, "profiles": c.profiles] as [String: Any] }
-            owned.append(("usage", usage))
-        } else {
-            owned.append(("usage", nil))
-        }
+        // Only usage.claude is the installer's; the other usage keys (the optional token limits, an old opencode block) stay as they were.
+        var usage = (facts.existing?["usage"] as? [String: Any]) ?? [:]
+        if c.claude { usage["claude"] = true } else { usage.removeValue(forKey: "claude") }
+        let usageValue: Any? = usage.isEmpty ? nil : usage
+        owned.append(("usage", usageValue))
         owned.append(("gestures", c.gesturesRiskell ? "riskell" : "system"))
         owned.append(("scale", c.scale.map { $0 as Any }))
         var layoutText: String?
@@ -438,24 +427,9 @@ final class App {
     private func usageKey(_ k: Key) {
         if moveCursor(k) { return }
         switch k {
-        case .enter:
-            if c.opencodeOn && c.workspace.trimmingCharacters(in: .whitespaces).isEmpty {
-                notice = "type the workspace id (wrk_...) or turn OpenCode off"
-                noticeIsError = true
-                return
-            }
-            go(.gestures)
+        case .enter: go(.gestures)
         case .esc: back()
-        case .char(let s) where cursor == 2: c.workspace += s
-        case .char(let s) where cursor == 3: c.profiles += s
-        case .backspace where cursor == 2: if !c.workspace.isEmpty { c.workspace.removeLast() }
-        case .backspace where cursor == 3: if !c.profiles.isEmpty { c.profiles.removeLast() }
-        case .char(" "), .left, .right:
-            if cursor == 0 { c.claude.toggle() }
-            if cursor == 1 {
-                c.opencodeOn.toggle()
-                cursor = min(cursor, rowCount - 1)
-            }
+        case .char(" "), .left, .right: c.claude.toggle()
         case .char("q"): quit = true
         default: break
         }

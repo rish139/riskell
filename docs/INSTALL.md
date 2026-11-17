@@ -21,7 +21,7 @@ The installer is part of the same Swift package as riskell (`Sources/riskell-set
 | 2 Bars | Minimal, Classic (recommended), Full; cards Flush or Chat; bars Floating, Hug or as the preset | `layout.json` (see below) |
 | 3 Theme | one of the 11 schemes, with a live preview | `theme` |
 | 4 Weather | a city (one lookup to open-meteo.com, after you stop typing), coordinates by hand, or Skip | `location` |
-| 5 Usage | Claude usage, OpenCode usage (workspace id and browser profiles folder); both off by default | `usage` |
+| 5 Usage | Claude Code usage from its local logs (no credentials, no network); off by default | `usage.claude` |
 | 6 Gestures | macOS (default) or riskell's own 3-finger swipe; read-only conflict check; optionally turn the conflicting macOS gestures off | `gestures`, and with the option on, the trackpad and Dock settings (originals saved) |
 | 7 Scale | Auto (recommended) or a number from 0.5 to 2.0 | `scale` only when custom |
 | 8 Review | the summary, the files that will change, then Install, Show what would change, or Back | nothing |
@@ -33,7 +33,8 @@ The only network request is step 4, made with `/usr/bin/curl` to `geocoding-api.
 Paths are derived from `$HOME`.
 
 - **`~/.config/riskell/config.json`**: the installer owns the keys `wm`, `theme`, `location`, `usage`, `gestures` and `scale`. It sets
-  or removes those and keeps every other key (`pills`, `spacing`, ...) as it was. When the file existed, a copy is kept as
+  or removes those and keeps every other key (`pills`, `spacing`, ...) as it was. Inside `usage` it owns only `claude`; the token limits
+  and any other key there are kept. When the file existed, a copy is kept as
   `config.json.bak-YYYYMMDD-HHMMSS` first. The file is written through a temporary file and a rename.
 - **`~/.config/riskell/layout.json`**: written only when there is no layout yet, or when you choose "Replace my layout" on the review
   screen. Otherwise your layout is left alone. A replaced file is backed up the same way.
@@ -76,8 +77,7 @@ safe: every step is idempotent (the config is merged, a link is replaced, the ag
 | `--cards flush\|chat` | Card style. |
 | `--city "Name"` | Looked up once; the first match is used. Needs the network. |
 | `--gestures riskell\|system` | Gestures. |
-| `--claude` | Claude usage on. |
-| `--opencode-workspace wrk_...` | OpenCode usage on, with this workspace id. |
+| `--claude` | Claude Code usage on (from its local logs). |
 | `--scale N\|auto` | Scale, from 0.5 to 2.0. |
 | `--replace-layout` | Replace an existing `layout.json`. |
 | `--repo PATH` | The checkout (found from the working directory when omitted). |
@@ -102,8 +102,8 @@ Without a terminal (stdout is not a TTY) the guided flow does not start: the ins
 
 ## Privacy
 
-Nothing leaves the Mac except the weather lookup (the city name you typed) and the requests riskell itself makes for the usage and
-weather cards you turned on. The workspace id is never shown in full on screen and is written only to `config.json`.
+Nothing leaves the Mac except the weather lookup (the city name you typed) and the weather requests riskell makes for the weather card
+you turned on. The usage card reads Claude Code's local logs and makes no request and reads no credentials.
 
 ## Development notes
 

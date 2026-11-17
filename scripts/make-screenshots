@@ -88,7 +88,7 @@ def run(args, outdir, layout_path, cfg=None, env=None, stay=5, binary=None, capt
              RISKELL_DEMO="1", RISKELL_CACHE_DIR=TMP + "/cache")      # demo: placeholder names for devices, volumes, processes, addresses
     os.makedirs(TMP + "/cache", exist_ok=True)
     e.update(env or {})
-    cmd = [binary or BIN, "--no-usage", "--no-reserve", "--no-claude", "--fake-usage", "--fake-media", "--fake-heat", "--snap", outdir, "--stay", str(stay)] + args
+    cmd = [binary or BIN, "--no-usage", "--no-reserve", "--fake-usage", "--fake-media", "--fake-heat", "--snap", outdir, "--stay", str(stay)] + args
     r = subprocess.run(cmd, env=e, stdout=subprocess.PIPE if capture else subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=stay + 30)
     return r.stdout.decode("utf-8", "replace") if capture else ""
 
@@ -100,7 +100,7 @@ def overview(outdir, layout_path, binary=None, cfg=None):
     e.update(RISKELL_CONFIG=cfg or config(), RISKELL_LAYOUT=layout_path, RISKELL_FAKE_DISPLAY=SCREEN, RISKELL_EVENT_SOCKET=sock,
              RISKELL_SNAP_DIR=outdir, RISKELL_WALLPAPER=TMP + "/wallpaper.png", RISKELL_DEMO="1", RISKELL_CACHE_DIR=TMP + "/cache")
     os.makedirs(TMP + "/cache", exist_ok=True)
-    p = subprocess.Popen([binary or BIN, "--no-usage", "--no-reserve", "--no-claude", "--fake-usage", "--fake-media", "--snap", outdir, "--stay", "12"],
+    p = subprocess.Popen([binary or BIN, "--no-usage", "--no-reserve", "--fake-usage", "--fake-media", "--snap", outdir, "--stay", "12"],
                          env=e, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     def send(w):
         subprocess.run("printf %s | nc -U -w1 " % w + sock, shell=True)

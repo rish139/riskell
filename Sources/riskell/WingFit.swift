@@ -101,7 +101,7 @@ enum CheckFit {
             FileManager.default.createFile(atPath: out.path, contents: nil)
             let p = Process()
             p.executableURL = exe
-            p.arguments = ["--no-usage", "--no-reserve", "--no-claude", "--fake-usage", "--snap", dir.path, "--stay", "4"]
+            p.arguments = ["--no-usage", "--no-reserve", "--fake-usage", "--snap", dir.path, "--stay", "4"]
             var env = ProcessInfo.processInfo.environment
             env["RISKELL_FAKE_DISPLAY"] = spec; env["RISKELL_CHECK_FIT"] = "1"; env["RISKELL_LAYOUT"] = layout
             p.environment = env

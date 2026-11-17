@@ -7,7 +7,7 @@ root=${0:A:h:h}
 bin=$root/.build/release/riskell
 label=${1:-run}; layout=${2:-$HOME/.config/riskell/layout.json}; cfg=${3:-/dev/null}
 out=$(mktemp -d)
-RISKELL_CONFIG=$cfg RISKELL_LAYOUT=$layout $bin --no-usage --no-reserve --no-claude --fake-media --snap $out --stay 43 >/dev/null 2>&1 &
+RISKELL_CONFIG=$cfg RISKELL_LAYOUT=$layout $bin --no-usage --no-reserve --fake-media --snap $out --stay 43 >/dev/null 2>&1 &
 pid=$!
 sleep 10
 t0=$(ps -o cputime= -p $pid | awk -F: '{print ($1*60)+$2}')

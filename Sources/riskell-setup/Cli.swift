@@ -20,7 +20,6 @@ struct Options: Equatable {
     var city: String?
     var gestures: String?
     var claude = false
-    var opencodeWorkspace: String?
     var scale: String?
     var replaceLayout = false
     var removeConfig = false
@@ -66,7 +65,6 @@ struct Options: Equatable {
             case "--cards": o.cards = value(a)
             case "--city": o.city = value(a)
             case "--gestures": o.gestures = value(a)
-            case "--opencode-workspace": o.opencodeWorkspace = value(a)
             case "--scale": o.scale = value(a)
             case "--snapshot":
                 o.mode = .snapshot
@@ -108,8 +106,7 @@ struct Options: Equatable {
       --cards flush|chat
       --city "Name"            looked up once; the first match is used
       --gestures riskell|system
-      --claude                 Claude usage on
-      --opencode-workspace wrk_...
+      --claude                 Claude Code usage on (from its local logs)
       --scale N|auto           a number from 0.5 to 2.0, or automatic
       --replace-layout         replace an existing layout.json
 

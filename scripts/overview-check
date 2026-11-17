@@ -18,7 +18,7 @@ for c in "2268x1473:notch=48,278 auto scale-1" "1512x982:notch=32,185 auto scale
   set -- ${=c}; d=$out/$3; mkdir -p $d; sock=/tmp/rk-ovc-$$.sock      # a unix socket path must be under 104 characters
   env=(RISKELL_CONFIG=$fx/config.json RISKELL_LAYOUT=$fx/layout.json RISKELL_FAKE_DISPLAY=$1 RISKELL_EVENT_SOCKET=$sock RISKELL_SNAP_DIR=$d)
   [[ $2 != auto ]] && env+=(RISKELL_SCALE=$2)
-  env $env $bin --no-usage --no-reserve --no-claude --fake-usage --fake-media --snap $d --stay 12 > $d/log 2>&1 &
+  env $env $bin --no-usage --no-reserve --fake-usage --fake-media --snap $d --stay 12 > $d/log 2>&1 &
   sleep 3.5; printf overview | nc -U -w1 $sock; sleep 3; printf overview-snap | nc -U -w1 $sock; sleep 1.5; printf overview | nc -U -w1 $sock
   wait; rm -f $sock; echo "$d/overview.png"
 done

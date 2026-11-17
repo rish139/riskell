@@ -15,7 +15,7 @@ secs() { echo "$1" | awk -F: '{ if (NF == 3) print ($1*3600)+($2*60)+$3; else pr
 want() { [[ -z $only || " $only " == *" $1 "* ]]; }
 one() {      # one <label> <window seconds> [ENV=VALUE ...]
   local label=$1 win=$2; shift 2
-  env "$@" RISKELL_CONFIG=$cfg RISKELL_LAYOUT=$layout RISKELL_CACHE_DIR=$out/cache RISKELL_DEMO=1 $bin --no-usage --no-reserve --no-claude --fake-media --snap $out --stay $((win + 14)) >/dev/null 2>&1 &
+  env "$@" RISKELL_CONFIG=$cfg RISKELL_LAYOUT=$layout RISKELL_CACHE_DIR=$out/cache RISKELL_DEMO=1 $bin --no-usage --no-reserve --fake-media --snap $out --stay $((win + 14)) >/dev/null 2>&1 &
   local pid=$!
   sleep 10
   local t0=$(secs $(ps -o cputime= -p $pid)); sleep $win; local t1=$(secs $(ps -o cputime= -p $pid))

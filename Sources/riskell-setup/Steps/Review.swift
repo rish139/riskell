@@ -18,10 +18,7 @@ extension App {
     }
 
     func usageSummary() -> String {
-        var parts: [String] = []
-        if c.claude { parts.append("Claude") }
-        if c.opencodeOn { parts.append("OpenCode") }
-        return parts.isEmpty ? "off" : parts.joined(separator: ", ")
+        return c.claude ? "Claude Code, local logs" : "off"
     }
 
     func drawReview(_ g: Grid, _ b: Body) {

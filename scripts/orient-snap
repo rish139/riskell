@@ -13,7 +13,7 @@ spec={"top":{"start":[{"id":"compat","atoms":["compat"]}],"center":[],"end":[]},
 spec[bar]["start" if bar=="left" else "end"]=[{"id":"t","atoms":[atom]}]
 json.dump({**spec,"hugTop":False,"hugBottom":False,"hugLeft":False,"gap":8},open(path,"w"))
 PY
-RISKELL_ALL_FITS=1 RISKELL_LAYOUT=$tmp/layout.json $root/.build/release/riskell --no-usage --no-reserve --no-claude --fake-usage --snap $tmp --stay 4 "$@" >/dev/null 2>&1 || true
+RISKELL_ALL_FITS=1 RISKELL_LAYOUT=$tmp/layout.json $root/.build/release/riskell --no-usage --no-reserve --fake-usage --snap $tmp --stay 4 "$@" >/dev/null 2>&1 || true
 python3 -I - $tmp/$bar.png $out/$atom-$bar.png <<'PY'
 import sys
 from PIL import Image

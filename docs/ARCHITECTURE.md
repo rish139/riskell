@@ -45,6 +45,6 @@ fan history), `scripts/overview-check`
 (the overview at three scales on a scratch instance).
 
 A second instance for testing, which never touches the running bar or OmniWM's gaps:
-`.build/release/riskell --no-usage --no-reserve --no-claude --fake-usage --fake-media --snap DIR --stay 6`, with `RISKELL_CONFIG` and
+`.build/release/riskell --no-usage --no-reserve --fake-usage --fake-media --snap DIR --stay 6`, with `RISKELL_CONFIG` and
 `RISKELL_LAYOUT` pointing at scratch copies. **Pass `--no-reserve` as a separate argument**: it is what stops the instance from rewriting
 OmniWM's `gaps.outer`.

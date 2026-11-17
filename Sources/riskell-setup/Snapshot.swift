@@ -72,9 +72,7 @@ enum Snapshots {
             app.cursor = 1
         case "usage":
             app.c.claude = true
-            app.c.opencodeOn = true
-            app.c.workspace = "wrk_01KQXAMPLEWORKSPACE"
-            app.cursor = 2
+            app.cursor = 0
         case "gestures":
             app.c.gesturesRiskell = true
             app.cursor = 1

@@ -11,7 +11,8 @@ riskell's settings file is `~/.config/riskell/config.json` (`RISKELL_CONFIG` poi
 | `scale` | Layout scale. Absent = automatic from the bar's height. Applies on restart. `RISKELL_SCALE` overrides it. |
 | `spacing` | Edge gap, window gap and corner roundness (below). Absent = the defaults. Applies live. |
 | `disabledExtensions` | A list of ids of installed extensions (as `risk ext list` prints them) that must not load, for example `["gpu-load"]`. Read at launch: restart after changing it. The way back from an extension that misbehaves. |
-| `location`, `usage`, `pills`, `wmCommand` | Weather, usage sources, script pills, the command backend (see the other docs). |
+| `location`, `pills`, `wmCommand` | Weather, script pills, the command backend (see the other docs). |
+| `usage` | `"claude": true` turns on the usage atom, which reads Claude Code's local session logs (token counts only; no credentials, no network). Two optional numbers set the gauge limits: `"fiveHourTokens"` and `"sevenDayTokens"`. Absent, each gauge is measured against your own 30-day peak. Any other key here, such as an old `opencode` block, is ignored. Applies live. |
 
 ## `spacing`
 

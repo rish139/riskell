@@ -131,7 +131,7 @@ is joined to it by a short neck (`ChatCard.neck`) with a concave fillet (`ChatCa
 
 ## Snapshot harness (`scripts/orient-snap`)
 
-`scripts/orient-snap ATOM BAR OUTDIR [flags]` runs a second instance (`--no-usage --no-reserve --no-claude --fake-usage --snap`) with a temporary layout holding
+`scripts/orient-snap ATOM BAR OUTDIR [flags]` runs a second instance (`--no-usage --no-reserve --fake-usage --snap`) with a temporary layout holding
 that one atom on that bar, and writes `OUTDIR/ATOM-BAR.png` (cropped to the island, on a blue backdrop so spill is visible). Use `bottom` for horizontal checks (the
 top bar has the notch wings) and `left` for vertical ones. Workflow used for the orientation work: baseline PNGs of every atom in its existing orientation first,
 then build the new form and compare the old orientation with PIL's `ImageChops.difference(...).getbbox()` (must be `None`, or only live values differ); force worst-case

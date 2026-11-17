@@ -90,7 +90,7 @@ enum SelfTest {
             try? "{}\n".write(to: configFile, atomically: true, encoding: .utf8)
             let proc = Process()
             proc.executableURL = binary
-            proc.arguments = ["--no-usage", "--no-reserve", "--no-claude", "--fake-media", "--dump"]
+            proc.arguments = ["--no-usage", "--no-reserve", "--fake-media", "--dump"]
             proc.currentDirectoryURL = repo
             var env = ProcessInfo.processInfo.environment
             env["RISKELL_LAYOUT"] = layoutFile.path

@@ -100,36 +100,11 @@ extension App {
     }
 
     func drawUsage(_ g: Grid, _ b: Body) {
-        var y = Chrome.title(g, b, "Usage", "Both are off by default; each reads a login here.")
+        let y = Chrome.title(g, b, "Usage", "Off by default.")
         let w = min(b.w, 76)
-        Chrome.option(g, b.x, y, width: w, label: "Claude usage", selected: c.claude, focused: cursor == 0,
+        Chrome.option(g, b.x, y, width: w, label: "Claude Code usage", selected: c.claude, focused: cursor == 0,
                       note: c.claude ? "on" : "off")
-        Chrome.paragraph(g, b.x + 4, y + 1, width: w - 4, text: "reads Claude Code's login from your keychain; nothing leaves your Mac except the request to Anthropic")
-        y += 4
-        Chrome.option(g, b.x, y, width: w, label: "OpenCode usage", selected: c.opencodeOn, focused: cursor == 1,
-                      note: c.opencodeOn ? "on" : "off")
-        Chrome.paragraph(g, b.x + 4, y + 1, width: w - 4, text: "reads the console of your OpenCode workspace from a browser profile on this Mac")
-        y += 4
-        if c.opencodeOn {
-            drawField(g, b.x + 2, y, label: "workspace", value: maskedWorkspace(), focused: cursor == 2, width: w)
-            y += 1
-            drawField(g, b.x + 2, y, label: "profiles", value: c.profiles, focused: cursor == 3, width: w)
-            y += 2
-        }
-    }
-
-    /// The workspace id is never shown in full on screen: the first four characters, then dots.
-    func maskedWorkspace() -> String {
-        if c.workspace.isEmpty { return "wrk_…" }
-        let head = String(c.workspace.prefix(4))
-        return head + String(repeating: "•", count: max(0, c.workspace.count - 4))
-    }
-
-    func drawField(_ g: Grid, _ x: Int, _ y: Int, label: String, value: String, focused: Bool, width: Int) {
-        g.put(x, y, label, Ink.dim, max: 11)
-        g.put(x + 12, y, "›", focused ? Ink.accentText : Ink.dim)
-        g.put(x + 14, y, value, Ink.text, max: width - 14)
-        if focused { g.put(x + 14 + min(value.count, width - 15), y, "▏", Ink.accentText) }
+        Chrome.paragraph(g, b.x + 4, y + 1, width: w - 4, text: "from its local logs (no credentials, no network)")
     }
 
     func drawGestures(_ g: Grid, _ b: Body) {

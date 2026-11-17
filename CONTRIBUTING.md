@@ -37,7 +37,7 @@ files so it does not read or write your own config or layout:
 scratch=$(mktemp -d)
 mkdir -p "$scratch/out"
 RISKELL_CONFIG="$scratch/config.json" RISKELL_LAYOUT="$scratch/layout.json" \
-  .build/release/riskell --no-usage --no-reserve --no-claude --fake-usage --fake-media \
+  .build/release/riskell --no-usage --no-reserve --fake-usage --fake-media \
   --snap "$scratch/out" --stay 6
 ```
 

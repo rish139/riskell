@@ -4,16 +4,14 @@
 import SwiftUI
 import RiskellKit
 
-/// USAGE / RATE LIMITS: Claude and OpenCode Go, each one compact list. A window is one row: its code, a bar with a tick for how far through
+/// USAGE / RATE LIMITS: the Claude windows, one compact list. A window is one row: its code, a bar with a tick for how far through
 /// the window you are (the pace), the exact %, and its reset countdown. One accent for every bar; it turns orange past 75 % and red past 90 %.
-/// Hovering a row names its reset, its pace and, at this speed, when it runs out (OpenCode also its dollars). A missing feed is an empty bar
-/// and "—", never an invented value.
+/// Hovering a row names its reset, its pace and, at this speed, when it runs out. A missing reading is an empty bar and "—", never an
+/// invented value. A footnote says where the numbers come from and what the % is of.
 struct UsageCard: View {
     @ObservedObject private var state = UsageState.shared
     @ObservedObject private var config = HostConfig.shared
-    @State private var hoverC: Int? = nil
-    @State private var hoverO: Int? = nil
-    @State private var linkHot: String? = nil
+    @State private var hover: Int? = nil
 
     static let pad: CGFloat = 16, width: CGFloat = 380
     private static let h5 = 5.0 * 3600, d7 = 7.0 * 86400
@@ -32,46 +30,27 @@ struct UsageCard: View {
         if let x = c?.opus { r.append(Row(id: "op", code: "OPUS", win: x, len: Self.d7)) }
         return r
     }
-    private var ocRows: [Row] {
-        let o = state.opencode
-        let monthLen: Double = {
-            guard let r = o?.month?.resets else { return 30 * 86400 }
-            let d = Date(timeIntervalSince1970: r), prev = Calendar(identifier: .gregorian).date(byAdding: .month, value: -1, to: d) ?? d.addingTimeInterval(-30 * 86400)
-            return max(86400, d.timeIntervalSince(prev))
-        }()
-        return [Row(id: "roll", code: "ROLL", win: o?.roll, len: Self.h5), Row(id: "week", code: "WEEK", win: o?.week, len: Self.d7),
-                Row(id: "mon", code: "MON", win: o?.month, len: monthLen)]
-    }
 
-    private static let rowH: CGFloat = 30, rowGap: CGFloat = 2
-    /// The providers switched on in config.json; a switched-off one has no block, no PLAN line and no footer link.
+    private static let rowH: CGFloat = 30, rowGap: CGFloat = 2, noteH: CGFloat = 14
+    /// Shown only while it is switched on in config.json; when off, the card is the header alone.
     static var claudeOn: Bool { UsageConfig.claudeOn() }
-    static var ocOn: Bool { UsageConfig.opencodeWorkspace() != nil }
     static var size: CGSize {
         func block(_ n: Int) -> CGFloat { 18 + 6 + CGFloat(n) * rowH + CGFloat(max(0, n - 1)) * rowGap }
         let c = UsageState.shared.claude
-        let claudeRows = 2 + (c?.sonnet != nil ? 1 : 0) + (c?.opus != nil ? 1 : 0)
-        var blocks: [CGFloat] = []
-        if claudeOn { blocks.append(block(claudeRows)) }
-        if ocOn { blocks.append(block(3)) }
-        let plan: CGFloat = ocOn && UsageState.shared.opencode?.ending == true ? 16 : 0
-        let items = 2 + blocks.count + (plan > 0 ? 1 : 0)      // the header, the footer, the blocks, the plan line
-        let h = 11 + 12 + 20 + blocks.reduce(0, +) + plan + 22 + CGFloat(items - 1) * 10
-        return CGSize(width: width, height: h)
+        let rows = 2 + (c?.sonnet != nil ? 1 : 0) + (c?.opus != nil ? 1 : 0)
+        // the header; then, when on, the block and the footnote, 10 pt apart
+        let body: CGFloat = claudeOn ? block(rows) + noteH + 20 : 0
+        return CGSize(width: width, height: 11 + 12 + 20 + body)
     }
 
     var body: some View {
         let now = Date().timeIntervalSince1970
         VStack(alignment: .leading, spacing: 10) {
             header
-            if Self.claudeOn { block("CLAUDE", mark: Brand.claude, rows: claudeRows, hover: $hoverC, now: now, tokens: false) }
-            if Self.ocOn {
-                block("OPENCODE " + (state.opencode?.plan.replacingOccurrences(of: "go-plus", with: "go+").uppercased() ?? "GO"), mark: Brand.opencode, rows: ocRows, hover: $hoverO, now: now, tokens: true)
-                if let o = state.opencode, o.ending {
-                    t("PLAN ENDS " + Self.dayMonth(o.endsAt), 9, Pal.warn, 1.4).frame(height: 16).padding(.leading, 2)
-                }
+            if Self.claudeOn {
+                block("CLAUDE", mark: Brand.claude, rows: claudeRows, hover: $hover, now: now)
+                note
             }
-            footer
         }
         .padding(.horizontal, Self.pad).padding(.top, 11).padding(.bottom, 12)
         .frame(width: Self.width, alignment: .topLeading)
@@ -81,26 +60,33 @@ struct UsageCard: View {
         Text(s).font(Pal.font(size, bold ? .bold : .regular)).tracking(ls).foregroundStyle(color)
     }
 
-    private var stale: Bool { (Self.claudeOn && state.claude?.stale == true) || (Self.ocOn && state.opencode?.stale == true) }
     private var header: some View {
-        let times = [Self.claudeOn ? state.claude?.fetched : nil, Self.ocOn ? state.opencode?.fetched : nil].compactMap { $0 }.filter { $0 > 0 }
+        let fetched = Self.claudeOn ? (state.claude?.fetched ?? 0) : 0
+        let stale = Self.claudeOn && state.claude?.stale == true
         let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "HH:mm"
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
             t("USAGE", 10, Pal.text4, 2.6)
             Text("RATE LIMITS").font(Pal.font(15, .bold)).foregroundStyle(Pal.text1)
             Spacer()
-            t("UPDATED " + (times.min().map { f.string(from: Date(timeIntervalSince1970: $0)) } ?? "—"), 9, stale ? Pal.warn : Pal.text4, bold: false, 1)
+            t("UPDATED " + (fetched > 0 ? f.string(from: Date(timeIntervalSince1970: fetched)) : "—"), 9, stale ? Pal.warn : Pal.text4, bold: false, 1)
             Circle().fill(stale ? Pal.warn : Pal.accent).frame(width: 7, height: 7).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
         }.frame(height: 20)
     }
 
-    // MARK: a vendor block
+    /// The one footnote: where the numbers come from and what the % is of. Shortened to fit the card's width.
+    private var note: some View {
+        t("LOCAL CLAUDE CODE LOGS · % OF YOUR LIMIT OR 30-DAY PEAK", 9, Pal.text4, bold: false, 0.4)
+            .lineLimit(1).minimumScaleFactor(0.7)
+            .frame(height: Self.noteH, alignment: .leading)
+    }
 
-    private func block(_ title: String, mark: NSImage?, rows: [Row], hover: Binding<Int?>, now: Double, tokens: Bool) -> some View {
+    // MARK: the vendor block
+
+    private func block(_ title: String, mark: NSImage?, rows: [Row], hover: Binding<Int?>, now: Double) -> some View {
         let h = hover.wrappedValue
         let readout: String = {
             guard let i = h, i < rows.count, let w = rows[i].win else { return "" }
-            return Self.readout(rows[i], w, now: now, tokens: tokens)
+            return Self.readout(rows[i], w, now: now)
         }()
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
@@ -142,14 +128,13 @@ struct UsageCard: View {
         .animation(.easeOut(duration: 0.12), value: hot)
     }
 
-    static func readout(_ r: Row, _ w: UsageWin, now: Double, tokens: Bool) -> String {
+    static func readout(_ r: Row, _ w: UsageWin, now: Double) -> String {
         var parts = [r.code]
         if let rs = w.resets {
             let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX")
             let d = Date(timeIntervalSince1970: rs); f.dateFormat = Calendar.current.isDateInToday(d) ? "'TODAY' HH:mm" : "EEE HH:mm"
             parts.append("RESETS " + f.string(from: d).uppercased())
         }
-        if tokens, let u = w.used, let l = w.limit { parts.append(String(format: "$%.2f/$%.0f", u, l)) }
         if let rs = w.resets, let frac = w.frac(len: r.len, now: now) {
             parts.append("\(Int((frac * 100).rounded()))% THROUGH")
             let elapsed = r.len * frac
@@ -159,26 +144,5 @@ struct UsageCard: View {
             }
         }
         return parts.joined(separator: " · ")
-    }
-
-    static func dayMonth(_ t: Double?) -> String {
-        guard let t else { return "—" }
-        let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "MMM d"
-        return f.string(from: Date(timeIntervalSince1970: t)).uppercased()
-    }
-
-    // MARK: footer
-
-    private var footer: some View {
-        HStack(spacing: 16) {
-            Spacer()
-            if Self.claudeOn { link("CLAUDE USAGE ↗", "https://claude.ai/settings/usage") }
-            if Self.ocOn { link("OPENCODE GO ↗", "https://opencode.ai/console/\(UsageConfig.opencodeWorkspace() ?? "")/go") }
-        }.frame(height: 22).animation(.easeOut(duration: 0.15), value: linkHot)
-    }
-    private func link(_ label: String, _ url: String) -> some View {
-        Button { if let u = URL(string: url) { NSWorkspace.shared.open(u) }; PopState.shared.close() } label: {
-            t(label, 9, linkHot == label ? Pal.accent : Pal.text4, 1.4).padding(.vertical, 4).contentShape(Rectangle())
-        }.buttonStyle(.plain).onHover { linkHot = $0 ? label : (linkHot == label ? nil : linkHot) }
     }
 }

@@ -36,10 +36,6 @@ enum Modes {
             }
         }
         app.c.claude = o.claude
-        if let ws = o.opencodeWorkspace {
-            app.c.opencodeOn = true
-            app.c.workspace = ws
-        }
         if let s = o.scale {
             if s == "auto" {
                 app.c.scale = nil
