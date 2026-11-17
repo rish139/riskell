@@ -2,18 +2,16 @@
    ──────────────────────────────────────────────────────────────────────────
 
    Usage
-   Off by default.
+   Off by default: each source is your choice.
 
-   ● Claude Code usage                                                     on
-       from its local logs (no credentials, no network)
-
-
-
-
-
-
-
-
+   ● Claude Code usage, from its local logs                                on
+       no credentials, no network
+   ○ Claude plan limits                                                   off
+       reads the keychain token; unofficial, asks first
+   ● OpenCode Go usage                                                     on
+       reads an opencode.ai browser cookie; asks first
+     workspace   › wrk_•••••••••••••••••••
+     profiles    › ~/Library/Application Support/zen/Profiles
 
 
 
@@ -21,4 +19,6 @@
 
 
 
-   space toggle   ⏎ continue   esc back
+
+
+   ↑↓ move   space toggle   ⏎ continue   esc back

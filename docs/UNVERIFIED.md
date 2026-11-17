@@ -23,6 +23,11 @@ verified, move it to the "Verified" list with the date, the macOS version and th
 | **Weather lookup over the network** | Type a real city and check the results list; then unplug the network and check the "could not reach" message and the coordinates prompt. | The lookup was tested with canned responses (`--self-test`) and an unreachable host only. |
 | **Terminal look** | Run the flow in Terminal.app, iTerm2 and a 256-colour-only terminal (`COLORTERM` unset); check the accent, the theme previews and the progress cells render as in `docs/installer-snapshots/`. | Snapshots were read as text and ANSI, not in a real terminal emulator. |
 
+### Opt-in usage sources (`docs/CONFIG.md`, `docs/INSTALL.md`)
+| Item | What to try | Why it is unverified |
+|---|---|---|
+| **Claude plan limits and OpenCode Go usage** (`usage.claudeLimits`, `usage.opencode`) | With your own login, in a scratch HOME (`--repo` and `RISKELL_CONFIG` pointing at a copy): turn on Claude Code usage and then Claude plan limits in the installer's usage step, accept the panel with `y`, run `risk restart`, and check the card shows your plan's figures. Check the log for requests to Anthropic's endpoint only. For OpenCode: set `usage.opencode` to your workspace id and a Zen profile folder signed in to opencode.ai, check the card shows that workspace's usage. Then remove both keys and check that no keychain prompt or request remains. | Restored from the code that existed before the local-logs-only change and not run since. No real login token or browser cookie has been used, so the keychain item, the cookie's name and folder, and the endpoint's response shape may all have changed. The consent panel and the flags were checked only with a scratch HOME. |
+
 ### Placement and preferences
 | Item | What to try | Why it is unverified |
 |---|---|---|

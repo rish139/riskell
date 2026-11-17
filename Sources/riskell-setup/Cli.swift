@@ -20,6 +20,9 @@ struct Options: Equatable {
     var city: String?
     var gestures: String?
     var claude = false
+    var claudeLimits = false
+    var opencodeWorkspace: String?
+    var opencodeProfiles: String?
     var scale: String?
     var replaceLayout = false
     var removeConfig = false
@@ -54,6 +57,9 @@ struct Options: Equatable {
             case "--no-launch": o.noLaunch = true
             case "--no-path": o.noPath = true
             case "--claude": o.claude = true
+            case "--claude-limits": o.claude = true; o.claudeLimits = true
+            case "--opencode-workspace": o.opencodeWorkspace = value(a)
+            case "--opencode-profiles": o.opencodeProfiles = value(a)
             case "--replace-layout": o.replaceLayout = true
             case "--remove-config": o.removeConfig = true
             case "--restore-gestures": o.restoreGestures = true
@@ -92,7 +98,8 @@ struct Options: Equatable {
     usage: riskell-setup [options]
 
       (no options)            the guided terminal flow (needs a terminal)
-      --yes                   no questions: detected defaults, plus the flags below
+      --yes                   no questions: detected defaults, plus the flags below.
+                              The usage sources stay off unless a usage flag turns one on.
       --dry-run               print the plan and the JSON that would be written; write nothing
       --check                 health check: the preflight plus agent, socket and log
       --no-path               do not add the folder of the risk link to PATH in your shell start-up files
@@ -106,7 +113,12 @@ struct Options: Equatable {
       --cards flush|chat
       --city "Name"            looked up once; the first match is used
       --gestures riskell|system
-      --claude                 Claude Code usage on (from its local logs)
+      --claude                 Claude Code usage on, from its local logs (no credentials, no network)
+      --claude-limits          also the real plan limits: reads the keychain login token and asks
+                               Anthropic (unofficial, may breach its terms). Implies --claude; this flag is the consent.
+      --opencode-workspace wrk_...
+                               OpenCode Go usage: reads an opencode.ai browser cookie. This flag is the consent.
+      --opencode-profiles DIR  the browser profiles folder for OpenCode (default: Zen's)
       --scale N|auto           a number from 0.5 to 2.0, or automatic
       --replace-layout         replace an existing layout.json
 

@@ -28,7 +28,12 @@ struct Choices {
     var cards: CardStyle = .flush
     var theme = 0
     var weather: Place?
+    /// The three usage sources. All start off; the two opt-ins are turned on only by an explicit choice (or flag), never by --yes.
     var claude = false
+    var claudeLimits = false
+    var opencodeOn = false
+    var workspace = ""
+    var profiles = Choices.defaultProfiles
     var gesturesRiskell = false
     var gesturesFix = false
     var scale: Double?
@@ -65,8 +70,24 @@ struct Choices {
         }
         if let usage = e["usage"] as? [String: Any] {
             c.claude = (usage["claude"] as? Bool) ?? false
+            c.claudeLimits = c.claude && ((usage["claudeLimits"] as? Bool) ?? false)
+            // A workspace already in the file was an explicit choice, so it stays on.
+            if let oc = usage["opencode"] as? [String: Any] {
+                c.workspace = (oc["workspace"] as? String) ?? ""
+                c.opencodeOn = !c.workspace.isEmpty
+                c.profiles = (oc["profiles"] as? String) ?? c.profiles
+            }
         }
         return c
+    }
+
+    static let defaultProfiles = "~/Library/Application Support/zen/Profiles"
+
+    /// The shape of an OpenCode workspace id: `wrk_` then 6 to 64 letters or digits.
+    static func isWorkspaceID(_ s: String) -> Bool {
+        guard s.hasPrefix("wrk_") else { return false }
+        let body = s.dropFirst(4)
+        return (6...64).contains(body.count) && body.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber) }
     }
 
     var wmID: String { Choices.wmIDs[wm] }
@@ -116,6 +137,11 @@ enum WeatherRow {
     case place(Place), keep(Place), manual, skip
 }
 
+/// The opt-in usage sources whose consent panel is showing: the choice is made only when the user presses y.
+enum UsageConsent {
+    case limits, opencode
+}
+
 final class App {
     var facts: Facts
     let paths: Paths
@@ -146,6 +172,9 @@ final class App {
     var geoOutcome: GeoOutcome?
     var places: [Place] = []
 
+    // usage: the consent panel that is showing, if any
+    var consent: UsageConsent?
+
     // motion: all of it advances on tick(), which the loop calls only while something is animating
     var tickCount = 0
     var checksShown = 0
@@ -173,7 +202,7 @@ final class App {
         case .bars: return 5
         case .theme: return schemeData.count
         case .weather: return weatherRows.count
-        case .usage: return 1
+        case .usage: return c.opencodeOn ? 5 : 3
         case .gestures: return c.gesturesRiskell ? 3 : 2
         case .scale: return 2
         case .review: return (facts.layoutFound ? 1 : 0) + 3
@@ -268,9 +297,12 @@ final class App {
         } else {
             owned.append(("location", nil))
         }
-        // Only usage.claude is the installer's; the other usage keys (the optional token limits, an old opencode block) stay as they were.
+        // The installer owns usage.claude, usage.claudeLimits and usage.opencode; the other keys there (the token limits) stay as they were.
         var usage = (facts.existing?["usage"] as? [String: Any]) ?? [:]
-        if c.claude { usage["claude"] = true } else { usage.removeValue(forKey: "claude") }
+        for key in ["claude", "claudeLimits", "opencode"] { usage.removeValue(forKey: key) }
+        if c.claude { usage["claude"] = true }
+        if c.claude && c.claudeLimits { usage["claudeLimits"] = true }
+        if c.opencodeOn { usage["opencode"] = ["workspace": c.workspace, "profiles": c.profiles] as [String: Any] }
         let usageValue: Any? = usage.isEmpty ? nil : usage
         owned.append(("usage", usageValue))
         owned.append(("gestures", c.gesturesRiskell ? "riskell" : "system"))
@@ -425,12 +457,72 @@ final class App {
     }
 
     private func usageKey(_ k: Key) {
+        if let pending = consent {
+            // Only y accepts. Any other key leaves the source off.
+            consent = nil
+            if k == .char("y") || k == .char("Y") {
+                switch pending {
+                case .limits: c.claudeLimits = true
+                case .opencode: c.opencodeOn = true; cursor = 3
+                }
+            } else {
+                notice = "left off"
+            }
+            return
+        }
+        // The workspace and profiles fields take typing (rows 3 and 4, when OpenCode is on).
+        if c.opencodeOn, cursor == 3 || cursor == 4 {
+            switch k {
+            case .char(let s) where !s.isEmpty && s != "\n":
+                if cursor == 3 { c.workspace += s } else { c.profiles += s }
+                return
+            case .backspace:
+                if cursor == 3 { if !c.workspace.isEmpty { c.workspace.removeLast() } }
+                else if !c.profiles.isEmpty { c.profiles.removeLast() }
+                return
+            default: break
+            }
+        }
         if moveCursor(k) { return }
         switch k {
-        case .enter: go(.gestures)
+        case .enter:
+            if c.opencodeOn {
+                let ws = c.workspace.trimmingCharacters(in: .whitespaces)
+                if ws.isEmpty {
+                    notice = "type the workspace id (wrk_...) or turn OpenCode off"
+                    noticeIsError = true
+                    return
+                }
+                if !Choices.isWorkspaceID(ws) {
+                    notice = "the workspace id is wrk_ then 6 to 64 letters or digits"
+                    noticeIsError = true
+                    return
+                }
+                c.workspace = ws
+            }
+            go(.gestures)
         case .esc: back()
-        case .char(" "), .left, .right: c.claude.toggle()
+        case .char(" "), .left, .right: toggleUsage()
         case .char("q"): quit = true
+        default: break
+        }
+    }
+
+    /// Space on a usage row. Turning an opt-in on opens its consent panel; turning it off needs no question.
+    private func toggleUsage() {
+        switch cursor {
+        case 0:
+            c.claude.toggle()
+            if !c.claude { c.claudeLimits = false }
+        case 1:
+            guard c.claude else {
+                notice = "turn on Claude Code usage first"
+                noticeIsError = true
+                return
+            }
+            if c.claudeLimits { c.claudeLimits = false } else { consent = .limits }
+        case 2:
+            if c.opencodeOn { c.opencodeOn = false } else { consent = .opencode }
         default: break
         }
     }

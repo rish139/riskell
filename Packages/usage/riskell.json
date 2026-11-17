@@ -6,7 +6,7 @@
   "version": "1.0.0",
   "kit": "^0.6",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "summary": "Claude usage meters from your local Claude Code logs, opt-in in config.json, with a card for windows and reset times.",
+  "summary": "AI usage meters: Claude from local logs or its real limits, and OpenCode Go. Each is opt-in in config.json.",
   "module": "UsageExt",
   "entry": "UsagePackage",
   "atoms": [

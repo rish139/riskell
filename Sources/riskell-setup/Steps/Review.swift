@@ -17,8 +17,13 @@ extension App {
         return "\(c.preset.label), \(mode), \(c.cards == .flush ? "flush" : "chat")"
     }
 
+    /// What is on, with what each one reads. Short: the review's cells are narrow at 60 columns.
     func usageSummary() -> String {
-        return c.claude ? "Claude Code, local logs" : "off"
+        var parts: [String] = []
+        if c.claude && !c.claudeLimits { parts.append("Claude, local logs") }
+        if c.claudeLimits { parts.append("Claude: reads the keychain") }
+        if c.opencodeOn { parts.append("OpenCode: reads a browser cookie") }
+        return parts.isEmpty ? "off" : parts.joined(separator: "; ")
     }
 
     func drawReview(_ g: Grid, _ b: Body) {

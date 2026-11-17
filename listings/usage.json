@@ -4,14 +4,17 @@
   "name": "AI usage",
   "kind": "atom",
   "builtin": true,
-  "summary": "Claude and OpenCode usage meters, opt-in in config.json, with a card for windows and reset times.",
+  "summary": "Claude (local logs, or the real plan limits) and OpenCode Go usage meters, each opt-in in config.json, with a card for windows and reset times.",
   "license": "MIT",
   "repository": "https://github.com/rish139/riskell",
   "source": [
     "Packages/usage/riskell.json",
+    "Packages/usage/Sources/UsageExt/ClaudeLimits.swift",
+    "Packages/usage/Sources/UsageExt/OpenCodeUsage.swift",
     "Packages/usage/Sources/UsageExt/Usage.swift",
     "Packages/usage/Sources/UsageExt/UsageCard.swift",
     "Packages/usage/Sources/UsageExt/UsageFace.swift",
+    "Packages/usage/Sources/UsageExt/UsageHTTP.swift",
     "Packages/usage/Sources/UsageExt/UsageModel.swift",
     "Packages/usage/Sources/UsageExt/UsagePackage.swift"
   ],

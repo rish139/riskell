@@ -21,20 +21,24 @@ The installer is part of the same Swift package as riskell (`Sources/riskell-set
 | 2 Bars | Minimal, Classic (recommended), Full; cards Flush or Chat; bars Floating, Hug or as the preset | `layout.json` (see below) |
 | 3 Theme | one of the 11 schemes, with a live preview | `theme` |
 | 4 Weather | a city (one lookup to open-meteo.com, after you stop typing), coordinates by hand, or Skip | `location` |
-| 5 Usage | Claude Code usage from its local logs (no credentials, no network); off by default | `usage.claude` |
+| 5 Usage | Three sources, all off at first: Claude Code usage from its local logs (no credentials, no network); Claude plan limits (reads the keychain, unofficial, asks first, needs the first); OpenCode Go usage (reads a browser cookie, asks first, with its workspace id and profiles folder) | `usage.claude`, `usage.claudeLimits`, `usage.opencode` |
 | 6 Gestures | macOS (default) or riskell's own 3-finger swipe; read-only conflict check; optionally turn the conflicting macOS gestures off | `gestures`, and with the option on, the trackpad and Dock settings (originals saved) |
 | 7 Scale | Auto (recommended) or a number from 0.5 to 2.0 | `scale` only when custom |
 | 8 Review | the summary, the files that will change, then Install, Show what would change, or Back | nothing |
 
 The only network request is step 4, made with `/usr/bin/curl` to `geocoding-api.open-meteo.com`. It sends the city name you typed.
 
+The two opt-in usage sources ask first. Turning one on opens a panel that says what is read and sent; only `y` turns it on, and any
+other key leaves it off. The review screen then lists what is on, with "reads the keychain" or "reads a browser cookie" beside it.
+`--yes` never turns either on: they are on only when a flag below, or the panel, says so.
+
 ## What it writes
 
 Paths are derived from `$HOME`.
 
 - **`~/.config/riskell/config.json`**: the installer owns the keys `wm`, `theme`, `location`, `usage`, `gestures` and `scale`. It sets
-  or removes those and keeps every other key (`pills`, `spacing`, ...) as it was. Inside `usage` it owns only `claude`; the token limits
-  and any other key there are kept. When the file existed, a copy is kept as
+  or removes those and keeps every other key (`pills`, `spacing`, ...) as it was. Inside `usage` it owns only `claude`, `claudeLimits` and
+  `opencode`; the token limits and any other key there are kept. When the file existed, a copy is kept as
   `config.json.bak-YYYYMMDD-HHMMSS` first. The file is written through a temporary file and a rename.
 - **`~/.config/riskell/layout.json`**: written only when there is no layout yet, or when you choose "Replace my layout" on the review
   screen. Otherwise your layout is left alone. A replaced file is backed up the same way.
@@ -77,7 +81,10 @@ safe: every step is idempotent (the config is merged, a link is replaced, the ag
 | `--cards flush\|chat` | Card style. |
 | `--city "Name"` | Looked up once; the first match is used. Needs the network. |
 | `--gestures riskell\|system` | Gestures. |
-| `--claude` | Claude Code usage on (from its local logs). |
+| `--claude` | Claude Code usage on, from its local logs (no credentials, no network). |
+| `--claude-limits` | The real Claude plan limits too. Reads the keychain login token and asks Anthropic; unofficial, may breach its terms. Implies `--claude`. The flag is the consent. |
+| `--opencode-workspace wrk_...` | OpenCode Go usage: reads an opencode.ai browser cookie. The id is checked (`wrk_` then 6 to 64 letters or digits). The flag is the consent. |
+| `--opencode-profiles DIR` | The browser profiles folder for OpenCode (default: Zen's). Needs `--opencode-workspace`. |
 | `--scale N\|auto` | Scale, from 0.5 to 2.0. |
 | `--replace-layout` | Replace an existing `layout.json`. |
 | `--repo PATH` | The checkout (found from the working directory when omitted). |
@@ -103,7 +110,9 @@ Without a terminal (stdout is not a TTY) the guided flow does not start: the ins
 ## Privacy
 
 Nothing leaves the Mac except the weather lookup (the city name you typed) and the weather requests riskell makes for the weather card
-you turned on. The usage card reads Claude Code's local logs and makes no request and reads no credentials.
+you turned on. The usage card reads Claude Code's local logs and makes no request and reads no credentials. Two opt-in sources read more,
+only after you say yes: the Claude plan limits read the Claude Code login token from the keychain and send it to Anthropic; OpenCode Go
+usage reads the opencode.ai session cookie from a browser profile and sends it to opencode.ai.
 
 ## Development notes
 

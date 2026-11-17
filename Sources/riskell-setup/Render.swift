@@ -59,7 +59,9 @@ extension App {
         case .weather:
             if manual { return "type lat, lon   ⏎ use it   esc back" }
             return "type a city   ↑↓ choose   ⏎ continue   esc back"
-        case .usage: return "space toggle   ⏎ continue   esc back"
+        case .usage:
+            if consent != nil { return "y turn it on   any other key leaves it off" }
+            return "↑↓ move   space toggle   ⏎ continue   esc back"
         case .gestures: return "↑↓ move   space toggle   ⏎ continue   esc back   q quit"
         case .scale: return "↑↓ move   ←→ adjust   ⏎ continue   esc back"
         case .review: return "↑↓ move   space toggle   ⏎ choose   esc back"

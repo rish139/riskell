@@ -35,7 +35,21 @@ enum Modes {
             case .offline(let why): problems.append("--city: \(why)")
             }
         }
-        app.c.claude = o.claude
+        // --yes starts every usage source off; only the flags below turn one on. Each opt-in flag is the consent for it.
+        app.c.claude = o.claude || o.claudeLimits
+        app.c.claudeLimits = o.claudeLimits
+        app.c.opencodeOn = false
+        if let ws = o.opencodeWorkspace {
+            if Choices.isWorkspaceID(ws) {
+                app.c.opencodeOn = true
+                app.c.workspace = ws
+            } else {
+                problems.append("--opencode-workspace wants wrk_ then 6 to 64 letters or digits")
+            }
+        }
+        if let dir = o.opencodeProfiles {
+            if app.c.opencodeOn { app.c.profiles = dir } else { problems.append("--opencode-profiles needs --opencode-workspace") }
+        }
         if let s = o.scale {
             if s == "auto" {
                 app.c.scale = nil

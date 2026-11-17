@@ -20,6 +20,7 @@ enum SelfTest {
         shellPath()
         detection()
         arguments()
+        usage()
         themes()
         print(failures == 0 ? "all checks passed" : "\(failures) check(s) failed")
         return failures == 0 ? 0 : 1
@@ -171,6 +172,39 @@ enum SelfTest {
         check("--size WxH is read", Options.parse(["--snapshot", "welcome", "--size", "80x24"]).width == 80)
         check("an unknown flag is reported", !Options.parse(["--bogus"]).errors.isEmpty)
         check("a flag without its value is reported", !Options.parse(["--wm"]).errors.isEmpty)
+    }
+
+    /// The usage sources: both opt-ins start off, only a flag turns them on, and the installer keeps the keys it does not own.
+    static func usage() {
+        check("a workspace id is wrk_ and 6 to 64 letters or digits", Choices.isWorkspaceID("wrk_01KQXAMPLE01")
+              && !Choices.isWorkspaceID("wrk_abc") && !Choices.isWorkspaceID("wrk_" + String(repeating: "a", count: 65))
+              && !Choices.isWorkspaceID("abc_01KQXAMPLE01") && !Choices.isWorkspaceID("wrk_ab-cdef1"))
+        let home = Paths(home: "/tmp/riskell-setup-usage-selftest")
+        func answered(_ args: [String]) -> (App, [String]) {
+            let app = App(facts: Facts.fixture, paths: home, repo: nil)
+            let problems = Modes.applyAnswers(Options.parse(args), to: app)
+            return (app, problems)
+        }
+        let (plain, plainProblems) = answered(["--yes"])
+        check("--yes alone leaves every usage source off", plainProblems.isEmpty && !plain.c.claude && !plain.c.claudeLimits && !plain.c.opencodeOn)
+        let (limits, _) = answered(["--yes", "--claude-limits"])
+        check("--claude-limits implies --claude and turns the limits on", limits.c.claude && limits.c.claudeLimits && !limits.c.opencodeOn)
+        let (oc, ocProblems) = answered(["--yes", "--opencode-workspace", "wrk_01KQXAMPLE01", "--opencode-profiles", "/tmp/zen"])
+        check("--opencode-workspace turns OpenCode on with the folder", ocProblems.isEmpty && oc.c.opencodeOn && oc.c.workspace == "wrk_01KQXAMPLE01" && oc.c.profiles == "/tmp/zen" && !oc.c.claudeLimits)
+        check("a bad --opencode-workspace is reported", !answered(["--yes", "--opencode-workspace", "wrk_x"]).1.isEmpty)
+        check("--opencode-profiles without a workspace is reported", !answered(["--yes", "--opencode-profiles", "/tmp/zen"]).1.isEmpty)
+
+        var f = Facts.fixture
+        f.existing = ["usage": ["claude": true, "claudeLimits": true, "fiveHourTokens": 5000000.0,
+                                "opencode": ["workspace": "wrk_01KQXAMPLE01", "profiles": "/tmp/zen"]] as [String: Any]]
+        let kept = App(facts: f, paths: home, repo: nil)
+        check("an existing file keeps its consent in the choices", kept.c.claudeLimits && kept.c.opencodeOn)
+        Modes.applyAnswers(Options.parse(["--yes"]), to: kept)
+        let usage = kept.plan().owned.first { $0.0 == "usage" }?.1 as? [String: Any]
+        check("--yes writes no opt-in key, and keeps the token limit", usage?["claude"] == nil && usage?["claudeLimits"] == nil
+              && usage?["opencode"] == nil && (usage?["fiveHourTokens"] as? Double) == 5000000)
+        let merged = ConfigIO.merge(f.existing, owned: kept.plan().owned)
+        check("the merged file keeps the token limit and drops the opt-ins", (merged["usage"] as? [String: Any])?.keys.sorted() == ["fiveHourTokens"])
     }
 
     static func themes() {

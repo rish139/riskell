@@ -4,8 +4,12 @@ riskell runs as your user and draws windows over your screen. There is no teleme
 listed in the README's "Data access" table. Compiled extensions run inside it with your rights and there is no sandbox.
 
 ## What is built in to keep it safe
-- **Nothing sensitive is read without you asking.** It reads no credentials, keychain items or browser data. The AI usage atom reads only Claude
-  Code's own local session logs (token counts) and makes no network request.
+- **Nothing sensitive is read unless you turn it on.** By default riskell reads no credentials, keychain items or browser data, and makes no
+  usage request. The AI usage atom reads only Claude Code's own local session logs (token counts) and makes no network request. Two opt-in
+  sources read more, after you say yes: `usage.claudeLimits` reads the Claude Code login token from the login keychain and sends it to
+  Anthropic's usage endpoint (unofficial: Anthropic's terms do not allow using that token in other tools, so the account could be
+  restricted); `usage.opencode` reads the opencode.ai session cookie from a browser profile and sends it to opencode.ai. The installer asks
+  before turning either on, and `--yes` never does.
 - **Extensions are code you choose.** `risk ext add <name>` shows you who wrote it, the license and the exact commit, says that it will run with
   your rights, and asks before anything is built (`--yes` answers for scripts). A pill's shell commands are shown first. The registry pins every
   listing to one commit, so what you read is what you get, and `risk ext update` shows the change and applies nothing without `--yes`.

@@ -4,7 +4,7 @@ import Foundation
 enum Snapshots {
     static let names = [
         "welcome", "welcome-blocked", "wm", "bars", "theme", "weather", "weather-results", "weather-offline",
-        "usage", "gestures", "scale", "review", "diff", "install-early", "install-mid", "install-late",
+        "usage", "usage-consent", "gestures", "scale", "review", "diff", "install-early", "install-mid", "install-late",
         "install-failed", "finish", "bars-minimal", "bars-full", "theme-light",
     ]
     static let sizes = [(100, 32), (80, 24), (60, 20)]
@@ -29,7 +29,7 @@ enum Snapshots {
         app.checksShown = 99
         let stage: [String: Stage] = [
             "wm": .wm, "bars": .bars, "theme": .theme, "weather": .weather, "weather-results": .weather,
-            "weather-offline": .weather, "usage": .usage, "gestures": .gestures, "scale": .scale,
+            "weather-offline": .weather, "usage": .usage, "usage-consent": .usage, "gestures": .gestures, "scale": .scale,
             "review": .review, "diff": .diff, "install-early": .install, "install-mid": .install,
             "install-late": .install, "install-failed": .install, "finish": .finish,
         ]
@@ -72,7 +72,13 @@ enum Snapshots {
             app.cursor = 1
         case "usage":
             app.c.claude = true
-            app.cursor = 0
+            app.c.opencodeOn = true
+            app.c.workspace = "wrk_01KQXAMPLEWORKSPACE"
+            app.cursor = 2
+        case "usage-consent":
+            app.c.claude = true
+            app.consent = .limits
+            app.cursor = 1
         case "gestures":
             app.c.gesturesRiskell = true
             app.cursor = 1

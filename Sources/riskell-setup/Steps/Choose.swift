@@ -99,12 +99,66 @@ extension App {
         }
     }
 
+    /// Three sources, all off at first. The two opt-ins show a consent panel before they turn on (drawConsent).
     func drawUsage(_ g: Grid, _ b: Body) {
-        let y = Chrome.title(g, b, "Usage", "Off by default.")
+        if let pending = consent { drawConsent(g, b, pending); return }
+        var y = Chrome.title(g, b, "Usage", "Off by default: each source is your choice.")
         let w = min(b.w, 76)
-        Chrome.option(g, b.x, y, width: w, label: "Claude Code usage", selected: c.claude, focused: cursor == 0,
+        Chrome.option(g, b.x, y, width: w, label: "Claude Code usage, from its local logs", selected: c.claude, focused: cursor == 0,
                       note: c.claude ? "on" : "off")
-        Chrome.paragraph(g, b.x + 4, y + 1, width: w - 4, text: "from its local logs (no credentials, no network)")
+        g.put(b.x + 4, y + 1, "no credentials, no network", Ink.dim, max: w - 4)
+        y += 2
+        Chrome.option(g, b.x, y, width: w, label: "Claude plan limits", selected: c.claudeLimits, focused: cursor == 1,
+                      note: c.claude ? (c.claudeLimits ? "on" : "off") : "needs Claude usage")
+        g.put(b.x + 4, y + 1, "reads the keychain token; unofficial, asks first", Ink.dim, max: w - 4)
+        y += 2
+        Chrome.option(g, b.x, y, width: w, label: "OpenCode Go usage", selected: c.opencodeOn, focused: cursor == 2,
+                      note: c.opencodeOn ? "on" : "off")
+        g.put(b.x + 4, y + 1, "reads an opencode.ai browser cookie; asks first", Ink.dim, max: w - 4)
+        y += 2
+        if c.opencodeOn {
+            drawField(g, b.x + 2, y, label: "workspace", value: maskedWorkspace(), focused: cursor == 3, width: w)
+            y += 1
+            drawField(g, b.x + 2, y, label: "profiles", value: c.profiles, focused: cursor == 4, width: w)
+        }
+    }
+
+    /// What the source reads and sends, said before the user can turn it on. Only y accepts (App.usageKey).
+    func drawConsent(_ g: Grid, _ b: Body, _ which: UsageConsent) {
+        let title: String, text: String
+        switch which {
+        case .limits:
+            title = "Claude plan limits"
+            text = "riskell reads the Claude Code login token from your login keychain and sends it to Anthropic's usage endpoint, to ask for "
+                + "your plan's limits. Nothing else is read or sent. This is unofficial: Anthropic's terms do not allow using that token in "
+                + "other tools, so your account could be restricted."
+        case .opencode:
+            title = "OpenCode Go usage"
+            text = "riskell reads the opencode.ai session cookie from the browser profile folder (Zen by default) and sends it to "
+                + "opencode.ai's console, to read your workspace's usage. Nothing else is read or sent. The console is not a published "
+                + "API, so this can stop working when the site changes."
+        }
+        var y = Chrome.title(g, b, title, "Read this before you turn it on.")
+        y = Chrome.paragraph(g, b.x, y, width: b.w, text: text, lines: 8)
+        y += 1
+        g.put(b.x, y, "Press y to turn it on. Any other key leaves it off.", Ink.bold, max: b.w)
+    }
+
+    /// A text field: label, a chevron, the value (cut with an ellipsis when it does not fit), and a caret while focused.
+    func drawField(_ g: Grid, _ x: Int, _ y: Int, label: String, value: String, focused: Bool, width: Int) {
+        g.put(x, y, label, Ink.dim, max: 11)
+        g.put(x + 12, y, "›", focused ? Ink.accentText : Ink.dim)
+        let room = width - 14
+        let shown = value.count > room ? String(value.prefix(max(0, room - 1))) + "…" : value
+        g.put(x + 14, y, shown, Ink.text, max: room)
+        if focused { g.put(x + 14 + min(shown.count, room - 1), y, "▏", Ink.accentText) }
+    }
+
+    /// The workspace id is never shown in full on screen: the first four characters, then dots.
+    func maskedWorkspace() -> String {
+        if c.workspace.isEmpty { return "wrk_…" }
+        let head = String(c.workspace.prefix(4))
+        return head + String(repeating: "•", count: max(0, c.workspace.count - 4))
     }
 
     func drawGestures(_ g: Grid, _ b: Body) {

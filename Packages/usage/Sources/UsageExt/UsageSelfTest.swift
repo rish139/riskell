@@ -3,7 +3,8 @@
 
 import Foundation
 
-/// `riskell --usage-selftest`: the Claude window arithmetic and the log parsing on synthetic events. Prints PASS or FAIL per case.
+/// `riskell --usage-selftest`: the Claude window arithmetic, the log parsing, and the parsing and validation of the two providers, on
+/// synthetic input only (no file, keychain or network). Prints PASS or FAIL per case.
 public enum UsageSelfTest {
     public static func run() -> Never {
         let now = 1_800_000_000.0
@@ -50,6 +51,75 @@ public enum UsageSelfTest {
         let parsed = ClaudeLogs.dedupe(ClaudeLogs.parse(lines: lines))
         let dup = ClaudeLogs.summarize(events: parsed, now: now, fiveLimit: 1000, sevenLimit: nil)
         check("duplicate id counted once", parsed.count == 1 && dup.five?.used == 100)
+
+        // 7. the Claude limits endpoint: a normal response, every window a real percentage, the resets read
+        let limitsJSON: [String: Any] = [
+            "five_hour": ["utilization": 62.4, "resets_at": "2027-01-01T00:00:00Z"],
+            "seven_day": ["utilization": 41.0, "resets_at": "2027-01-01T00:00:00.500Z"],
+            "seven_day_sonnet": ["utilization": 11.6, "resets_at": "2027-01-02T00:00:00Z"],
+        ]
+        let lim = ClaudeLimits.parse(limitsJSON, now: now)
+        check("claude limits normal response",
+              lim?.five?.pct == 62 && lim?.five?.limitSet == true && lim?.five?.counted == true && lim?.five?.resets == 1_798_761_600
+              && lim?.seven?.pct == 41 && lim?.seven?.counted == true && lim?.sonnet?.pct == 12 && lim?.opus == nil
+              && lim?.fetched == now && lim?.stale == false && lim?.rep == 62)
+
+        // 8. a response missing a window (no seven_day) gives no reading
+        let missing = ClaudeLimits.parse(["five_hour": ["utilization": 10.0]], now: now)
+        check("claude limits missing window", missing == nil)
+
+        // 9. a keychain item with no token gives none; one with a token gives it
+        let noToken = Data(#"{"claudeAiOauth":{"accessToken":"","refreshToken":"r"}}"#.utf8)
+        let noObject = Data(#"{"other":{"accessToken":"x"}}"#.utf8)
+        let withToken = Data(#"{"claudeAiOauth":{"accessToken":"synthetic-token-1234"}}"#.utf8)
+        check("keychain json without a token",
+              ClaudeCredential.token(fromKeychainJSON: noToken) == nil && ClaudeCredential.token(fromKeychainJSON: noObject) == nil
+              && ClaudeCredential.token(fromKeychainJSON: Data("not json".utf8)) == nil)
+        check("keychain json with a token", ClaudeCredential.token(fromKeychainJSON: withToken) == "synthetic-token-1234")
+
+        // 10. an OpenCode Go response: the three meters, dollars, the console's rounding (23 %, 71 %, 88 %), the plan end
+        let ocJSON: [String: Any] = [
+            "product": "go-plus",
+            "cancelAtPeriodEnd": true,
+            "access": [
+                "endsAt": "2027-01-20T00:00:00Z",
+                "meters": [
+                    "fiveHour": ["limitMicroCents": 1_200_000_000, "usedMicroCents": 276_000_000, "resetsAt": "2027-01-01T03:00:00Z"],
+                    "week": ["limitMicroCents": "2400000000", "usedMicroCents": "1704000000", "resetsAt": "2027-01-04T00:00:00Z"],
+                    "month": ["limitMicroCents": 4_000_000_000, "usedMicroCents": 3_520_000_000, "resetsAt": "2027-01-20T00:00:00Z"],
+                ],
+            ],
+        ]
+        let oc = OpenCodeStatus.parse(ocJSON, now: now)
+        check("opencode normal response",
+              oc?.roll?.pct == 23 && oc?.week?.pct == 71 && oc?.month?.pct == 88 && oc?.rep == 88
+              && oc?.roll?.used == 2.76 && oc?.roll?.limit == 12 && oc?.roll?.limitSet == true
+              && oc?.plan == "go-plus" && oc?.ending == true && oc?.endsAt == 1_800_403_200)
+
+        // 11. the percent rounds half up, as the console does: 12.5 % is 13
+        var half = ocJSON
+        half["access"] = ["meters": ["fiveHour": ["limitMicroCents": 1_000_000_000, "usedMicroCents": 125_000_000],
+                                     "week": ["limitMicroCents": 1_000_000_000, "usedMicroCents": 0],
+                                     "month": ["limitMicroCents": 1_000_000_000, "usedMicroCents": 0]]]
+        check("opencode percent rounds half up", OpenCodeStatus.parse(half, now: now)?.roll?.pct == 13)
+
+        // 12. a product that is not a Go plan gives none
+        var other = ocJSON
+        other["product"] = "zen"
+        check("opencode non-go product is nil", OpenCodeStatus.parse(other, now: now) == nil)
+
+        // 13. workspace ids: accepted only as wrk_ and 6 to 64 letters or digits
+        let longOK = "wrk_" + String(repeating: "a", count: 64), longBad = "wrk_" + String(repeating: "a", count: 65)
+        check("workspace id table",
+              UsageConfig.validWorkspace("wrk_abc123") && UsageConfig.validWorkspace(longOK)
+              && !UsageConfig.validWorkspace("wrk_") && !UsageConfig.validWorkspace("x; rm")
+              && !UsageConfig.validWorkspace("wrk_a b") && !UsageConfig.validWorkspace(longBad)
+              && !UsageConfig.validWorkspace("wrk_abcde") && !UsageConfig.validWorkspace("wrk_ab-cdef"))
+
+        // 14. a path is inside the home folder or it is not used
+        check("path inside home accepted", UsageConfig.inside("/hm/ab/Library/Application Support/zen", home: "/hm/ab"))
+        check("path outside home rejected",
+              !UsageConfig.inside("/etc", home: "/hm/ab") && !UsageConfig.inside("/hm/ab2/x", home: "/hm/ab"))
 
         if failed > 0 { print("\(failed) FAIL") } else { print("all passed") }
         exit(failed > 0 ? 1 : 0)

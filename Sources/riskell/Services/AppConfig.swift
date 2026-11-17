@@ -3,14 +3,14 @@ import RiskellKit
 
 /// Everything personal lives in ~/.config/riskell/config.json (riskell's own file, `RISKELL_CONFIG` points a second instance at another one);
 /// nothing about a person or an account is in the source. A missing file or a missing key means "off": no weather location means no
-/// weather requests. `usage.claude` defaults to false: the usage atom reads Claude Code's local session logs only when it is on. The
-/// optional `fiveHourTokens` and `sevenDayTokens` are the limits the gauges are measured against; absent, the gauge is measured against
-/// the user's own 30-day peak. Keys this build does not know (an old `usage.opencode`) are ignored.
+/// weather requests, no workspace id means no OpenCode requests. Every usage source defaults to off.
 /// The file is watched and applied live (see ConfigWatcher). Layout (bars and atoms) is a separate file, see Layout.swift.
 ///
 ///     { "wm": "auto",
 ///       "location": { "name": "Hamburg", "lat": 53.55, "lon": 10.00 },
-///       "usage": { "claude": true, "fiveHourTokens": 5000000, "sevenDayTokens": 40000000 } }
+///       "usage": { "claude": true, "claudeLimits": true,
+///                  "opencode": { "workspace": "wrk_…", "profiles": "~/Library/Application Support/zen/Profiles" },
+///                  "fiveHourTokens": 5000000, "sevenDayTokens": 40000000 } }
 struct AppConfig: Codable, Equatable {
     /// The "command" window manager's commands: `state` prints one line of JSON; the actions run with {space} / {window} replaced by numbers.
     struct WMCommand: Codable, Equatable {
@@ -22,9 +22,19 @@ struct AppConfig: Codable, Equatable {
         var every: Double?
     }
     struct Location: Codable, Equatable { var name: String?; var lat: Double; var lon: Double }
-    /// The usage atom's settings. `claude` turns on the local-logs provider; the two token counts are optional gauge limits.
+    struct OpenCode: Codable, Equatable {
+        /// The Go workspace id (the `wrk_…` in the console URL). Empty or absent: OpenCode usage is off.
+        var workspace: String?
+        /// The Firefox-family profiles directory whose newest cookies.sqlite holds the console session.
+        var profiles: String?
+    }
+    /// The usage atom's settings. `claude` turns on the local-logs provider (no credentials, no network). `claudeLimits` (opt-in, only with
+    /// `claude`) also reads the real plan limits with the Claude Code login token from the keychain: unofficial. `opencode` (opt-in) reads
+    /// the OpenCode Go console with a browser's session cookie. The two token counts are optional gauge limits.
     struct Usage: Codable, Equatable {
         var claude: Bool?
+        var claudeLimits: Bool?
+        var opencode: OpenCode?
         var fiveHourTokens: Double?
         var sevenDayTokens: Double?
     }
@@ -92,4 +102,10 @@ struct AppConfig: Codable, Equatable {
     }
 
     var claudeEnabled: Bool { usage?.claude ?? false }
+    /// The real plan limits: only with the local-logs provider on as well.
+    var claudeLimitsEnabled: Bool { claudeEnabled && (usage?.claudeLimits ?? false) }
+    var opencodeWorkspace: String? { usage?.opencode?.workspace.flatMap { $0.isEmpty ? nil : $0 } }
+    var opencodeProfiles: String {
+        (usage?.opencode?.profiles ?? "~/Library/Application Support/zen/Profiles").replacingOccurrences(of: "~", with: NSHomeDirectory(), options: .anchored)
+    }
 }

@@ -4,6 +4,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+- Two opt-in AI usage sources, both off by default and never enabled by `--yes` alone. `usage.claudeLimits` shows your plan's real Claude limits: it
+  reads the Claude Code login token from the login keychain and asks Anthropic's usage endpoint. This is unofficial: Anthropic's terms do not allow
+  using that token in other tools, so the account could be restricted. `usage.opencode` shows OpenCode Go usage: it reads the console session cookie
+  from a Firefox-family browser profile inside your home folder (a private temporary copy, removed afterwards) and asks the OpenCode console, which
+  is not a published API. Requests go over https to `api.anthropic.com` and `opencode.ai` only, with no cross-host redirects; secrets are never
+  logged or cached. The installer has a step for each, with a panel that says what is read and sent and needs `y` to accept
+  (`--claude-limits`, `--opencode-workspace`, `--opencode-profiles` for scripts). See `docs/CONFIG.md`.
+
 ### Fixed
 - AI usage no longer shows a percentage it cannot know. Claude Code's local logs have token counts but not your plan's limits, so a percentage was
   only "of your own peak" and read 100 % whenever you were at it. Without `usage.fiveHourTokens` / `usage.sevenDayTokens` in `config.json` the atom

@@ -12,7 +12,19 @@ riskell's settings file is `~/.config/riskell/config.json` (`RISKELL_CONFIG` poi
 | `spacing` | Edge gap, window gap and corner roundness (below). Absent = the defaults. Applies live. |
 | `disabledExtensions` | A list of ids of installed extensions (as `risk ext list` prints them) that must not load, for example `["gpu-load"]`. Read at launch: restart after changing it. The way back from an extension that misbehaves. |
 | `location`, `pills`, `wmCommand` | Weather, script pills, the command backend (see the other docs). |
-| `usage` | `"claude": true` turns on the usage atom, which reads Claude Code's local session logs (token counts only; no credentials, no network). Two optional numbers, `"fiveHourTokens"` and `"sevenDayTokens"`, are the limits the gauges are measured against and make the atom show a real percentage; without them it shows the tokens used (the running 5-hour session and the last 7 days), because the logs hold counts, not your plan's limits. An old `opencode` key is ignored. |
+| `usage` | The usage sources. Every one is off by default. See the table below. |
+
+Inside `usage`:
+
+| Key | Meaning |
+|---|---|
+| `claude` | `true` turns on the usage atom from Claude Code's local session logs: token counts only, no credentials, no network. |
+| `claudeLimits` | Opt-in, only with `claude`. `true` also shows your plan's real limits: riskell reads the Claude Code login token from the login keychain and asks Anthropic's usage endpoint. This is unofficial. Anthropic's terms do not allow using that token in other tools, so the account could be restricted. |
+| `opencode` | Opt-in: `{ "workspace": "wrk_…", "profiles": "~/Library/Application Support/zen/Profiles" }` shows OpenCode Go usage. riskell reads the opencode.ai session cookie from a browser profile in the `profiles` folder (Zen by default) and calls opencode.ai's console. The workspace id must be `wrk_` followed by 6 to 64 letters or digits; an empty id turns it off. |
+| `fiveHourTokens`, `sevenDayTokens` | Optional numbers: the limits the gauges are measured against, which make the atom show a real percentage. Without them it shows the tokens used (the running 5-hour session and the last 7 days), because the logs hold counts, not your plan's limits. |
+
+Hand-editing `claudeLimits` or `opencode` is the same consent as the installer's question: the installer writes these keys only after you
+say yes.
 
 ## `spacing`
 

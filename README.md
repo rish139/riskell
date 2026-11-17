@@ -161,7 +161,7 @@ be selected per bar.
 | Volume | output level and microphone level | output and input devices and a per-application mixer |
 | Network | Wi-Fi signal | Wi-Fi details and nearby networks, with Bluetooth and VPN tabs |
 | Weather | temperature | hourly and daily forecast ([Open-Meteo](https://open-meteo.com)) |
-| AI usage | Claude Code usage from its local logs, when enabled | token use in the five-hour and seven-day windows |
+| AI usage | Claude Code usage from its local logs, when enabled; two opt-in sources (the Claude plan limits, OpenCode Go usage) | token use in the five-hour and seven-day windows; the opt-in sources add their own figures |
 
 ### riskell preferences
 
@@ -400,8 +400,10 @@ listener, no network request, no permission prompt. The measurements, the profil
 
 | | |
 |---|---|
-| Network | Weather from Open-Meteo, only when a location is set (your coordinates go to Open-Meteo). The installer makes one city lookup against Open-Meteo's geocoding service while the name is typed. `risk ext search`, `add` and `update` fetch the registry index from GitHub Pages and clone the repositories you install from. Nothing else. |
+| Network | Weather from Open-Meteo, only when a location is set (your coordinates go to Open-Meteo). The installer makes one city lookup against Open-Meteo's geocoding service while the name is typed. `risk ext search`, `add` and `update` fetch the registry index from GitHub Pages and clone the repositories you install from. Opt-in only: with `usage.claudeLimits`, the Claude Code token goes to Anthropic's usage endpoint (unofficial); with `usage.opencode`, the OpenCode session cookie goes to opencode.ai's console. Nothing else. |
 | Local logs | Claude Code usage reads the token counts in Claude Code's own session logs (`*.jsonl` under `~/.claude/projects`), only when enabled. It reads no credentials and sends nothing. |
+| Keychain | Off by default. Opt-in with `usage.claudeLimits` (unofficial): riskell reads the Claude Code login token from the login keychain to ask Anthropic for your plan's real limits. Anthropic's terms do not allow using that token in other tools, so the account could be restricted. |
+| Browser data | Off by default. Opt-in with `usage.opencode`: riskell reads the opencode.ai session cookie from a browser profile (Zen by default) to show your OpenCode Go usage. |
 | Accessibility | Only for the optional gestures (the scroll guard). |
 | Location | Only so that macOS provides Wi-Fi network names. |
 | Files | riskell writes `~/.config/riskell/`, backs up OmniWM's `settings.toml` before the first change to its gaps, and, with gestures enabled, can change two trackpad and Dock settings after saving the originals. |
