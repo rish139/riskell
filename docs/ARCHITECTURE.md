@@ -13,7 +13,7 @@ next is `docs/ROADMAP.md`; what has not been tested on real hardware is `docs/UN
 - `Services/`: data and system access. `AppConfig.swift` (`~/.config/riskell/config.json`), `ConfigWatcher.swift` (live reload of config, pill
   files, theme files), window-manager backends (`Omni`, `Yabai`, `AeroSpace`, `CommandWM`, `NoWM` behind `WindowManager`), `Pills.swift`,
   `Sys` (battery and volume, for the feeds), `NowPlaying`, `Compat.swift` (version pill and checks).
-- `Packages/`: the atoms that have moved out of the app, each a package on the kit and installed by `extensions.lock.json`: `clock`, `weather`, `usage`, `system` (battery, CPU and fans, one package because their cards read each other's numbers), `volume` and `network`.
+- `Packages/`: the atoms that have moved out of the app, each a package on the kit and installed by `extensions.lock.json`: `clock`, `weather`, `usage`, `system` (battery, CPU and fans, one package because their cards read each other's numbers), `volume`, `network` and `windows` (workspaces and the app icon). No atom is built into the application.
 - `Extensions/`: optional behaviours with a start/stop lifecycle. `Gestures/` (Touch, ScrollGuard) is off by default and starts nothing when off.
 - `Themes/`: Base16 schemes (generated `Schemes.swift`), `Theme.swift` (derivation with enforced contrast), `ThemePicker.swift`.
 - RiskellKit ([its own repository](https://github.com/rish139/riskell-kit), Apache-2.0): design tokens `Pal`/`T`/`G`, the drawing primitives, the `Reading` renderer, the

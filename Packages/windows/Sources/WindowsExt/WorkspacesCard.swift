@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
 
@@ -7,14 +10,14 @@ import RiskellKit
 /// Click a tile to focus its window, right-click to close it, drag it onto another space's row to move it (or below the last row for a
 /// new space), click a space's number to go there.
 struct WorkspacesCard: View {
-    @EnvironmentObject var s: Store
+    @ObservedObject private var s = WindowsModel.shared
     @ObservedObject private var ws = WsState.shared
-    @ObservedObject private var pop = Popout.shared
+    @ObservedObject private var pop = PopState.shared
 
     var body: some View {
         let L = WsLayout.current()
         let focusedSpace = s.spaces.first { $0.focused }?.id
-        let now = Clock.shared.minute
+        let now = Date()
         ZStack(alignment: .topLeading) {
             // drop highlight (underlay)
             if let d = ws.dropSpace, ws.dragging {
@@ -36,7 +39,7 @@ struct WorkspacesCard: View {
                         .foregroundStyle(g.space.id == focusedSpace ? Pal.accent : Pal.text3)
                         .frame(width: WsLayout.label, height: WsLayout.tile)
                         .contentShape(Rectangle())
-                        .onTapGesture { WM.shared?.focus(space: g.space.id); Popout.shared.close() }
+                        .onTapGesture { KitHost.windows?.focus(space: g.space.id); PopState.shared.close() }
                     if g.tiles.isEmpty {
                         VStack(spacing: 3) {
                             RoundedRectangle(cornerRadius: 9).stroke(Pal.hairline, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
@@ -79,7 +82,7 @@ struct WorkspacesCard: View {
         }
         .coordinateSpace(name: "wscard")
         .frame(width: L.width, height: L.height, alignment: .topLeading)
-        .onDisappear { ws.hoverWin = nil; ws.dragId = nil; ws.dropSpace = nil; Popout.shared.holdOpen = false }
+        .onDisappear { ws.hoverWin = nil; ws.dragId = nil; ws.dropSpace = nil; PopState.shared.setHoldOpen(false) }
     }
 
     private func label(_ t: String, _ size: CGFloat, _ color: Color, _ tracking: CGFloat) -> some View {
@@ -96,12 +99,12 @@ struct WorkspacesCard: View {
         if let id = ws.hoverWin, let w = s.windows.first(where: { $0.id == id }) { return title(w) }
         return s.windows.first(where: { $0.focused }).map(title) ?? ""
     }
-    private func title(_ w: WinInfo) -> String {
+    private func title(_ w: WindowInfo) -> String {
         let name = Apps.info(pid: w.pid, fallback: w.app).name, t = w.title.trimmingCharacters(in: .whitespaces)
         return t.isEmpty || t.lowercased() == name.lowercased() ? name : "\(name) — \(t)"
     }
 
-    private func face(_ w: WinInfo, focused: Bool, hover: Bool = false) -> some View {
+    private func face(_ w: WindowInfo, focused: Bool, hover: Bool = false) -> some View {
         let info = Apps.info(pid: w.pid, fallback: w.app)
         let shape = RoundedRectangle(cornerRadius: 10)
         return ZStack {
@@ -123,11 +126,11 @@ struct WorkspacesCard: View {
             .opacity(carried ? 0.3 : 1)
             .contentShape(Rectangle())
             .onHover { h in if h { ws.hoverWin = w.id } else if ws.hoverWin == w.id { ws.hoverWin = nil } }
-            .onTapGesture { WM.shared?.focus(window: w.id); Popout.shared.close() }
-            .overlay(RightClick { WM.shared?.close(window: w.id) })
+            .onTapGesture { KitHost.windows?.focus(window: w.id); PopState.shared.close() }
+            .onRightClick { KitHost.windows?.close(window: w.id) }
             .gesture(DragGesture(minimumDistance: 6, coordinateSpace: .named("wscard"))
                 .onChanged { v in
-                    if ws.dragId == nil { ws.dragId = w.id; Popout.shared.holdOpen = true; Popout.shared.refit() }
+                    if ws.dragId == nil { ws.dragId = w.id; PopState.shared.setHoldOpen(true); PopState.shared.refit() }
                     ws.dragPos = v.location
                     let l = WsLayout.current()
                     ws.dropSpace = dropTarget(v.location.y, l)
@@ -136,9 +139,9 @@ struct WorkspacesCard: View {
                     let target = ws.dropSpace, spaces = s.spaces.count
                     ws.dragId = nil; ws.dropSpace = nil
                     if let target, target != w.space {
-                        if target > spaces { WM.shared?.moveToNewSpace(window: w.id, after: spaces) } else { WM.shared?.move(window: w.id, toSpace: target) }
+                        if target > spaces { KitHost.windows?.moveToNewSpace(window: w.id, after: spaces) } else { KitHost.windows?.move(window: w.id, toSpace: target) }
                     }
-                    Popout.shared.holdOpen = false; Popout.shared.refit()
+                    PopState.shared.setHoldOpen(false); PopState.shared.refit()
                 })
         } else {
             VStack(spacing: 3) {

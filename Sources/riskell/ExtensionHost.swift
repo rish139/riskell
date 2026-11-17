@@ -47,6 +47,26 @@ struct ActiveWhenShown: ViewModifier {
     }
 }
 
+/// The workspaces, windows and the rail's swipe, for the kit's `WindowsModel` and `RailState`, and the window manager's actions (`KitHost.windows`).
+final class WindowBridge: WindowActions {
+    static let shared = WindowBridge()
+    private var bag: [AnyCancellable] = []
+    func start() {
+        let s = store
+        Publishers.CombineLatest(s.$spaces, s.$windows).sink { spaces, windows in
+            WindowsModel.shared.update(
+                spaces: spaces.map { WorkspaceInfo(id: $0.id, focused: $0.focused, visible: $0.visible, windows: $0.windows, fullscreen: $0.fullscreen) },
+                windows: windows.map { WindowInfo(id: $0.id, pid: $0.pid, app: $0.app, title: $0.title, space: $0.space, focused: $0.focused) })
+        }.store(in: &bag)
+        Publishers.CombineLatest(s.rail.$swipe, s.rail.$live).sink { RailState.shared.update(swipe: $0, live: $1) }.store(in: &bag)
+    }
+    func focus(space: Int) { WM.shared?.focus(space: space) }
+    func focus(window id: Int) { WM.shared?.focus(window: id) }
+    func close(window id: Int) { WM.shared?.close(window: id) }
+    func move(window id: Int, toSpace space: Int) { WM.shared?.move(window: id, toSpace: space) }
+    func moveToNewSpace(window id: Int, after count: Int) { WM.shared?.moveToNewSpace(window: id, after: count) }
+}
+
 /// What the kit's `KitHost.app` offers an extension.
 final class AppBridge: AppHooks {
     static let shared = AppBridge()
@@ -65,6 +85,7 @@ final class PopoutBridge: PopoutHooks {
     func setStage(_ stage: Int) { Popout.shared.setStage(stage) }
     func closeCard() { Popout.shared.close() }
     func setKeyable(_ on: Bool) { Popout.shared.setKeyable(on) }
+    func setHoldOpen(_ on: Bool) { Popout.shared.holdOpen = on }
     func refit() { Popout.shared.refit() }
     func holdOpen() { Popout.shared.holdOpen = true }
 }

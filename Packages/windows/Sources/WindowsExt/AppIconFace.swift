@@ -1,11 +1,14 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
 
 /// The focused window's app icon, under the workspace rail (`vertical`). On a horizontal bar it is one 36 pt row: the 24 pt icon, then the
 /// focused app's full name (never the window title, never truncated or capped). It draws nothing when no window is focused.
-struct AppIconAtom: View {
-    @EnvironmentObject var s: Store
-    @ObservedObject private var pop = Popout.shared
+struct AppIconFace: View {
+    @ObservedObject private var s = WindowsModel.shared
+    @ObservedObject private var pop = PopState.shared
     let vertical: Bool
     private static var cache: [Int: NSImage] = [:]
     private static func icon(_ pid: Int) -> NSImage? {

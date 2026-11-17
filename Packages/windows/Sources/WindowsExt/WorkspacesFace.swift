@@ -1,28 +1,18 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright 2026 Rishabh Tiwari
+
 import SwiftUI
 import RiskellKit
-
-/// Right-click without touching left-click: this view only takes part in hit-testing while a right mouse button is going down, so
-/// SwiftUI's own tap, hover and drag gestures underneath it keep working.
-struct RightClick: NSViewRepresentable {
-    let action: () -> Void
-    func makeNSView(context: Context) -> NSView { let v = Catcher(); v.action = action; return v }
-    func updateNSView(_ v: NSView, context: Context) { (v as? Catcher)?.action = action }
-    final class Catcher: NSView {
-        var action: (() -> Void)?
-        override func hitTest(_ p: NSPoint) -> NSView? { NSApp.currentEvent?.type == .rightMouseDown ? super.hitTest(p) : nil }
-        override func rightMouseDown(with e: NSEvent) { action?() }
-    }
-}
 
 /// The workspace rail, standing on the hug strip: one bead per space on an even pitch (a bright bead when it holds windows, a dim one
 /// when empty), and the accent capsule on the focused one. The capsule is ONE view that follows the focus (and the fingers of a swipe);
 /// nothing re-lays-out on a switch. Hover swells the chain. While the card is out each space's bead floats down onto its row (the
 /// windows themselves are listed in the card).
-struct WorkspacesAtom: View {
-    @EnvironmentObject var s: Store
-    @ObservedObject private var pop = Popout.shared
+struct WorkspacesFace: View {
+    @ObservedObject private var s = WindowsModel.shared
+    @ObservedObject private var pop = PopState.shared
     @ObservedObject private var ws = WsState.shared
-    @ObservedObject private var rail = store.rail
+    @ObservedObject private var rail = RailState.shared
     @State private var hot = false
     let vertical: Bool
 
@@ -31,7 +21,7 @@ struct WorkspacesAtom: View {
     static let hPitch: CGFloat = 28         // horizontal: one space's slot along the 36 pt pill (the beads stay 9 pt, as on the rail)
 
     private func zone(_ i: Int) -> CGFloat { Self.pitch }
-    private func geometry(_ spaces: [SpaceInfo]) -> ([CGFloat], CGFloat) {
+    private func geometry(_ spaces: [WorkspaceInfo]) -> ([CGFloat], CGFloat) {
         (spaces.indices.map { CGFloat($0) * Self.pitch }, CGFloat(spaces.count) * Self.pitch)
     }
 
@@ -60,7 +50,7 @@ struct WorkspacesAtom: View {
                     .frame(width: 9, height: 9).scaleEffect((1 + 0.2 * hv) * (drop ? 1.5 : 1))
                     .frame(width: Self.hPitch, height: G.pill)
                     .contentShape(Rectangle())
-                    .onTapGesture { WM.shared?.focus(space: sp.id) }
+                    .onTapGesture { KitHost.windows?.focus(space: sp.id) }
                     .offset(x: CGFloat(i) * Self.hPitch)
             }
             if let capX {
@@ -107,7 +97,7 @@ struct WorkspacesAtom: View {
                 .frame(height: Self.pitch, alignment: .top)
                 .overlay(alignment: .top) {      // the click target of the bead itself
                     Color.clear.frame(width: G.strip, height: zone(i)).contentShape(Rectangle())
-                        .onTapGesture { WM.shared?.focus(space: sp.id) }
+                        .onTapGesture { KitHost.windows?.focus(space: sp.id) }
                 }
                 .offset(y: tops[i] + (floated ? lift(i) : 0))
                 .animation(.spring(duration: 0.30, bounce: 0.05).delay(floated ? 0.035 * Double(i) : 0.02 * Double(n - 1 - i)), value: floated)

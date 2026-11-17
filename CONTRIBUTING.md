@@ -79,15 +79,16 @@ Keep `CHANGELOG.md` up to date under "Unreleased" ([Keep a Changelog](https://ke
 
 ## Adding an atom
 
-An atom is one thing on a bar: a clock, a meter, a card. The step-by-step guide is in
+An atom is one thing on a bar: a clock, a meter, a card, and every atom is a package on the kit. The guide is in
 [`docs/ADDING-AN-ATOM.md`](docs/ADDING-AN-ATOM.md). If you only need a command's output on a bar, a script pill needs no Swift at all;
 see [`docs/PILLS.md`](docs/PILLS.md).
 
 ## Before you open a pull request
 
 1. `swift build -c release` passes. riskell depends on [RiskellKit](https://github.com/rish139/riskell-kit) by URL; to change the kit together
-   with the application, check the kit out next to this repository and run `swift package edit riskell-kit --path ../riskell-kit`.
-2. `scripts/scrub-check.sh` passes, and `scripts/listings-check.sh` if you changed a built-in atom.
+   with the application, check the kit out next to this repository and temporarily point `Package.swift` at `.package(path: "../riskell-kit")` (do not
+   commit that; tag the kit once its CI is green, then point back at the tag).
+2. `scripts/scrub-check.sh` passes, and `scripts/listings-check.sh` if you changed an atom in `Packages/`.
 3. Snapshots of the atoms you touched look the way they should, in both orientations.
    For an extension: `risk ext validate <dir>` passes.
 4. The commit messages and the pull request description say what changed and why.

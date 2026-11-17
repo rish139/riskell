@@ -8,12 +8,15 @@
   "license": "MIT",
   "repository": "https://github.com/rish139/riskell",
   "source": [
-    "Sources/riskell/WorkspacesAtom.swift",
-    "Sources/riskell/WorkspacesCard.swift",
-    "Sources/riskell/Windows.swift",
-    "Sources/riskell/Services/WindowManager.swift",
-    "Sources/riskell/Services/SpaceWatch.swift"
+    "Packages/windows/riskell.json",
+    "Packages/windows/Sources/WindowsExt/AppIconAtom.swift",
+    "Packages/windows/Sources/WindowsExt/AppIconFace.swift",
+    "Packages/windows/Sources/WindowsExt/Windows.swift",
+    "Packages/windows/Sources/WindowsExt/WindowsPackage.swift",
+    "Packages/windows/Sources/WindowsExt/WorkspacesAtom.swift",
+    "Packages/windows/Sources/WindowsExt/WorkspacesCard.swift",
+    "Packages/windows/Sources/WindowsExt/WorkspacesFace.swift"
   ],
-  "home": "app",
-  "homeNote": "needs the window manager and Space internals the kit does not expose"
+  "home": "package",
+  "homeNote": "moved out of the application with the workspace rail and the app icon as one package (Packages/windows), placed as ext:workspaces; it reads the window manager through the kit's WindowsModel, RailState and WindowActions"
 }

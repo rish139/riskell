@@ -32,10 +32,7 @@ private func atom<A: View>(_ id: String, _ name: String, priority: Int = 5, card
 
 enum Registry {
     /// In this order they are offered in the editor's tray, then the script pills, then the atoms of installed packages.
-    private static let builtins: [AtomDef] = [
-        atom("workspaces", "Workspaces", priority: 8, card: card("workspaces", size: { _ in let l = WsLayout.current(); return CGSize(width: l.width, height: l.height) }) { WorkspacesCard() }, blank: { $0.spaces.isEmpty }) { WorkspacesAtom(vertical: $0) },
-        atom("appicon", "App icon", priority: 6, blank: { s in !s.windows.contains(where: { $0.focused }) }) { AppIconAtom(vertical: $0) },
-    ]
+    private static let builtins: [AtomDef] = []      // none left: every atom is a package (Packages/)
 
     /// The built-in atoms' ids, for `riskell --list-atoms` and the listings check.
     static var builtinIDs: [String] { builtins.map(\.id) }

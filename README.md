@@ -81,9 +81,9 @@ shell-framework approach known from Quickshell and AGS on Linux and applies it t
 - Hover cards in two styles, flush or chat, chosen per bar. Cards open on hover, can be pinned open with a click, and close on click-away.
 - Island gap, edge gap, window gap and corner roundness are adjustable.
 
-**Built-in atoms**
+**Atoms that ship with riskell**
 - Workspaces, application icon, clock and calendar, battery, CPU, memory and power, fans, volume and microphone, network, weather and AI
-  usage.
+  usage. Every one of them is a package on the same kit extensions use (`Packages/`), so each is also a worked example of how to write one.
 - Every atom has a horizontal form and a vertical form with the same content and the same card, so any atom can sit on any bar.
 - A version pill in the top bar that appears only when something needs attention ([COMPATIBILITY](docs/COMPATIBILITY.md)).
 
@@ -378,9 +378,9 @@ touches; the top bar shows a `FIX` pill for each one still enabled. The installe
 
 Measured on the reference layout on a 14-inch MacBook Pro: about 1 % of one core at idle (0.3 seconds of CPU per 30 seconds), about
 105 MB resident and 8 threads. All work is event-driven (file events, sockets, notifications). The remaining timers are the clock's seconds
-bar (1 s), the CPU atom (2 s) and a fan read (10 s). Pills and extension atoms run only while their bar is showing, so a bar that is
-switched off or hidden by a full-screen Space stops them. The built-in services (weather, Wi-Fi, thermals and others) run whether or not
-their atom is placed; changing that is on the [roadmap](docs/ROADMAP.md). The measurements, the profile and the method are in
+bar (1 s), the CPU atom (2 s) and a fan read (10 s). Atoms (all of them packages), pills and extension readings run only while their bar is
+showing, so a bar that is switched off or hidden by a full-screen Space stops them, and an atom that is not placed starts nothing: no timer, no
+listener, no network request, no permission prompt. The measurements, the profile and the method are in
 [docs/EFFICIENCY.md](docs/EFFICIENCY.md).
 
 ## Data access
@@ -422,9 +422,9 @@ Nothing here is a commitment, and the order is not fixed. [docs/ROADMAP.md](docs
 - [ ] A Homebrew tap.
 
 **Framework**
-- [ ] A registry and storefront for atoms, themes and presets. The built-in atoms are its first listings: each already has one in
-  [`listings/`](listings) (checked against the app by `scripts/listings-check.sh`), and they are being moved out of the application into
-  packages, simplest first, as the kit's feeds grow to carry what they read (done: the clock, weather, AI usage, battery, CPU, fans, volume and network, in `Packages/`; left: workspaces and the app icon) ([docs/STOREFRONT.md](docs/STOREFRONT.md)).
+- [ ] A registry and storefront for atoms, themes and presets. The atoms that ship with riskell are its first listings: each already has one in
+  [`listings/`](listings) (checked against the app by `scripts/listings-check.sh`) and is a package in `Packages/`, so the storefront starts
+  populated and every listing is a reference ([docs/STOREFRONT.md](docs/STOREFRONT.md)).
   Extensions are pinned to a commit and checked by continuous integration that renders each one on several displays, bars and themes.
 - [x] riskell preferences: the layout editor is renamed, and extensions declare typed settings in their manifest (number, switch, choice)
   that appear in its EXTENSIONS card, so an extension needs no settings interface of its own.
@@ -432,7 +432,7 @@ Nothing here is a commitment, and the order is not fixed. [docs/ROADMAP.md](docs
 - [ ] Background-behaviour extensions from outside the application, with a review policy.
 
 **Shell**
-- [x] Each built-in service runs only while an atom that needs it is placed on a bar that is on, so nothing runs for an atom that is not used.
+- [x] Every atom is a package on the kit, and nothing runs for an atom that is not placed on a bar that is on.
 - [ ] The notch beyond media: a shelf, quick actions and timers.
 - [ ] Draw the clock's seconds bar and the CPU deck with Core Animation layers (about 0.8 % of a core).
 

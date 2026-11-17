@@ -22,6 +22,8 @@ Theme.current = Theme.loadInitial()
 G.corner = { Spacing.current.corner }
 KitHost.popout = PopoutBridge.shared
 KitHost.app = AppBridge.shared
+KitHost.windows = WindowBridge.shared
+KitHost.screenHeight = { Display.current.frame.height }
 KitHost.feeds = FeedBridge.shared
 InstanceLock.selfTest(args)      // --lock-test hold|try <file>: the lock logic alone
 if args.contains("--check-fit") { CheckFit.run() }      // the wings on each fake display, PASS / FAIL, exit 1 on FAIL (WingFit.swift)
@@ -45,6 +47,7 @@ store.trace = { tlog($0) }
 // the window manager, chosen by config (OmniWM reconnects every 2 s while its socket is not there yet)
 let wm: WindowManager = WM.make(store: store)
 WM.shared = wm
+WindowBridge.shared.start()      // after the store exists: the kit's workspaces and windows follow it
 let sys = Sys(store: store)
 let spaceWatch = SpaceWatch(store: store, wm: wm)
 let nowPlaying = NowPlaying()

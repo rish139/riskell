@@ -46,5 +46,13 @@
     "package" : "volume",
     "path" : "Packages\/volume",
     "product" : "VolumeExt"
+  },
+  {
+    "entry" : "WindowsPackage",
+    "id" : "windows",
+    "module" : "WindowsExt",
+    "package" : "windows",
+    "path" : "Packages\/windows",
+    "product" : "WindowsExt"
   }
 ]

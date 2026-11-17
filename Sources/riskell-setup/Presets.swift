@@ -57,7 +57,7 @@ enum Presets {
             bars = [
                 "top": top,
                 "bottom": bar(center: [island("cpu", ["ext:cpu"])], end: [link, island("sky", ["ext:weather"])]),
-                "left": bar(start: [island("workspaces", ["workspaces", "appicon"])], end: [island("system", ["ext:usage", "ext:fan"])]),
+                "left": bar(start: [island("workspaces", ["ext:workspaces", "ext:appicon"])], end: [island("system", ["ext:usage", "ext:fan"])]),
                 "right": bar(),
             ]
             on = [true, true, true, false]
@@ -68,7 +68,7 @@ enum Presets {
             bars = [
                 "top": top,
                 "bottom": bar(center: [island("cpu", ["ext:cpu"])], end: [island("sky", ["ext:weather"])]),
-                "left": bar(start: [island("workspaces", ["workspaces", "appicon"])], end: [island("system", ["ext:usage", "ext:fan"])]),
+                "left": bar(start: [island("workspaces", ["ext:workspaces", "ext:appicon"])], end: [island("system", ["ext:usage", "ext:fan"])]),
                 "right": bar(end: [link]),
             ]
             on = [true, true, true, true]

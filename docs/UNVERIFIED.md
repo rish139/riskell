@@ -35,6 +35,8 @@ verified, move it to the "Verified" list with the date, the macOS version and th
 
 | **Volume and network as packages** | `risk dev`, then: scroll over the volume atom (steps 1 % per 6 px of trackpad), right-click mutes, open the mixer and watch the meters move; open the network card (every tab: Wi-Fi, Bluetooth, Ethernet, VPN), connect and disconnect a Bluetooth device, and on a build that has not been granted Location, grant it and check riskell restarts and shows the network name. | Compared with the built-in versions on scratch instances (bars and cards matched, apart from live audio streams and devices). The mixer meters now tick from a SwiftUI timeline at 0.125 s instead of a `Timer`, the Location restart goes through `KitHost.app`, and neither was exercised on real hardware. |
 
+| **Workspaces and the app icon as a package** | `risk dev`, then: click, swipe and middle-click on the rail; hover to open the card, drag a tile to another workspace and to the `+` slot, right-click a tile to close it; focus a window and watch the app icon; switch the window manager (yabai, AeroSpace, command, none). | Compared with the built-in versions on a scratch instance (the rail, the icon and the card matched, apart from live text); the drag and drop, the swipe following and the other window managers were not exercised. The actions go through the kit's `WindowActions`. |
+
 ### Display and system
 | Item | What to try | Why it is unverified |
 |---|---|---|
