@@ -14,7 +14,7 @@
     "version": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$", "description": "Semantic Versioning 2.0.0." },
     "license": { "type": "string", "description": "An SPDX license identifier (https://spdx.org/licenses), or LicenseRef-… for a custom one." },
     "summary": { "type": "string", "minLength": 1, "maxLength": 140 },
-    "kit": { "type": "string", "pattern": "^\\^?\\d+\\.\\d+(\\.\\d+)?$", "description": "The RiskellKit versions it builds against, a SemVer range such as ^1.0." },
+    "kit": { "type": "string", "pattern": "^\\^?\\d+\\.\\d+(\\.\\d+)?$", "description": "The RiskellKit versions it builds against, a SemVer range such as ^0.6 (the kit is 0.x: a new minor can change the API, so pin the minor)." },
     "module": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "description": "The Swift module, which is also the name of the package's library product." },
     "entry": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "description": "The type in `module` that conforms to RiskellPackage." },
     "atoms": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" }, "uniqueItems": true, "description": "The AtomMeta ids the package registers; placed in a layout as ext:<id>." },

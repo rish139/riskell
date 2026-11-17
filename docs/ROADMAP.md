@@ -20,9 +20,11 @@ and the window-manager API.
   [`EXTENSIBILITY-GAPS.md`](EXTENSIBILITY-GAPS.md) (window-manager backends, the notch, the overview, the gesture and behaviour route, and more).
 - Done: riskell preferences. The panel is renamed, and an extension declares typed settings in its manifest (`settings`: number, bool, choice)
   that appear in its EXTENSIONS card and apply at once. Text settings (a field you type into) stay in the file for now.
-- The registry and storefront (`docs/STOREFRONT.md`), with CI that renders every listing across displays, bars and themes. This needs a check
-  that the snapshot harness runs headless on a CI runner.
-- Preset bundles, `risk ext publish`, `risk ext search`.
+- Done: the registry and storefront (`docs/STOREFRONT.md`): `risk ext search`, `info`, `add <name>`, `update`, `publish`, the riskell-registry
+  repository with its checks, and a static storefront page. Still to do: CI that renders every listing across displays, bars and themes (this needs a
+  check that the snapshot harness runs headless on a CI runner), preview images, preset bundles with `risk ext preset apply`, and an in-app
+  browse card in riskell preferences.
+- Go public, in this order: RiskellKit, riskell, then riskell-registry (enable GitHub Pages, re-enable `pages.yml`), then the Homebrew tap works.
 - `behaviour` extensions from outside the app, with a review policy.
 
 ## Ideas

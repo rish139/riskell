@@ -45,7 +45,7 @@ Compiled extensions are Swift packages linked into the one `riskell` binary (the
 validation, notarization) and not separate processes (a process and IPC per extension against the efficiency rule).
 
 - The kit is **its own repository** so the app can depend on extensions and extensions on the kit with no cycle. Both the app and every
-  extension depend on it by URL and version (`from: "0.1.0"`); they must use the same URL, or SwiftPM would see two `RiskellKit` modules.
+  extension depend on it by URL and version (`.upToNextMinor(from: "0.6.0")`); they must use the same URL, or SwiftPM would see two `RiskellKit` modules.
 - `extensions.lock.json` records what is installed (module, entry type, path or URL + commit). `risk ext sync` turns it into
   `Sources/riskell/Generated/InstalledPackages.swift` (the `import`s and the list of entry types) and into a literal block inside
   `Package.swift`. The literal is needed because SwiftPM caches a manifest by its own text: a manifest that reads the lock file at evaluation

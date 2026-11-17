@@ -20,6 +20,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `listings/`: one registry listing for each built-in atom, `schemas/riskell-listing.schema.json`, `riskell --list-atoms` and
   `scripts/listings-check.sh`, which keeps the listings in step with the app.
 
+### Added (the storefront)
+- `risk ext search`, `info`, `add <name>`, `update [--yes]` and `publish`: extensions are found in a registry (`riskell-registry`, listings pinned to a
+  commit, an `index.json` the client reads, `RISKELL_REGISTRY` to point elsewhere) and installed at the pinned commit; the manifest must agree with the
+  listing. Pills and themes are files copied into the config folder and applied live (`~/.config/riskell/extensions.json` records them). `update`
+  shows the change between the two commits and applies only with `--yes`. `risk` rebuilds only when `riskell-ext` exits 10.
+- The registry repository: listing schema, `scripts/check-listing.py`, the index and storefront page builders, and CI (pull-request checks and GitHub Pages).
+
+### Fixed
+- `risk ext new` scaffolded extensions that depended on RiskellKit 1.0, which does not exist, so they could not build; they now depend on the kit's
+  current minor (`.upToNextMinor(from: "0.6.0")`, `"kit": "^0.6"`), as does `Examples/load-ext`.
+
 ### Changed
 - Workspaces and the application icon are a package too (`Packages/windows`; `ext:workspaces` and `ext:appicon`; older layouts are read as them), so
   every atom that ships with riskell is a package on the kit and the application has no built-in atoms left. RiskellKit 0.6.0 adds `WindowsModel`

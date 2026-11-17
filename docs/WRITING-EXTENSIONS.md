@@ -114,8 +114,10 @@ A text setting is not offered in the card; it stays a file you edit.
 2. `swift build` in the package.
 3. `risk ext add <dir>` then `scripts/risk dev`; open riskell preferences (ctrl-alt-,) and place `ext:<id>` from the tray. Look at it on the
    top bar, a strip, and with a different theme (`docs/THEMES.md`).
-4. Publish the repo with a tag `vX.Y.Z`, the GitHub topic `riskell-extension`, a `LICENSE` and a screenshot. In a compiled extension's
-   `Package.swift` depend on the kit by URL: `.package(url: "https://github.com/rish139/riskell-kit", from: "1.0.0")`.
+4. Publish: push the repo with a `LICENSE` and a tag `vX.Y.Z` on the commit, then `risk ext publish` prints the registry listing (and tells you what is
+   missing). Save it as `listings/<id>.json` in [riskell-registry](https://github.com/rish139/riskell-registry) and open a pull request; people then
+   `risk ext add <id>`, and `risk ext update` offers them each new commit you list. Add the GitHub topic `riskell-extension` and a screenshot. In a compiled extension's
+   `Package.swift` depend on the kit by URL: `.package(url: "https://github.com/rish139/riskell-kit", .upToNextMinor(from: "0.6.0"))` (the kit is 0.x: a new minor can change the API, so an extension pins the minor it was built for).
 
 ## Trust
 

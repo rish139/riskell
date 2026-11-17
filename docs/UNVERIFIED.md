@@ -37,6 +37,12 @@ verified, move it to the "Verified" list with the date, the macOS version and th
 
 | **Workspaces and the app icon as a package** | `risk dev`, then: click, swipe and middle-click on the rail; hover to open the card, drag a tile to another workspace and to the `+` slot, right-click a tile to close it; focus a window and watch the app icon; switch the window manager (yabai, AeroSpace, command, none). | Compared with the built-in versions on a scratch instance (the rail, the icon and the card matched, apart from live text); the drag and drop, the swipe following and the other window managers were not exercised. The actions go through the kit's `WindowActions`. |
 
+### Storefront
+| Item | What to try | Why it is unverified |
+|---|---|---|
+| **The registry on GitHub** (`riskell-registry`: `validate.yml`, `pages.yml`, the Pages index that `risk ext` fetches by default) | Once the repositories are public: open a listing pull request and watch `validate`; merge it and open `https://rish139.github.io/riskell-registry/`; `risk ext search` without `RISKELL_REGISTRY`. | The checker, the index and the page were run locally, and the client end to end against local file:// repositories (search, info, add for an atom, a pill and a theme, update with and without `--yes`, remove, a mismatching listing refused). The workflows never ran on a runner that could fetch the private kit, and Pages is not enabled on a private repository. |
+| **Installing a compiled extension from the registry** | `risk ext add <name>` for an atom listed from a real repository, then place `ext:<id>` and check it runs. | Only the lock and the import list were exercised; the rebuild that follows was not run on a registry-installed package. |
+
 ### Packaging
 | Item | What to try | Why it is unverified |
 |---|---|---|

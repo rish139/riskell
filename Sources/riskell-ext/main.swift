@@ -6,7 +6,11 @@ import Foundation
 // risk ext (this tool, built as riskell-ext): validate, scaffold and install riskell extensions (docs/EXTENSION-KIT.md). Foundation only.
 //   risk ext validate <dir>            check riskell.json and, for compiled kinds, the source against the kit's rules
 //   risk ext new <kind> <name>         scaffold: reading | atom | pill | theme
-//   risk ext add <dir|git-url> [rev]   record a package in extensions.lock.json and regenerate the import list
+//   risk ext search <words>            what the registry lists (RISKELL_REGISTRY points at another one)
+//   risk ext info <name>               one listing
+//   risk ext add <name|dir|git-url> [rev]   a name is installed at the commit the registry pins; a pill or theme is just files, applied live
+//   risk ext update [name] [--yes]     what the registry pins now; shows the change first, applies only with --yes
+//   risk ext publish [dir]             check an extension is ready to be listed and print its registry listing
 //   risk ext remove <id>               take it out again
 //   risk ext list                      what is installed
 //   risk ext sync                      regenerate Sources/riskell/Generated/InstalledPackages.swift and InstalledSettings.swift from the lock
@@ -18,7 +22,7 @@ let kinds = ["pill", "theme", "preset", "reading", "atom", "behaviour"]
 
 func fail(_ s: String) -> Never { FileHandle.standardError.write(Data((s + "\n").utf8)); exit(1) }
 func usage() -> Never {
-    print("usage: risk ext validate <dir> | new <reading|atom|pill|theme> <name> | add <dir|git-url> [rev] | remove <id> | list | sync")
+    print("usage: risk ext search <words> | info <name> | add <name|dir|git-url> [rev] | update [name] [--yes] | publish [dir] | remove <id> | list | validate <dir> | new <reading|atom|pill|theme> <name> | sync")
     exit(2)
 }
 func read(_ p: String) -> String? { try? String(contentsOfFile: p, encoding: .utf8) }
@@ -61,7 +65,7 @@ func validateManifest(_ dir: String) -> [String: Any]? {
     if let s = str("summary"), s.count > 140 { report("manifest.summary", "riskell.json", nil, "summary is \(s.count) characters (140 at most)", fix: "shorten it") }
     if let k = str("kind"), compiled.contains(k) {
         for f in ["kit", "module", "entry"] where str(f)?.isEmpty != false { report("manifest.required", "riskell.json", nil, "\"\(f)\" is required for kind \(k)", fix: "add \"\(f)\"") }
-        if let kit = str("kit"), !matches(kit, #"^\^?\d+\.\d+(\.\d+)?$"#) { report("manifest.kit", "riskell.json", nil, "kit \"\(kit)\" must be a SemVer range such as ^1.0", fix: "write ^MAJOR.MINOR") }
+        if let kit = str("kit"), !matches(kit, #"^\^?\d+\.\d+(\.\d+)?$"#) { report("manifest.kit", "riskell.json", nil, "kit \"\(kit)\" must be a SemVer range such as ^0.6", fix: "write ^MAJOR.MINOR") }
         if !fm.fileExists(atPath: dir + "/Package.swift") { report("package.missing", "Package.swift", nil, "a compiled extension is a Swift package", fix: "add a Package.swift with a library product named after \"module\"") }
     }
     if let k = str("kind"), ["pill", "theme", "preset"].contains(k) {
@@ -150,7 +154,7 @@ func allSource(_ dir: String) -> String? {
 
 /// A setting as the manifest declares it, kept in the lock so the generated list does not need the package's source (a git package is cloned to a temporary folder).
 struct SettingDecl: Codable { var key: String; var label: String; var type: String; var min: Double?; var max: Double?; var step: Double?; var number: Double?; var on: Bool?; var options: [String]?; var choice: String? }
-struct Locked: Codable { var id: String; var module: String; var entry: String; var product: String; var package: String; var path: String?; var url: String?; var revision: String?; var settings: [SettingDecl]? }
+struct Locked: Codable { var id: String; var module: String; var entry: String; var product: String; var package: String; var path: String?; var url: String?; var revision: String?; var settings: [SettingDecl]?; var version: String? }
 func loadLock(_ r: String) -> [Locked] { (read(r + "/extensions.lock.json").flatMap { try? JSONDecoder().decode([Locked].self, from: Data($0.utf8)) }) ?? [] }
 func saveLock(_ l: [Locked], _ r: String) {
     let e = JSONEncoder(); e.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -194,7 +198,7 @@ func sh(_ args: [String], in dir: String? = nil) -> (Int32, String) {
     return (p.terminationStatus, String(decoding: d, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines))
 }
 
-func add(_ source: String, rev: String?) {
+func add(_ source: String, rev: String?, version: String? = nil, expectID: String? = nil) {
     let r = root()
     var dir = source, url: String?, revision = rev
     if source.contains("://") || source.hasPrefix("git@") {      // a git URL (https, ssh, file); anything else is a folder
@@ -203,11 +207,14 @@ func add(_ source: String, rev: String?) {
         guard c == 0 else { fail("risk ext: could not clone \(source)") }
         if let rev { _ = sh(["git", "checkout", "--quiet", rev], in: dir) }
         revision = sh(["git", "rev-parse", "HEAD"], in: dir).1
+        if let rev, revision != rev { fail("risk ext: commit \(rev.prefix(10)) is not in \(source)") }
         url = source
     } else { dir = URL(fileURLWithPath: source, relativeTo: URL(fileURLWithPath: fm.currentDirectoryPath)).standardized.path }
     guard validate(dir), let j = (read(dir + "/riskell.json").flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) }) as? [String: Any],
           let id = j["id"] as? String, let module = j["module"] as? String, let entry = j["entry"] as? String
     else { fail("risk ext: not added: fix the findings above") }
+    if let e = expectID, e != id { fail("risk ext: not added: the listing says \"\(e)\" but riskell.json says \"\(id)\"") }
+    if let v = version, let mv = j["version"] as? String, mv != v { fail("risk ext: not added: the listing says v\(v) but riskell.json says v\(mv)") }
     var l = loadLock(r).filter { $0.id != id }
     let pkg = ((url ?? dir) as NSString).lastPathComponent.replacingOccurrences(of: ".git", with: "")
     // a path is stored relative to the checkout when it is inside it, so the lock can be committed
@@ -218,7 +225,7 @@ func add(_ source: String, rev: String?) {
         return SettingDecl(key: key, label: label, type: type, min: n("min"), max: n("max"), step: n("step"), number: type == "number" ? n("default") : nil,
                            on: type == "bool" ? s["default"] as? Bool : nil, options: s["options"] as? [String], choice: type == "choice" ? s["default"] as? String : nil)
     }
-    l.append(Locked(id: id, module: module, entry: entry, product: module, package: pkg, path: rel, url: url, revision: revision, settings: decls.isEmpty ? nil : decls))
+    l.append(Locked(id: id, module: module, entry: entry, product: module, package: pkg, path: rel, url: url, revision: revision, settings: decls.isEmpty ? nil : decls, version: version ?? (j["version"] as? String)))
     saveLock(l, r); sync(r)
     print("added \(id); the lock and the import list are updated. `risk dev` rebuilds and restarts riskell (`risk ext add` does that for you).")
 }
@@ -254,13 +261,13 @@ func scaffold(_ kind: String, _ name: String) {
             name: "\(name)",
             platforms: [.macOS(.v14)],
             products: [.library(name: "\(module)", targets: ["\(module)"])],
-            dependencies: [.package(url: "https://github.com/rish139/riskell-kit", from: "1.0.0")],
+            dependencies: [.package(url: "https://github.com/rish139/riskell-kit", .upToNextMinor(from: "0.6.0"))],
             targets: [.target(name: "\(module)", dependencies: [.product(name: "RiskellKit", package: "riskell-kit")])]
         )
 
         """
     }
-    let compiledExtra = ",\n  \"kit\": \"^1.0\",\n  \"module\": \"\(module)\",\n  \"entry\": \"\(type)Package\",\n  \"atoms\": [\"\(name)\"]"
+    let compiledExtra = ",\n  \"kit\": \"^0.6\",\n  \"module\": \"\(module)\",\n  \"entry\": \"\(type)Package\",\n  \"atoms\": [\"\(name)\"]"
     switch kind {
     case "reading":
         write(manifest("reading", compiledExtra), dir + "/riskell.json"); write(package(), dir + "/Package.swift")
@@ -329,15 +336,28 @@ let a = Array(CommandLine.arguments.dropFirst())
 switch a.first {
 case "validate": exit(a.count > 1 && validate(a[1]) ? 0 : 1)
 case "new": if a.count == 3 { scaffold(a[1], a[2]) } else { usage() }
-case "add": if a.count >= 2 { add(a[1], rev: a.count > 2 ? a[2] : nil) } else { usage() }
+case "add":
+    guard a.count >= 2 else { usage() }
+    // a name is looked up in the registry; a folder or a git URL is installed as it is
+    if a[1].contains("/") || a[1].contains(":") || fm.fileExists(atPath: a[1]) { add(a[1], rev: a.count > 2 ? a[2] : nil); exit(needsRebuild) } else { addByName(a[1]) }
 case "remove":
     guard a.count == 2 else { usage() }
+    if removeFiles(a[1]) { break }
     let r = root(); let before = loadLock(r)
     saveLock(before.filter { $0.id != a[1] }, r); sync(r)
     print(before.contains { $0.id == a[1] } ? "removed \(a[1]); `risk dev` rebuilds and restarts riskell (`risk ext remove` does that for you)" : "\(a[1]) is not installed")
+    if before.contains(where: { $0.id == a[1] }) { exit(needsRebuild) }
 case "list":
-    let l = loadLock(root())
-    print(l.isEmpty ? "no extensions installed" : l.map { "\($0.id)  \($0.module).\($0.entry)  \($0.url ?? $0.path ?? "")\($0.revision.map { " @ " + $0.prefix(8) } ?? "")" }.joined(separator: "\n"))
+    let l = loadLock(root()), f = loadInstalled()
+    if l.isEmpty && f.isEmpty { print("no extensions installed") }
+    else {
+        for e in l { print("\(e.id)  \(e.module).\(e.entry)  \(e.version.map { "v" + $0 + "  " } ?? "")\(e.url ?? e.path ?? "")\(e.revision.map { " @ " + $0.prefix(8) } ?? "")") }
+        for e in f { print("\(e["id"] as? String ?? "")  \(e["kind"] as? String ?? "")  v\(e["version"] as? String ?? "")  \((e["files"] as? [String] ?? []).joined(separator: ", "))") }
+    }
+case "search": search(Array(a.dropFirst()))
+case "info": if a.count == 2 { info(a[1]) } else { usage() }
+case "update": update(Array(a.dropFirst()))
+case "publish": publish(a.count > 1 ? a[1] : nil)
 case "sync": sync(root()); print("synced")
 default: usage()
 }

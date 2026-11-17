@@ -145,8 +145,9 @@ case $1 in
   log)      if [[ -n $2 ]]; then tail -n $2 $HOME/.cache/riskell/riskell.log; else tail -f $HOME/.cache/riskell/riskell.log; fi ;;
   ext)      tool=$root/.build/release/riskell-ext      # validate | new | add | remove | list | sync: see docs/WRITING-EXTENSIONS.md
             [[ -x $tool ]] || swift build -c release --product riskell-ext --package-path $root >/dev/null || exit 1
-            RISKELL_ROOT=$root $tool "${@:2}" || exit $?
-            [[ $2 == (add|remove) ]] && exec $0 dev ;;
+            RISKELL_ROOT=$root $tool "${@:2}" && exit 0 || rc=$?
+            [[ $rc == 10 ]] && exec $0 dev      # 10: a compiled extension was added, removed or updated, so the build changed
+            exit $rc ;;
   status)   launchctl print $dom/$label 2>/dev/null | grep -E "state|pid|last exit" || echo "not loaded" ;;
   wm)       [[ $2 == (omniwm|export|import) && ! -x ${JQ:-/nonexistent} ]] && { echo "risk: jq not found (brew install jq)"; exit 1; }
             case $2 in

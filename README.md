@@ -422,13 +422,13 @@ Nothing here is a commitment, and the order is not fixed. [docs/ROADMAP.md](docs
 - [ ] A Homebrew tap.
 
 **Framework**
-- [ ] A registry and storefront for atoms, themes and presets. The atoms that ship with riskell are its first listings: each already has one in
-  [`listings/`](listings) (checked against the app by `scripts/listings-check.sh`) and is a package in `Packages/`, so the storefront starts
-  populated and every listing is a reference ([docs/STOREFRONT.md](docs/STOREFRONT.md)).
-  Extensions are pinned to a commit and checked by continuous integration that renders each one on several displays, bars and themes.
+- [x] A registry and storefront for atoms, pills and themes: `risk ext search`, `add <name>`, `update` and `publish`, with
+  [riskell-registry](https://github.com/rish139/riskell-registry) as the index (listings pinned to a commit, GitHub as the backend, one static page).
+  The atoms that ship with riskell are its first listings ([docs/STOREFRONT.md](docs/STOREFRONT.md)). Still to do: presets, the CI that renders each
+  extension on several displays, bars and themes, and an in-app browse card.
 - [x] riskell preferences: the layout editor is renamed, and extensions declare typed settings in their manifest (number, switch, choice)
   that appear in its EXTENSIONS card, so an extension needs no settings interface of its own.
-- [ ] Preset bundles (layout, pills, theme and extensions together), `risk ext publish` and `risk ext search`.
+- [ ] Preset bundles (layout, pills, theme and extensions together) and `risk ext preset apply`.
 - [ ] Background-behaviour extensions from outside the application, with a review policy.
 
 **Shell**
