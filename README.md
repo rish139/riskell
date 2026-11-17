@@ -387,14 +387,14 @@ listener, no network request, no permission prompt. The measurements, the profil
 
 | | |
 |---|---|
-| Network | Weather from Open-Meteo, only when a location is set. The installer makes one city lookup against Open-Meteo's geocoding service while the name is typed. Nothing else. |
+| Network | Weather from Open-Meteo, only when a location is set (your coordinates go to Open-Meteo). The installer makes one city lookup against Open-Meteo's geocoding service while the name is typed. Claude usage, when enabled, calls Anthropic's usage endpoint with your Claude Code token (an unofficial use of it, off by default), and OpenCode usage calls OpenCode's. `risk ext search`, `add` and `update` fetch the registry index from GitHub Pages and clone the repositories you install from. Nothing else. |
 | Keychain | Claude Code usage reads the Claude Code token from the login keychain, only when enabled. |
 | Browser data | OpenCode usage reads one session cookie from a browser profile, only when enabled. |
 | Accessibility | Only for the optional gestures (the scroll guard). |
 | Location | Only so that macOS provides Wi-Fi network names. |
 | Files | riskell writes `~/.config/riskell/`, backs up OmniWM's `settings.toml` before the first change to its gaps, and, with gestures enabled, can change two trackpad and Dock settings after saving the originals. |
 
-riskell collects no data and sends nothing to any third party. Personal settings remain in `~/.config/riskell/` and are never part of the
+riskell has no telemetry, no analytics and no accounts: the only things it sends are the requests in the table above, and only for the options you turn on or the commands you run. Personal settings remain in `~/.config/riskell/` and are never part of the
 source.
 
 ## What is tested and what is not

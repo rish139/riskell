@@ -25,5 +25,13 @@ jobs:
           .build/release/riskell-ext validate Examples/load-ext
           (cd Examples/load-ext && swift build)
 
+      - name: Installer self-test and the checks that need no window
+        run: |
+          swift build -c release --product riskell-setup
+          .build/release/riskell-setup --self-test
+          scripts/store-check.sh
+          .build/release/riskell --weather-selftest
+          scripts/listings-check.sh
+
       - name: Scrub check (no personal data in tracked files)
         run: scripts/scrub-check.sh
