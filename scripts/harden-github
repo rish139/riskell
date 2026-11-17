@@ -4,7 +4,7 @@
 # Works on a private repository for what GitHub allows there; secret scanning, push protection, private vulnerability reporting and the
 # fork-PR approval rule exist only for public repositories, so run it again right after making one public. Prints ok / FAIL per setting.
 owner=${GITHUB_OWNER:-rish139}
-repos=(${@:-riskell riskell-kit riskell-registry homebrew-riskell})
+repos=("$@"); (( $#repos )) || repos=(riskell riskell-kit riskell-registry homebrew-riskell)
 for r in $repos; do
   vis=$(gh repo view $owner/$r --json visibility -q .visibility 2>/dev/null) || { echo "== $r: not found"; continue }
   echo "== $r ($vis)"

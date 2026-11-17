@@ -1,8 +1,9 @@
 name: CI
 
-# Manual while the RiskellKit repository is private: a workflow cannot fetch another private repository with its default token, so a
-# push would fail at "resolve dependencies". Switch `on:` back to `push` and `pull_request` when the kit repository is public.
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
