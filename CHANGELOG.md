@@ -4,6 +4,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-17
+
+### Fixed
+- `risk install` ended silently, with no launch agent, on a Mac without a `riskell-dev` signing certificate (every new install). The certificate is
+  optional: the bundle is now signed ad hoc when there is none, and `risk` says so. macOS asks again for keychain and Location access after a rebuild.
+- `risk install` failed writing its launch agent on an account with no `~/Library/LaunchAgents` folder yet. The folder is created.
+- `riskell-install` (the Homebrew link to `install.sh`) did not find the guided installer or `scripts/risk` when run through the symlink, and fell back
+  to a quick install that pointed at a path that does not exist. It now resolves its own location through symlinks.
+
 ## [0.1.1] - 2026-11-17
 
 ### Added

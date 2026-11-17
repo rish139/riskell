@@ -5,8 +5,14 @@
 #   ./install.sh --dry-run  show what would change, write nothing
 # Everything after the script name is passed on to the installer (see docs/INSTALL.md).
 set -eu
-root=$(cd "$(dirname "$0")" && pwd)
-dim() { printf '\033[2m%s\033[0m\n' "$*"; }
+# The checkout this script lives in, even when it is run through a symlink (Homebrew links it into bin as `riskell-install`).
+self=$0
+while [ -L "$self" ]; do
+  link=$(readlink "$self")
+  case $link in /*) self=$link ;; *) self="$(dirname "$self")/$link" ;; esac
+done
+root=$(cd "$(dirname "$self")" && pwd)
+dim(){ printf '\033[2m%s\033[0m\n' "$*"; }
 say() { printf '%s\n' "$*"; }
 die() { printf '\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
 

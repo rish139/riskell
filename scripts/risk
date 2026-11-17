@@ -13,7 +13,7 @@ root=${0:A:h:h}
 label=com.rish.riskell
 plist=$HOME/Library/LaunchAgents/$label.plist
 dom=gui/$(id -u)
-mkdir -p $HOME/.cache/riskell
+mkdir -p $HOME/.cache/riskell $HOME/Library/LaunchAgents    # a new user account has no LaunchAgents folder yet
 app=$root/.build/riskell.app    # the app bundle the agent runs: macOS only offers Location (Wi-Fi names) and Bluetooth to a process with a bundle identity
 
 write_plist() {
@@ -56,8 +56,11 @@ bundle() {
   <key>NSBluetoothAlwaysUsageDescription</key><string>riskell lists your paired Bluetooth devices in the network card and connects or disconnects them when you click one.</string>
 </dict></plist>
 IP
-  codesign -f -s riskell-dev --identifier com.rish.riskell $app/Contents/MacOS/libnowplaying.dylib 2>/dev/null
-  codesign -f -s riskell-dev --identifier com.rish.riskell $app 2>/dev/null || echo "unsigned (no riskell-dev identity)"
+  # The certificate is optional: without it the bundle is signed ad hoc, so a Mac that has none still installs (and `set -e` never ends here).
+  local id=riskell-dev
+  security find-identity -p codesigning 2>/dev/null | grep -q riskell-dev || { id=-; echo "signed ad hoc (no riskell-dev identity): macOS asks again for keychain and Location access after a rebuild"; }
+  codesign -f -s $id --identifier com.rish.riskell $app/Contents/MacOS/libnowplaying.dylib 2>/dev/null || true
+  codesign -f -s $id --identifier com.rish.riskell $app 2>/dev/null || echo "unsigned (codesign failed)"
 }
 stale() { [[ -n $(find $root/Sources $root/Package.swift -newer $app/Contents/MacOS/riskell -print -quit 2>/dev/null) || ! -e $app/Contents/MacOS/riskell ]]; }
 build() { (cd $root && swift build -c release 2>&1 | grep -E "error|Build complete" && bundle) }

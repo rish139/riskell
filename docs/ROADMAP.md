@@ -24,7 +24,7 @@ and the window-manager API.
   repository with its checks, and a static storefront page. Still to do: CI that renders every listing across displays, bars and themes (this needs a
   check that the snapshot harness runs headless on a CI runner), preview images, preset bundles with `risk ext preset apply`, and an in-app
   browse card in riskell preferences.
-- Done: the repositories are public (kit, riskell, registry, tap); riskell 0.1.1 is released, the registry is on GitHub Pages and the Homebrew tap installs it.
+- Done: the repositories are public (kit, riskell, registry, tap); riskell 0.1.2 is released, the registry is on GitHub Pages and the Homebrew tap installs it.
 - `behaviour` extensions from outside the app, with a review policy.
 
 ## Ideas

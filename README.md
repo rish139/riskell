@@ -13,7 +13,7 @@ The project began as a port of a Quickshell setup from Linux. It works alongside
 
 *The shell on a 14-inch MacBook Pro. The bars are snapshots of the running application; the windows between them are placeholders.*
 
-> **Status: early release (v0.1.1).** riskell is in daily use on one Mac. Other Macs, window managers and macOS versions are untested, and the
+> **Status: early release (v0.1.2).** riskell is in daily use on one Mac. Other Macs, window managers and macOS versions are untested, and the
 > extension system is new. [What is tested and what is not](#what-is-tested-and-what-is-not) lists each case.
 
 **Contents:**
