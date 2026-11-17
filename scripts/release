@@ -21,7 +21,14 @@ for c in "scripts/scrub-check.sh" "scripts/listings-check.sh" "scripts/store-che
 done
 print -r -- "== a clean clone builds"
 d=$(mktemp -d); git clone -q $(git remote get-url origin) $d; (cd $d && git checkout -q $(git rev-parse HEAD 2>/dev/null || echo main) 2>/dev/null; swift build -c release 2>&1 | tail -1 | grep -q "Build complete") || die "a clean clone does not build"; rm -rf $d
-notes=$(awk -v v="$v" '$0 ~ "^## \\["v"\\]"{f=1;next} f&&/^## \\[/{exit} f' CHANGELOG.md)
+notes=$(python3 - "$v" <<'PY'
+import re, sys
+t = open("CHANGELOG.md").read()
+m = re.search(r"^## \[" + re.escape(sys.argv[1]) + r"\][^\n]*\n(.*?)(?=^## \[|\Z)", t, re.S | re.M)
+print(m.group(1).strip() if m else "")
+PY
+)
+[[ -n $notes ]] || die "the changelog section for $v is empty"
 git tag -a v$v -m "riskell $v"
 git push -q origin v$v
 print -r -- "$notes" | gh release create v$v --title "riskell $v" --notes-file -
