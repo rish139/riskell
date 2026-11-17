@@ -22,7 +22,7 @@ let package = Package(
         // loaded by /usr/bin/perl, not linked: see Services/NowPlaying.swift
         .library(name: "nowplaying", type: .dynamic, targets: ["nowplaying"]),
     ],
-    dependencies: [.package(url: "https://github.com/rish139/riskell-kit", from: "0.2.0")] + locked.map { l in
+    dependencies: [.package(url: "https://github.com/rish139/riskell-kit", from: "0.2.1")] + locked.map { l in
         if let p = l.path { return .package(path: p) }
         return .package(url: l.url ?? "", revision: l.revision ?? "main")
     },
