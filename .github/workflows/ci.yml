@@ -39,6 +39,9 @@ jobs:
           scripts/listings-check.sh
 
       # the JSON the CLI prints is a contract (schemas/), and three of its screens are recorded (Tests/cli/golden): Tests/cli/README.md
+      # a ported extension must say what it came from, and each way of leaving that claim incomplete has a fixture (rule manifest.derived-from)
+      - name: Provenance rule
+        run: Tests/registry/derived-from.sh
       - name: CLI contracts and golden screens
         run: Tests/cli/contract.sh
 
