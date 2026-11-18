@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import RiskellTTY
 
@@ -23,6 +24,7 @@ enum SelfTest {
         arguments()
         usage()
         themes()
+        doctor()
         print(failures == 0 ? "all checks passed" : "\(failures) check(s) failed")
         return failures == 0 ? 0 : 1
     }
@@ -228,6 +230,66 @@ enum SelfTest {
         check("no line is wider than the width", Tty(mode: .none, width: 12, palette: tty.palette).heading(String(repeating: "x", count: 40)).count == 12)
         check("the width comes from COLUMNS, else 80", Tty.detect(palette: tty.palette, env: ["COLUMNS": "40"]).width == 40
               && Tty.detect(palette: tty.palette, env: [:]).width == 80)
+    }
+
+    /// The health report (`--doctor`): the order of the sections, the worst row's status, the JSON writer, and what a bundle leaves out.
+    static func doctor() {
+        let rows = [ReportCheck(id: "a", label: "a", severity: .ok, detail: "fine", source: .cli),
+                    ReportCheck(id: "b", label: "b", severity: .warn, detail: "hmm", source: .app)]
+        check("a section's status is its worst row", ReportSection(id: "s", title: "s", checks: rows).status == .warn)
+        check("a section with no row is ok", ReportSection(id: "s", title: "s", checks: []).status == .ok)
+        check("an info row never makes a section fail",
+              ReportSection(id: "s", title: "s", checks: rows + [ReportCheck(id: "c", label: "c", severity: .info, detail: "n/a", source: .cli)]).firstFailure == nil)
+
+        // the JSON keeps the order it was written in and escapes nothing but `"`, `\` and control characters
+        let doc = JSON.object([("schema", .number(1)), ("detail", .text("~/a/b")), ("keys", .list([.text("wm")])), ("ok", .flag(true)), ("none", .null)])
+        let text = doc.rendered()
+        check("the JSON keeps its keys in order", text.hasPrefix("{\n  \"schema\": 1,\n  \"detail\": \"~/a/b\""))
+        check("the JSON escapes no slash and no non-ASCII", text.contains("~/a/b") && !text.contains("\\/"))
+        check("the JSON escapes a quote, and only that", JSON.quoted("a \"b\"") == "\"a \\\"b\\\"\"" && JSON.quoted("a/b\u{1F600}") == "\"a/b\u{1F600}\"")
+        check("an empty object and an empty list are one line", JSON.object([]).rendered() == "{}" && JSON.list([]).rendered() == "[]")
+        check("a decoded answer becomes ordered JSON", JSON.value(["b": 1, "a": [true, NSNull()]]).rendered() == "{\n  \"a\": [\n    true,\n    null\n  ],\n  \"b\": 1\n}")
+
+        // redaction: the home folder, an id, a token, a credential word and the lines that print window and app names
+        let home = "/Users/someone"
+        check("a home path is written ~", Doctor.shorten(home + "/.config/riskell/config.json", home: home) == "~/.config/riskell/config.json")
+        check("a path outside home is left alone", Doctor.shorten("/opt/homebrew/bin/risk", home: home) == "/opt/homebrew/bin/risk")
+        check("the home folder is short", Doctor.shorten(home, home: home) == "~")
+        check("a folder named like home plus a letter is not short", Doctor.shorten(home + "else/x", home: home) == home + "else/x")
+        check("a log line has its home folder shortened", Doctor.redact("wrote " + home + "/.cache/riskell/overview.png", home: home) == "wrote ~/.cache/riskell/overview.png")
+        check("a workspace id is masked", Doctor.redact("opencode wrk_01KQXAMPLE01 read", home: home).contains("wrk_<redacted>"))
+        check("a token is masked", !Doctor.redact("Authorization: sk-abcdefghijklmnop", home: home).contains("sk-abcdefghijklmnop"))
+        check("a long hash is masked", !Doctor.redact("id 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d", home: home).contains("1a2b3c4d5e6f"))
+        check("an address is masked", !Doctor.redact("ssid at 192.168.1.24 link up", home: home).contains("192.168.1.24"))
+        check("a line that mentions a credential is dropped whole", Doctor.redact("token: abc", home: home).hasPrefix("[redacted"))
+        check("a line that prints app names is dropped whole", Doctor.redact("window-order (front first): Arc > Ghostty", home: home).hasPrefix("[redacted"))
+        check("a header names what a bundle leaves out", Doctor.header(Date()).contains("keychain") && !Doctor.header(Date()).contains(home))
+
+        // the probes
+        check("the main display has at least one Space", Doctor.mainDisplaySpaces().map { $0 >= 1 } ?? true)
+        check("the last wake is in the past", (Doctor.lastWake()?.timeIntervalSinceNow ?? -1) < 0)
+        let plist = tempDir("plist").appendingPathComponent("agent.plist")
+        try? ("<?xml version=\"1.0\"?><plist version=\"1.0\"><dict><key>ProgramArguments</key><array><string>/tmp/riskell</string></array></dict></plist>")
+            .write(to: plist, atomically: true, encoding: .utf8)
+        check("an agent plist names its program", Doctor.plistProgram(plist) == "/tmp/riskell")
+        check("a missing plist names nothing", Doctor.plistProgram(plist.appendingPathExtension("nope")) == nil)
+
+        // the instance lock: held from an open file description, then released
+        let lock = tempDir("lock").appendingPathComponent("riskell.lock")
+        FileManager.default.createFile(atPath: lock.path, contents: nil)
+        check("a lock file nobody holds is free", !Doctor.lockHeld(lock))
+        let fd = open(lock.path, O_RDWR)
+        check("a held lock file is held", fd >= 0 && flock(fd, LOCK_EX | LOCK_NB) == 0 && Doctor.lockHeld(lock))
+        flock(fd, LOCK_UN); close(fd)
+        check("a released lock file is free again", !Doctor.lockHeld(lock))
+
+        // the flags
+        let json = Options.parse(["--check", "--json"])
+        check("--json goes with --check", json.mode == .check && json.json && json.errors.isEmpty)
+        let doctor = Options.parse(["--doctor", "--bundle", "/tmp/report"])
+        check("--bundle takes a folder and --doctor is a mode", doctor.mode == .doctor && doctor.bundle == "/tmp/report" && doctor.errors.isEmpty)
+        check("--json alone is refused", !Options.parse(["--json"]).errors.isEmpty)
+        check("--bundle without a value is refused", !Options.parse(["--check", "--bundle"]).errors.isEmpty)
     }
 
     /// A scheme's colours as a palette; the four tokens the installer's data does not carry stay mid grey.

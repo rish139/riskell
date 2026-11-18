@@ -44,7 +44,11 @@ case .snapshotDir:
     print("wrote \(Snapshots.names.count) screens at \(Snapshots.sizes.count) sizes")
     exit(0)
 case .check:
-    exit(Modes.check(paths: paths, label: "com.rish.riskell"))
+    // --json and --bundle ask for the grouped report; without them the installer's checklist prints exactly what it always has
+    exit(options.json || options.bundle != nil ? Doctor.run(options, paths: paths, repo: repo, label: "com.rish.riskell")
+                                               : Modes.check(paths: paths, label: "com.rish.riskell"))
+case .doctor:
+    exit(Doctor.run(options, paths: paths, repo: repo, label: "com.rish.riskell"))
 case .uninstall:
     exit(Modes.uninstall(options, paths: paths, label: "com.rish.riskell", repo: repo))
 case .yes:

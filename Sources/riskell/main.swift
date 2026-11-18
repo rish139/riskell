@@ -330,6 +330,7 @@ events.commands["window-order"] = {      // debug: normal windows of the main di
     print("window-order (front first): \(names.joined(separator: " > "))"); fflush(stdout)
 }
 events.commands["compat"] = { print(Compat.shared.report); fflush(stdout) }      // debug: running vs verified versions and settings
+events.replies["doctor"] = { AppStatus.json() }      // `riskell-setup --doctor`: the state only this process knows, answered over the socket
 events.commands["touch-state"] = { print("touch-state: \(Touch.state) | \(ScrollGuard.state)"); fflush(stdout) }      // debug
 events.commands["scroll-guard"] = { print("scroll-guard: \(ScrollGuard.state)"); fflush(stdout) }      // debug
 var focusLatencyWatch: AnyCancellable?

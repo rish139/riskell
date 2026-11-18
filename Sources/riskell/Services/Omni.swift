@@ -54,6 +54,8 @@ final class Omni: WindowManager {
     init(store: Store) { self.store = store }
 
     func start() { running = true; connect() }
+    /// true while the subscription that carries the manager's state is up (for the health check, Services/AppStatus.swift)
+    var subscribed: Bool { sub != nil }
     func stop() { running = false; sub?.close(); cmd?.close(); sub = nil; cmd = nil }
     func requestRefresh() {}                          // the subscription already pushes every change
 

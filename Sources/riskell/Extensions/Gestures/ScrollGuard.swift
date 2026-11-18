@@ -64,4 +64,8 @@ enum ScrollGuard {
     }
 
     static var state: String { "tap=\(tap != nil) trusted=\(AXIsProcessTrusted()) blocking=\(blocking) dropped=\(dropped)" }
+
+    /// The tap and what it dropped, for the health check (Services/AppStatus.swift): a guard that is not installed while the gestures are
+    /// riskell's means three fingers leak as a scroll.
+    static var health: (tap: Bool, dropped: Int) { (tap != nil, dropped) }
 }

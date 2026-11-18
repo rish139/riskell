@@ -6,6 +6,9 @@ import RiskellKit
 final class EventSocket {
     let path: String
     var onEvent: ((String) -> Void)?
+    /// Words that answer back: the reply is written to the caller before the connection closes (`riskell-setup --doctor` asks for the
+    /// state only this process knows).
+    var replies: [String: () -> String] = [:]
     /// Words that run something in riskell itself (`printf overview | nc -U ~/.cache/riskell/ev.sock`); anything else goes to `onEvent`.
     var commands: [String: () -> Void] = [:]
     private var source: DispatchSourceRead?
@@ -38,13 +41,22 @@ final class EventSocket {
             guard c >= 0 else { return }
             var tv = timeval(tv_sec: 0, tv_usec: 200_000)            // a silent client must not stall the main queue
             setsockopt(c, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
+            var one: Int32 = 1
+            setsockopt(c, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))   // the caller may hang up before the reply
             var buf = [UInt8](repeating: 0, count: 256)
             let n = recv(c, &buf, buf.count, 0)
-            close(c)
             if n > 0 {
                 let word = String(decoding: buf[0..<n], as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+                if let ask = self?.replies[word] {
+                    EventSocket.reply(ask(), to: c)
+                    close(c)
+                    return
+                }
+                close(c)
                 if let c = self?.commands[word] { c() } else { self?.onEvent?(word) }
+                return
             }
+            close(c)
         }
         src.setCancelHandler { close(fd); unlink(self.path) }
         src.resume()
@@ -52,4 +64,16 @@ final class EventSocket {
     }
 
     func stop() { source?.cancel(); source = nil; unlink(path) }
+
+    /// Sends one answer to the caller, retrying a partial write. A caller that hung up gets nothing: the socket is SO_NOSIGPIPE and a
+    /// failed write is not an error here.
+    private static func reply(_ text: String, to fd: Int32) {
+        let bytes = Array(text.utf8)
+        var sent = 0
+        while sent < bytes.count {
+            let n = bytes.withUnsafeBytes { write(fd, $0.baseAddress! + sent, bytes.count - sent) }
+            if n <= 0 { return }
+            sent += n
+        }
+    }
 }

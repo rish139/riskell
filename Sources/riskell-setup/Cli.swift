@@ -1,7 +1,7 @@
 import Foundation
 
 enum Mode: Equatable {
-    case tui, yes, check, uninstall, version, help, selfTest, snapshot, snapshotDir
+    case tui, yes, check, doctor, uninstall, version, help, selfTest, snapshot, snapshotDir
 }
 
 /// Every flag, parsed once. Unknown flags are reported, never ignored silently.
@@ -27,6 +27,8 @@ struct Options: Equatable {
     var replaceLayout = false
     var removeConfig = false
     var restoreGestures = false
+    var json = false
+    var bundle: String?
     var snapshotName: String?
     var snapshotDirPath: String?
     var width = 100
@@ -52,6 +54,9 @@ struct Options: Equatable {
             case "--yes", "-y": o.yes = true; if o.mode == .tui { o.mode = .yes }
             case "--dry-run": o.dryRun = true
             case "--check": o.mode = .check
+            case "--doctor": o.mode = .doctor
+            case "--json": o.json = true
+            case "--bundle": o.bundle = value(a)
             case "--uninstall": o.mode = .uninstall
             case "--no-build": o.noBuild = true
             case "--no-launch": o.noLaunch = true
@@ -89,6 +94,9 @@ struct Options: Equatable {
             i += 1
         }
         if o.mode == .yes, o.dryRun { o.mode = .yes }
+        if (o.json || o.bundle != nil), o.mode != .check, o.mode != .doctor {
+            o.errors.append("--json and --bundle go with --check or --doctor")
+        }
         return o
     }
 
@@ -101,7 +109,13 @@ struct Options: Equatable {
       --yes                   no questions: detected defaults, plus the flags below.
                               The usage sources stay off unless a usage flag turns one on.
       --dry-run               print the plan and the JSON that would be written; write nothing
-      --check                 health check: the preflight plus agent, socket and log
+      --check                 the installer's checklist: the preflight plus agent, socket and log (unchanged since 0.1: the install
+                              flow's last step depends on it)
+      --doctor                the health report: build, system, install, files, running app, window manager, permissions, gestures,
+                              log, verdict, each row with the command to run next (risk status runs this)
+      --json                  with --check or --doctor: one JSON object on stdout and nothing else
+      --bundle DIR            with --check or --doctor: also write a redacted report (the JSON and the last 200 log lines) to DIR
+                              as one tar.gz; nothing else is written
       --no-path               do not add the folder of the risk link to PATH in your shell start-up files
       --uninstall             stop riskell and remove its agent, its risk link and its PATH block (asks, or --yes)
       --version, --help
