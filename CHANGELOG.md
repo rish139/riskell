@@ -2,6 +2,12 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [Semantic Versioning](https://semver.org).
 
+## [0.2.1] - 2026-11-18
+
+### Documentation
+- The README's title block says what riskell is in its own terms — a desktop shell framework for macOS — instead of a slogan, and the
+  section headings say what the section contains. No product change.
+
 ## [0.2.0] - 2026-11-18
 
 ### Licensing

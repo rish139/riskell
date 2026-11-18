@@ -2,10 +2,10 @@
 
 # riskell
 
-### The desktop shell macOS doesn't ship.
+### A desktop shell framework for macOS.
 
-Bars, hover cards, a workspace overview, a layout editor and themes — one native Swift application,<br>
-no second runtime, and four ways to add your own, checked by a validator instead of a style guide.
+Bars, hover cards, a workspace overview, a layout editor and themes in one native Swift application,<br>
+with an extension kit: four ways to add your own, checked by a validator.
 
 <img src="docs/images/hero.png" width="880" alt="riskell on a 14-inch MacBook Pro: four bars around placeholder windows">
 
@@ -31,17 +31,16 @@ no second runtime, and four ways to add your own, checked by a validator instead
 
 ---
 
-## Why another bar
+## What it is
 
 On Linux, a desktop shell is a framework: Quickshell or AGS gives you the surface, and you build the bars you want on top of it. On macOS
 you mostly get two choices — a bar configured by shell scripts, or widgets written in HTML and JavaScript — and then you keep the result
 legible by hand, in every theme, at every scale.
 
-riskell takes the framework approach and makes it typed and native. It began as a port of the author's Quickshell setup on Linux, and it is a
-desktop shell framework in the same sense: the bars, cards, overview and editor are its surfaces, everything on them is an atom, and every
-atom is a package on a small public kit. The kit owns the colours, the type and the lengths, so an atom written by a stranger on a different
-display looks like the ones that ship. A validator rejects the three ways that usually break: a hard-coded colour, a fixed pixel size, a
-timer of its own.
+riskell is a desktop shell framework for macOS in the same sense. It began as a port of the author's Quickshell setup on Linux: the bars,
+cards, overview and editor are its surfaces, everything on them is an atom, and every atom is a package on a small public kit. The kit owns
+the colours, the type and the lengths, so an atom written by a stranger on a different display looks like the ones that ship. A validator
+rejects the three ways that usually break: a hard-coded colour, a fixed pixel size, a timer of its own.
 
 | | What it is | How you configure it |
 |---|---|---|
@@ -190,11 +189,11 @@ space, so they do not slide when the Space changes, and they hide on native full
 bar sits under the menu bar with a stand-in gap. Now-playing media lives in the wings: the application icon on the left, play and pause on
 the right, shown while media plays and for up to 15 minutes after it pauses.
 
-**Windows stay clear.** A bar cannot reserve screen space on macOS — only the window manager can — so riskell writes the gaps instead of
+**Windows stay clear of the bars.** A bar cannot reserve screen space on macOS — only the window manager can — so riskell writes the gaps instead of
 moving your windows itself, after backing up the settings file the first time. When the number drifts (a second instance, a WM update, a
 settings reset) the top bar says `FIX` and names the value it found.
 
-**A version pill that stays quiet.** riskell records the macOS and OmniWM versions it was last checked against. Anything else gets one pill
+**Version tracking.** riskell records the macOS and OmniWM versions it was last checked against. Anything else gets one pill
 in the top bar, only while it differs: `UPDATE DUE · macOS 27.3`, or `FIX · OmniWM workspaceSwipeEnabled = true` for a setting that an
 OmniWM update reset. Nothing is drawn when all is as verified.
 
@@ -207,7 +206,7 @@ empty bar to start a new island, and removed with the **x**. The panel sets whic
 roundness, scale and theme, in collapsible sections, with a reset for each. The atoms and bars are saved to `layout.json`; theme, spacing
 and scale to `config.json`.
 
-**Themes that stay readable.** Eleven [Base16](https://github.com/tinted-theming/schemes) schemes ship: Gruvbox (dark and light),
+**Themes with a contrast floor.** Eleven [Base16](https://github.com/tinted-theming/schemes) schemes ship: Gruvbox (dark and light),
 Catppuccin (Mocha and Latte), Rosé Pine, Nord, Tokyo Night, Kanagawa, Everforest, Dracula and GitHub Dark High Contrast. A scheme's colours
 are not used as given — riskell derives its own tokens and moves text and accents until they clear a contrast floor against the background,
 so a faint grey scheme still produces readable text. Any Base16 `.yaml` in `~/.config/riskell/themes/` appears in the picker, and switching
