@@ -274,7 +274,7 @@ enum SelfTest {
         check("a decoded answer becomes ordered JSON", JSON.value(["b": 1, "a": [true, NSNull()]]).rendered() == "{\n  \"a\": [\n    true,\n    null\n  ],\n  \"b\": 1\n}")
 
         // redaction: the home folder, an id, a token, a credential word and the lines that print window and app names
-        let home = "/Users/someone"
+        let home = "/Users/example"
         check("a home path is written ~", Doctor.shorten(home + "/.config/riskell/config.json", home: home) == "~/.config/riskell/config.json")
         check("a path outside home is left alone", Doctor.shorten("/opt/homebrew/bin/risk", home: home) == "/opt/homebrew/bin/risk")
         check("the home folder is short", Doctor.shorten(home, home: home) == "~")
@@ -372,7 +372,7 @@ enum SelfTest {
     /// `--bundle`: the archive carries the report and the last 200 log lines, and the redaction its header lists is applied to both, so a
     /// home path, a token, a workspace id and a secret do not reach it.
     static func bundle() {
-        let home = "/Users/someone"
+        let home = "/Users/example"
         let report = """
         {"schema":1,"generatedAt":"2026-01-01T00:00:00Z","running":{"pid":4242,"version":"0.2.1"},
          "path":"\(home)/.cache/riskell/riskell.log","token":"sk-abcdefghijklmnop",

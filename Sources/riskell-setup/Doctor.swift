@@ -915,7 +915,7 @@ enum Doctor {
     }
 
     /// A path as the report prints it, anywhere in a line: the home folder becomes `~`, so no report carries a user name or a folder
-    /// layout. A folder whose name merely starts with the home folder's (`/Users/rish` next to `/Users/rishabh`) is left alone.
+    /// layout. A folder whose name merely starts with the home folder's (`/Users/example` next to `/Users/exampletwo`) is left alone.
     static func shorten(_ path: String, home: String) -> String {
         guard !home.isEmpty else { return path }
         let out = path.replacingOccurrences(of: home + "/", with: "~/")
