@@ -25,6 +25,7 @@ enum SelfTest {
         usage()
         themes()
         doctor()
+        bundle()
         print(failures == 0 ? "all checks passed" : "\(failures) check(s) failed")
         return failures == 0 ? 0 : 1
     }
@@ -366,6 +367,42 @@ enum SelfTest {
         check("--bundle takes a folder and --doctor is a mode", doctor.mode == .doctor && doctor.bundle == "/tmp/report" && doctor.errors.isEmpty)
         check("--json alone is refused", !Options.parse(["--json"]).errors.isEmpty)
         check("--bundle without a value is refused", !Options.parse(["--check", "--bundle"]).errors.isEmpty)
+    }
+
+    /// `--bundle`: the archive carries the report and the last 200 log lines, and the redaction its header lists is applied to both, so a
+    /// home path, a token, a workspace id and a secret do not reach it.
+    static func bundle() {
+        let home = "/Users/someone"
+        let report = """
+        {"schema":1,"generatedAt":"2026-01-01T00:00:00Z","running":{"pid":4242,"version":"0.2.1"},
+         "path":"\(home)/.cache/riskell/riskell.log","token":"sk-abcdefghijklmnop",
+         "workspace":"wrk_01KQXAMPLE01","note":"the session secret is hunter2"}
+        """
+        var log = (1...250).map { "line \($0)" }
+        log[199] = "wrote \(home)/.cache/riskell/overview.png"
+        log[200] = "Authorization: sk-abcdefghijklmnop"
+        log[201] = "opencode wrk_01KQXAMPLE01 read"
+        log[202] = "password hunter2"
+        let dir = tempDir("report")
+        guard let tarball = try? Doctor.writeBundle(dir.path, json: report, log: log, home: home, generated: Date()) else {
+            check("a bundle is written", false)
+            return
+        }
+        let name = tarball.lastPathComponent.replacingOccurrences(of: ".tar.gz", with: "")
+        let listing = Detect.run("/usr/bin/tar", ["tzf", tarball.path], quiet: true) ?? ""
+        check("the bundle holds the report and the log", listing.contains("\(name)/report.json") && listing.contains("\(name)/log.txt"))
+        let json = Detect.run("/usr/bin/tar", ["-xOzf", tarball.path, "\(name)/report.json"], quiet: true) ?? ""
+        let tail = Detect.run("/usr/bin/tar", ["-xOzf", tarball.path, "\(name)/log.txt"], quiet: true) ?? ""
+        check("the report in the bundle is the JSON report",
+              ((try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any])?["schema"] as? Int == 1)
+        check("a home path in the report is written ~", json.contains("~/.cache/riskell/riskell.log") && !json.contains(home))
+        check("no token, id or secret reaches the report",
+              ["sk-abcdefghijklmnop", "wrk_01KQXAMPLE01", "hunter2"].allSatisfy { !json.contains($0) })
+        check("the log tail is the last 200 lines", tail.contains("line 250") && tail.contains("line 51") && !tail.contains("line 50"))
+        check("a home path in a log line is written ~", tail.contains("~/.cache/riskell/overview.png") && !tail.contains(home))
+        check("no token, id or secret reaches the log",
+              ["sk-abcdefghijklmnop", "wrk_01KQXAMPLE01", "hunter2"].allSatisfy { !tail.contains($0) })
+        check("the header says what a bundle leaves out", tail.contains("keychain items"))
     }
 
     /// A scheme's colours as a palette; the four tokens the installer's data does not carry stay mid grey.
