@@ -14,6 +14,10 @@ import Foundation
 //   risk ext remove <id>               take it out again
 //   risk ext list                      what is installed
 //   risk ext sync                      regenerate Sources/riskell/Generated/InstalledPackages.swift and InstalledSettings.swift from the lock
+// The same binary renders the `risk` command line from the table in CommandTable.swift:
+//   help [command]                     the front door, or one command in detail (aliases work too; a group lists its subcommands)
+//   completions <zsh|fish|bash>        the table as a shell completion script, descriptions included
+//   docs                               docs/CLI.md: the table as markdown, for redirecting to the file
 // Exit status: 0 ok, 1 findings or a failed command, 2 usage.
 
 let fm = FileManager.default
@@ -22,18 +26,17 @@ let kinds = ["pill", "theme", "preset", "reading", "atom", "behaviour"]
 
 func fail(_ s: String) -> Never { FileHandle.standardError.write(Data((s + "\n").utf8)); exit(1) }
 func usage() -> Never {
-    print("usage: risk ext search <words> | info <name> | add <name|dir|git-url> [rev] | update [name] [--yes] | publish [dir] | remove <id> | list | validate <dir> | new <reading|atom|pill|theme> <name> | sync")
+    print("usage: risk ext search <words> | info <name> | add <name|dir|git-url> [rev] | update [name] [--yes] | publish [dir] | remove <id> | list | validate <dir> | new <reading|atom|pill|theme> <name> | sync | help [command] | completions <zsh|fish|bash> | docs")
     exit(2)
 }
 func read(_ p: String) -> String? { try? String(contentsOfFile: p, encoding: .utf8) }
 func write(_ s: String, _ p: String) { try? fm.createDirectory(atPath: (p as NSString).deletingLastPathComponent, withIntermediateDirectories: true); try? s.write(toFile: p, atomically: true, encoding: .utf8) }
 func matches(_ s: String, _ re: String) -> Bool { s.range(of: re, options: .regularExpression) != nil }
 
-/// The riskell checkout this tool is run from: the nearest parent holding extensions.lock.json.
+/// The riskell checkout this tool is run from (Checkout.swift): RISKELL_ROOT when scripts/risk sets it, else the nearest parent holding
+/// extensions.lock.json. A command run outside one has nothing to work on, so it stops here.
 func root() -> String {
-    if let e = ProcessInfo.processInfo.environment["RISKELL_ROOT"], fm.fileExists(atPath: e + "/extensions.lock.json") { return e }      // set by scripts/risk
-    var d = fm.currentDirectoryPath
-    while d != "/" { if fm.fileExists(atPath: d + "/extensions.lock.json") { return d }; d = (d as NSString).deletingLastPathComponent }
+    if let found = checkout() { return found }
     fail("risk ext: run it inside the riskell checkout (no extensions.lock.json found above here)")
 }
 
@@ -348,6 +351,13 @@ func scaffold(_ kind: String, _ name: String) {
 
 let a = Array(CommandLine.arguments.dropFirst())
 switch a.first {
+case "help": exit(HelpScreen.run(Array(a.dropFirst())))
+case "completions":
+    guard a.count == 2, let script = Completions.script(a[1]) else {
+        FileHandle.standardError.write(Data("risk: completions <zsh|fish|bash>\n".utf8)); exit(2)
+    }
+    print(script)
+case "docs": print(Docs.markdown())
 case "validate": exit(a.count > 1 && validate(a[1]) ? 0 : 1)
 case "new": if a.count == 3 { scaffold(a[1], a[2]) } else { usage() }
 case "add":
