@@ -31,7 +31,7 @@
     fit               run pass/fail checks on each fake display
     snap              render the picture set from scratch instances
     wm start          start omniwm and put each window on its number
-    bench             measure idle cpu, memory and threads of a scratch instance
+    bench             re-measure the efficiency table on this machine
     self-test         run the ci checks: installer, extensions, weather, usage
 
   start here
