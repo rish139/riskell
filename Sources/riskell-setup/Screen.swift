@@ -1,4 +1,5 @@
 import Foundation
+import RiskellTTY
 
 /// One character cell. `ch` is a single grapheme (every glyph the installer draws is one column wide).
 struct Cell: Equatable {
@@ -74,7 +75,7 @@ final class Grid {
             for x in 0..<w {
                 let c = cells[y * w + x]
                 if c.style != current {
-                    out += sgr(c.style)
+                    out += c.style.sgr
                     current = c.style
                 }
                 out += c.ch
@@ -83,24 +84,6 @@ final class Grid {
         }
         return out
     }
-}
-
-/// The SGR sequence for a style: reset, then weight, dim and colours.
-func sgr(_ s: Style) -> String {
-    var codes = ["0"]
-    if s.bold { codes.append("1") }
-    if s.dim { codes.append("2") }
-    switch s.fg {
-    case .none: break
-    case .rgb(let r, let g, let b): codes.append("38;2;\(r);\(g);\(b)")
-    case .idx(let n): codes.append("38;5;\(n)")
-    }
-    switch s.bg {
-    case .none: break
-    case .rgb(let r, let g, let b): codes.append("48;2;\(r);\(g);\(b)")
-    case .idx(let n): codes.append("48;5;\(n)")
-    }
-    return "\u{1b}[" + codes.joined(separator: ";") + "m"
 }
 
 /// Writes frames to the terminal. Only cells that changed since the last frame are written, inside a synchronized
@@ -127,7 +110,7 @@ final class Renderer {
                     out += "\u{1b}[\(y + 1);\(x + 1)H"
                 }
                 if style != c.style {
-                    out += sgr(c.style)
+                    out += c.style.sgr
                     style = c.style
                 }
                 out += c.ch

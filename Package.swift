@@ -34,10 +34,12 @@ let package = Package(
     },
     targets: [
         .executableTarget(name: "riskell",
-                          dependencies: [.product(name: "RiskellKit", package: "riskell-kit")] + locked.map { .product(name: $0.product, package: $0.package) },
+                          dependencies: [.product(name: "RiskellKit", package: "riskell-kit"), .target(name: "RiskellTTY")] + locked.map { .product(name: $0.product, package: $0.package) },
                           path: "Sources/riskell"),
         .executableTarget(name: "riskell-ext", path: "Sources/riskell-ext"),
-        .executableTarget(name: "riskell-setup", path: "Sources/riskell-setup"),
+        .executableTarget(name: "riskell-setup", dependencies: [.target(name: "RiskellTTY")], path: "Sources/riskell-setup"),
         .target(name: "nowplaying", path: "Sources/nowplaying"),
+        // the terminal vocabulary the command line prints with: colours, mode detection, aligned rows (Foundation only)
+        .target(name: "RiskellTTY", path: "Sources/RiskellTTY"),
     ]
 )

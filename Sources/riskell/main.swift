@@ -40,6 +40,7 @@ if args.contains("--usage-selftest") { UsageExt.UsageSelfTest.run() }      // th
 if args.contains("--weather-selftest") { WeatherExt.WeatherSelfTest.run() }      // the fast forecast parser against the first version, on synthetic data
 if args.contains("--list-themes") { print(Theme.listJSON()); exit(0) }      // JSON of every scheme with its resolved tokens (the installer previews them)
 if args.contains("--check-themes") { if args.contains("tokens") { Theme.dumpTokens() } else { Theme.check() }; exit(0) }      // contrast of every scheme against its floors, then exit
+if args.contains("--palette") { exit(PaletteCommand.run(args)) }      // the theme in force as tokens: hex, json or ansi (PaletteCommand.swift)
 if GestureConflicts.runCommand(args) { exit(0) }      // --gestures-fix / --gestures-restore (--yes writes): the consented trackpad and Dock writes, then exit
 func opt(_ name: String) -> String? { args.firstIndex(of: name).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } }
 InstanceLock.acquireOrExit(args)      // one riskell runs the bars; a second full instance would fight it over the window manager's gaps, the socket and the trackpad

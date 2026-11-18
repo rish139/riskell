@@ -1,4 +1,5 @@
 import Foundation
+import RiskellTTY
 
 /// The install screen (steps, the 8-cell progress bar, the failure block) and the finish screen (the revealed summary).
 extension App {

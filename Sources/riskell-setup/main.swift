@@ -1,9 +1,10 @@
 import Foundation
+import RiskellTTY
 
 // riskell-setup: the guided installer for riskell. One binary, several modes (see Cli.swift and docs/INSTALL.md).
 
 setvbuf(stdout, nil, _IOLBF, 0)
-Ink.mode = Ink.detectMode(env: ProcessInfo.processInfo.environment)
+Ink.mode = RiskellTTY.Mode.detect(env: ProcessInfo.processInfo.environment)
 
 let options = Options.parse(Array(CommandLine.arguments.dropFirst()))
 let paths = Paths.fromEnvironment()

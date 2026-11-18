@@ -133,10 +133,9 @@ extension Theme {
         return String(decoding: d, as: UTF8.self)
     }
 
-    /// `riskell --check-themes tokens`: the default theme's tokens as hex, for comparing against a known palette.
-    static func dumpTokens(_ id: String = defaultID) {
-        guard let s = catalog().first(where: { $0.id == id }) else { return }
-        let t = resolve(s)
+    /// `riskell --check-themes tokens`: the theme in force as hex (the one `--palette` reads too), for comparing against a known palette.
+    static func dumpTokens() {
+        let t = current
         func hex(_ c: RGB) -> String { String(format: "%02x%02x%02x", Int((c.r * 255).rounded()), Int((c.g * 255).rounded()), Int((c.b * 255).rounded())) }
         for (k, v) in [("bg", t.bg), ("tile", t.tile), ("canvas", t.canvas), ("text1", t.text1), ("text2", t.text2), ("text3", t.text3), ("text4", t.text4),
                        ("accent", t.accent), ("ok", t.ok), ("warn", t.warn), ("crit", t.crit), ("info", t.info), ("critInk", t.critInk), ("prov", t.prov), ("amberDim", t.amberDim)] {

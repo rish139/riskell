@@ -1,4 +1,5 @@
 import Foundation
+import RiskellTTY
 
 /// `riskell-setup --self-test`: unit-style checks with PASS / FAIL lines, no XCTest (the package builds with Command Line Tools only).
 enum SelfTest {
@@ -211,9 +212,27 @@ enum SelfTest {
         check("eleven schemes ship", schemeData.count == 11)
         check("exactly one scheme is the default", schemeData.filter { $0.isDefault }.count == 1)
         check("the default is gruvbox dark medium", schemeData.first { $0.isDefault }?.id == "gruvbox-dark-medium")
-        check("hex parses", Ink.parseHex("#fabd2f")?.0 == 250)
-        check("256-colour fallback maps pure white to the top of the palette", Ink.nearest256(255, 255, 255) >= 231)
-        check("NO_COLOR forces mono", Ink.detectMode(env: ["NO_COLOR": "1", "COLORTERM": "truecolor"]) == .mono)
-        check("truecolor is detected", Ink.detectMode(env: ["COLORTERM": "truecolor"]) == .truecolor)
+        check("hex parses", RGB8(hex: "#fabd2f") == RGB8(250, 189, 47))
+        check("256-colour fallback maps pure white to the top of the palette", RGB8(255, 255, 255).ansi256 >= 231)
+        check("NO_COLOR forces no colour", RiskellTTY.Mode.detect(env: ["NO_COLOR": "1", "COLORTERM": "truecolor"], isTTY: true) == .none)
+        check("a pipe is never styled", RiskellTTY.Mode.detect(env: ["COLORTERM": "truecolor"], isTTY: false) == .none)
+        check("truecolor is detected", RiskellTTY.Mode.detect(env: ["COLORTERM": "truecolor"], isTTY: true) == .truecolor)
+        let tty = Tty(mode: .truecolor, width: 80, palette: palette(schemeData[0]))
+        check("strip gives back the plain text", Tty.strip(tty.accent("riskell")) == "riskell" && Tty.strip(tty.mark(.ok, "done")) == "✓ done")
+        check("the tones carry no width", Tty.strip(tty.bold("a") + tty.dim("b") + tty.tone("c", .accent)) == "abc")
+        check("a label and its value are one line", Tty.strip(tty.label("bg", "#282828")) == "bg  #282828")
+        check("a pipe prints no escape sequences", Tty(mode: .none, width: 80, palette: tty.palette).accent("riskell") == "riskell")
+        check("rows line up and right-align",
+              tty.rows([[RiskellTTY.Cell("bg"), RiskellTTY.Cell("2", .right)], [RiskellTTY.Cell("text1"), RiskellTTY.Cell("22", .right)]])
+              == ["bg      2", "text1  22"])
+        check("no line is wider than the width", Tty(mode: .none, width: 12, palette: tty.palette).heading(String(repeating: "x", count: 40)).count == 12)
+        check("the width comes from COLUMNS, else 80", Tty.detect(palette: tty.palette, env: ["COLUMNS": "40"]).width == 40
+              && Tty.detect(palette: tty.palette, env: [:]).width == 80)
+    }
+
+    /// A scheme's colours as a palette; the four tokens the installer's data does not carry stay mid grey.
+    private static func palette(_ s: SchemeData) -> Palette {
+        Palette(hex: ["bg": s.bg, "tile": s.tile, "text1": s.text1, "text2": s.text2, "text3": s.text3, "text4": s.text4,
+                      "accent": s.accent, "ok": s.ok, "warn": s.warn, "crit": s.crit, "info": s.info])
     }
 }

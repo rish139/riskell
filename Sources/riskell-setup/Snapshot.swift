@@ -1,4 +1,5 @@
 import Foundation
+import RiskellTTY
 
 /// Canned screens for the snapshots (docs/installer-snapshots). Each name is a screen in a fixed state; nothing is probed.
 enum Snapshots {

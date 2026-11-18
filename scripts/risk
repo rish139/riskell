@@ -7,6 +7,7 @@
 #   risk log [N]   follow the log, or print its last N lines
 #   risk status
 #   risk ext validate|new|add|remove|list   riskell extensions (add and remove rebuild and restart)
+#   risk tty [--format hex|json|ansi] [--theme ID]   the active theme's tokens (riskell --palette)
 #   risk wm status|omniwm|export|import   OmniWM helpers: start it if it is not running, save / restore each window's workspace number
 set -e
 root=${0:A:h:h}
@@ -151,6 +152,9 @@ case $1 in
             RISKELL_ROOT=$root $tool "${@:2}" && exit 0 || rc=$?
             [[ $rc == 10 ]] && exec $0 dev      # 10: a compiled extension was added, removed or updated, so the build changed
             exit $rc ;;
+  tty)      tool=$root/.build/release/riskell      # the active theme's tokens: hex, json, or ansi for the terminal
+            [[ -x $tool ]] || swift build -c release --product riskell --package-path $root >/dev/null || exit 1
+            exec $tool --palette "${@:2}" ;;
   status)   launchctl print $dom/$label 2>/dev/null | grep -E "state|pid|last exit" || echo "not loaded" ;;
   wm)       [[ $2 == (omniwm|export|import) && ! -x ${JQ:-/nonexistent} ]] && { echo "risk: jq not found (brew install jq)"; exit 1; }
             case $2 in

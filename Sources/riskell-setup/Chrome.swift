@@ -1,4 +1,5 @@
 import Foundation
+import RiskellTTY
 
 /// The shared frame of every screen: header (wordmark, step counter, dots, thin rule), body, status line and footer hints.
 /// One column, left margin 3, no boxes except the drawn bar mock, the theme card and the schematic.
