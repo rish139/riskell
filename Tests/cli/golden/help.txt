@@ -4,7 +4,7 @@
   build it, run it, check it, extend it.
   risk help <command> for one, docs/CLI.md for all.
 
-  stable        20 commands
+  stable        21 commands
     install           build, then start riskell now and at login
     uninstall         stop riskell and remove its login agent
     dev               rebuild and restart the running agent
@@ -14,7 +14,8 @@
     setup             run the guided installer; flags answer its questions
     config            read and change riskell's settings without editing JSON
     theme list        list every scheme with its resolved tokens
-    theme check       check every scheme's contrast against its floors
+    theme check       check each scheme's contrast against its floors
+    theme import      bring a Base16 scheme in from another shell
     gestures status   show which trackpad and dock keys fight riskell
     gestures fix      save the originals, then turn the conflicting keys off
     gestures restore  put the saved key values back

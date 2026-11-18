@@ -89,12 +89,19 @@ list every scheme with its resolved tokens
 - example: `risk theme list --json`
 - replaces: `riskell --list-themes`
 
-### `risk theme check [--json]`
+### `risk theme check [--scheme ID] [--json]`
 
-check every scheme's contrast against its floors
+check each scheme's contrast against its floors
 
-- example: `risk theme check`
+- example: `risk theme check --scheme nord`
 - replaces: `riskell --check-themes`
+
+### `risk theme import <file> [--id ID] [--force] [--dry-run] [--json]`
+
+bring a Base16 scheme in from another shell
+
+- example: `risk theme import base16-nord.yaml --id nord`
+- replaces: `cp <scheme>.yaml ~/.config/riskell/themes/`
 
 ### `risk gestures status [--json]`
 
@@ -196,12 +203,14 @@ start omniwm and put each window on its number
 - example: `risk wm start`
 - replaces: `risk wm omniwm`
 
-### `risk bench [idle|card <atom>|all] [--runs N] [--list] [--json] [--emit-doc]`
+### `risk bench [idle|card <atom>|all] [--runs N] [--list] [--json]`
 
 re-measure the efficiency table on this machine
 
 - example: `risk bench idle --runs 3`
 - replaces: `scripts/idle-cpu`, `scripts/resource-check`
+- subcommands:
+  - `emit-doc [--json]`: write the table as data: docs/efficiency.json
 
 ### `risk self-test [name] [--json]`
 

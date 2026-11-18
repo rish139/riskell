@@ -19,6 +19,7 @@ import Foundation
 //   completions <zsh|fish|bash>        the table as a shell completion script, descriptions included
 //   docs                               docs/CLI.md: the table as markdown, for redirecting to the file
 //   config path|show|get|set|edit      riskell's settings file without hand-edited JSON
+//   theme list|check|import            the schemes, their contrast, and bringing one in from another shell
 //   ctl <word> [--json] [--dry-run]    one word to the running bar, or --list: the socket without `printf | nc -U`
 //   log [N] [--follow] [--json]        the last log lines, or a follower
 //   snap <maker>…|all --out DIR        the picture set from scratch instances (Snap.swift), or --list: what it is
@@ -32,7 +33,7 @@ let kinds = ["pill", "theme", "preset", "reading", "atom", "behaviour"]
 
 func fail(_ s: String) -> Never { FileHandle.standardError.write(Data((s + "\n").utf8)); exit(1) }
 func usage() -> Never {
-    print("usage: risk ext search <words> | info <name> | add <name|dir|git-url> [rev] | update [name] [--yes] | publish [dir] | remove <id> | list | validate <dir> | new <reading|atom|pill|theme> <name> | sync | help [command] | completions <zsh|fish|bash> | docs | config path|show|get|set|edit | ctl <word|--list> [--json] [--dry-run] | log [N] [--follow] [--json] | snap <maker>…|all --out DIR [--json] [--dry-run] | bench [idle|card <atom>|all|--list] [--runs N] [--json] | bench emit-doc [--json]")
+    print("usage: risk ext search <words> | info <name> | add <name|dir|git-url> [rev] | update [name] [--yes] | publish [dir] | remove <id> | list | validate <dir> | new <reading|atom|pill|theme> <name> | sync | help [command] | completions <zsh|fish|bash> | docs | config path|show|get|set|edit | theme list|check|import | ctl <word|--list> [--json] [--dry-run] | log [N] [--follow] [--json] | snap <maker>…|all --out DIR [--json] [--dry-run] | bench [idle|card <atom>|all|--list] [--runs N] [--json] | bench emit-doc [--json]")
     exit(2)
 }
 func read(_ p: String) -> String? { try? String(contentsOfFile: p, encoding: .utf8) }
@@ -379,6 +380,7 @@ case "completions":
     print(script)
 case "docs": print(Docs.markdown())
 case "config": exit(ConfigCommand.run(Array(a.dropFirst())))
+case "theme": exit(ThemeCommand.run(Array(a.dropFirst())))
 case "ctl": exit(Ctl.run(Array(a.dropFirst())))
 case "log": exit(LogCommand.run(Array(a.dropFirst())))
 case "snap": exit(Snap.run(Array(a.dropFirst())))
