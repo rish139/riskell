@@ -69,19 +69,18 @@ run the guided installer; flags answer its questions
 - example: `risk setup --dry-run`
 - replaces: `riskell-setup`, `riskell-install`
 
-### `risk config show [--json]`
+### `risk config <subcommand>`
 
-show the resolved config and where each key came from
+read and change riskell's settings without editing JSON
 
-- example: `risk config show --json`
-- replaces: `riskell --dump`
-
-### `risk config path [--json]`
-
-print the config, layout, socket and log paths
-
-- example: `risk config path`
-- replaces: `the paths scattered through README and docs/INSTALL.md`
+- example: `risk config get theme`
+- replaces: `riskell --dump`, `the paths scattered through README and docs/INSTALL.md`
+- subcommands:
+  - `path`: print the config, layout, cache, log and socket paths
+  - `show`: print the file as written, with secrets hidden
+  - `get`: print one setting by its dotted key
+  - `set`: change one setting and leave the rest as it was
+  - `edit`: open the file in $EDITOR and check what was saved
 
 ### `risk theme list [--json]`
 
