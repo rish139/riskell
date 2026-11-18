@@ -1,0 +1,9 @@
+  risk status [--json] [--check]
+
+  check health and name the first failing check
+
+    aliases   risk doctor
+    tier      stable
+    example   risk status --json
+    replaces  riskell-setup --check
+              riskell --dump
