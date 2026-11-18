@@ -18,8 +18,9 @@ struct ReportCheck {
         }
     }
 
-    /// Where the fact came from: probed here (`cli`), read from a file (`file`), or asked of the running bars over the socket (`app`).
-    enum Origin: String { case cli, app, file }
+    /// Where the fact came from: probed here (`cli`), read from a file (`file`), asked of the running bars over the socket (`app`), or read
+    /// from launchd when the running bars cannot answer (`launchd`).
+    enum Origin: String { case cli, app, file, launchd }
 
     let id: String
     let label: String
@@ -113,9 +114,8 @@ enum Doctor {
     static func run(_ o: Options, paths: Paths, repo: URL?, label: String) -> Int32 {
         let generated = Date()
         let facts = Detect.gather(paths, label: label)
-        let app = ask(paths)
-        let c = Context(paths: paths, repo: repo, label: label, facts: facts, app: app,
-                        socketExists: FileManager.default.fileExists(atPath: paths.socket().path),
+        let c = Context(paths: paths, repo: repo, label: label, facts: facts,
+                        socket: ask(paths), agent: agent(label: label),
                         wake: lastWake(), generated: generated, log: logTail(paths.log(), 400))
         var sections = [build(c), system(c), install(c), files(c), running(c), windowManager(c), permissions(c), gestures(c), log(c)]
         sections.append(verdict(sections))
@@ -125,7 +125,7 @@ enum Doctor {
         if o.json { print(text) } else { print(render(sections, c), terminator: "") }
         if let dir = o.bundle {
             do {
-                let url = try writeBundle(dir, json: text, c)
+                let url = try writeBundle(dir, json: text, log: c.log, home: c.paths.home.path, generated: c.generated)
                 FileHandle.standardError.write(Data("wrote \(url.path)\n".utf8))
             } catch {
                 FileHandle.standardError.write(Data("riskell-setup: could not write the bundle: \(error)\n".utf8))
@@ -141,15 +141,47 @@ enum Doctor {
         let repo: URL?
         let label: String
         let facts: Facts
-        /// The running bars' answer (Services/AppStatus.swift), nil when nothing answered the socket.
-        let app: [String: Any]?
-        let socketExists: Bool
+        /// What the event socket did when asked for the `doctor` word.
+        let socket: SocketAnswer
+        /// What launchd says the agent runs: how the report knows a pid and a version when the socket cannot answer.
+        let agent: Agent
         let wake: Date?
         let generated: Date
         let log: [String]
 
+        /// The running bars' answer (Services/AppStatus.swift), nil when nothing answered the socket.
+        var app: [String: Any]? {
+            if case .answered(let answer) = socket { return answer }
+            return nil
+        }
+
+        var socketExists: Bool {
+            if case .missing = socket { return false }
+            return true
+        }
+
+        /// The pid of the running riskell: its own when it answered, else the one launchd holds.
+        var pid: Int? { int(app, "pid") ?? agent.pid }
+
+        /// The version the bar runs: its own when it answered, else the one the copy it started from would report. An agent that is not
+        /// running has no version to report, whatever the checkout says.
+        var version: String? { str(app, "version") ?? (pid == nil ? nil : agent.version(repo)) }
+
         func short(_ url: URL) -> String { Doctor.shorten(url.path, home: paths.home.path) }
         func short(_ path: String) -> String { Doctor.shorten(path, home: paths.home.path) }
+    }
+
+    /// What launchd says the agent is: the pid it holds and the program it started.
+    struct Agent {
+        let pid: Int?
+        let program: String?
+
+        /// What that program reports as its version: the app bundle's CFBundleShortVersionString (`scripts/risk` writes it from VERSION,
+        /// as the build writes Build.version), else the checkout's VERSION.
+        func version(_ repo: URL?) -> String? {
+            if let program, let version = Doctor.bundleVersion(program) { return version }
+            return Doctor.checkoutVersion(repo)
+        }
     }
 
     // MARK: the sections, in display order
@@ -167,21 +199,16 @@ enum Doctor {
         var checks = [ReportCheck(id: "build.binary", label: "binary", severity: built ? .ok : .fail,
                                   detail: built ? "\(c.short(release)) is built" : "\(c.short(release)) is missing",
                                   fix: built ? nil : "risk dev", source: .file)]
-        // what the agent actually runs is the copy inside the app bundle: `swift build` alone does not refresh it
-        let bundle = repo.appendingPathComponent(".build/riskell.app/Contents/MacOS/riskell")
-        if built, let bundleTime = modified(bundle) {
-            let stale = (modified(release) ?? .distantPast) > bundleTime
-            checks.append(ReportCheck(id: "build.bundle", label: "app bundle",
-                                      severity: stale ? .warn : .ok,
-                                      detail: stale ? "the agent runs an older copy than the release binary" : "up to date with the release binary",
-                                      fix: stale ? "risk dev" : nil, source: .file))
+        // what the agent runs is the copy inside the app bundle: `swift build` refreshes the binary, but only `risk dev` refreshes that copy
+        if let program = c.agent.program {
+            checks.append(bundleCheck(program: program, release: release, home: c.paths.home.path))
         }
         let fresh = Detect.buildIsFresh(repo)
         checks.append(ReportCheck(id: "build.freshness", label: "freshness", severity: fresh ? .ok : .warn,
                                   detail: fresh ? "the binary is newer than every source file" : "a source file is newer than the binary",
                                   fix: fresh ? nil : "risk dev", source: .file))
         let versionFile = repo.appendingPathComponent("VERSION")
-        let version = ((try? String(contentsOf: versionFile, encoding: .utf8)) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let version = checkoutVersion(repo) ?? ""
         if !version.isEmpty, let builtTime = modified(release), let versionTime = modified(versionFile) {
             let stale = versionTime > builtTime
             checks.append(ReportCheck(id: "build.version", label: "version", severity: stale ? .warn : .ok,
@@ -192,6 +219,25 @@ enum Doctor {
                                       detail: "\(version) (nothing built to compare it with)", source: .file))
         }
         return ReportSection(id: "build", title: title, checks: checks)
+    }
+
+    /// The copy the agent runs beside this checkout's release binary: `swift build` refreshes the binary and only `risk dev` refreshes the
+    /// app bundle and restarts the agent. A program that is not there is a fail: the agent has nothing to start.
+    static func bundleCheck(program: String, release: URL, home: String) -> ReportCheck {
+        let id = "build.bundle", label = "app bundle"
+        guard FileManager.default.isExecutableFile(atPath: program) else {
+            return ReportCheck(id: id, label: label, severity: .fail,
+                               detail: "the agent runs \(shorten(program, home: home)), which is missing: the bundle has no binary",
+                               fix: "risk dev", source: .file)
+        }
+        guard let built = modified(release) else {
+            return ReportCheck(id: id, label: label, severity: .info,
+                               detail: "the agent runs \(shorten(program, home: home)): nothing built to compare it with", source: .file)
+        }
+        let stale = built > (modified(URL(fileURLWithPath: program)) ?? .distantPast)
+        return ReportCheck(id: id, label: label, severity: stale ? .warn : .ok,
+                           detail: stale ? "the agent runs an older copy than the release binary" : "up to date with the release binary",
+                           fix: stale ? "risk dev" : nil, source: .file)
     }
 
     private static func system(_ c: Context) -> ReportSection {
@@ -244,7 +290,7 @@ enum Doctor {
                                         : "UPDATE DUE: macOS \(running), verified \(verified); walk docs/COMPATIBILITY.md",
                                       source: .app))
         } else {
-            checks.append(notRunning("system.verified", "verified"))
+            checks.append(noAnswer(c, "system.verified", "verified"))
         }
         return ReportSection(id: "system", title: "system", checks: checks)
     }
@@ -347,17 +393,17 @@ enum Doctor {
             checks.append(ReportCheck(id: "files.gaps", label: "omniwm gaps", severity: .info,
                                       detail: "OmniWM has no settings.toml: no gaps to keep", source: .file))
         }
-        // the instance lock: held means one riskell owns the bars, and if the socket is silent as well, that is a second or hung one
+        // the instance lock: held means one riskell owns the bars, and with no pid behind it, that is a second or hung one
         let lock = c.paths.home.appendingPathComponent(".cache/riskell/riskell.lock")
         if !lockHeld(lock) {
             checks.append(ReportCheck(id: "files.lock", label: "instance lock", severity: .ok,
                                       detail: "nobody holds \(c.short(lock))", source: .file))
-        } else if c.app != nil {
+        } else if c.pid != nil {
             checks.append(ReportCheck(id: "files.lock", label: "instance lock", severity: .info,
                                       detail: "held by the running riskell, as it should be", source: .file))
         } else {
             checks.append(ReportCheck(id: "files.lock", label: "instance lock", severity: .warn,
-                                      detail: "\(c.short(lock)) is held but nothing answers the socket: a hung or second riskell",
+                                      detail: "\(c.short(lock)) is held but nothing runs: a hung or second riskell",
                                       fix: "risk restart", source: .file))
         }
         return ReportSection(id: "files", title: "files", checks: checks)
@@ -365,49 +411,58 @@ enum Doctor {
 
     private static func running(_ c: Context) -> ReportSection {
         var checks: [ReportCheck] = []
-        let socket = c.paths.socket()
-        if c.app != nil {
-            checks.append(ReportCheck(id: "running.socket", label: "socket", severity: .ok, detail: "\(c.short(socket)) answers", source: .file))
-        } else if c.socketExists {
-            checks.append(ReportCheck(id: "running.socket", label: "socket", severity: .warn,
-                                      detail: "\(c.short(socket)) exists but does not answer the doctor word: the running build is older than this check",
+        let socket = c.short(c.paths.socket())
+        switch c.socket {
+        case .answered:
+            checks.append(ReportCheck(id: "running.socket", label: "socket", severity: .ok, detail: "\(socket) answers", source: .file))
+        case .silent:
+            // a build older than this report takes the word for an event and says nothing: one fact about the app, and one row
+            checks.append(ReportCheck(id: "running.socket", label: "socket", severity: .info,
+                                      detail: "\(socket) answers, but not the doctor word: the running app predates this report",
                                       fix: "risk dev", source: .file))
-        } else if c.facts.agentLoaded {
+        case .refused:
             checks.append(ReportCheck(id: "running.socket", label: "socket", severity: .fail,
-                                      detail: "\(c.short(socket)) is missing: riskell is loaded but not listening", fix: "risk log 30", source: .file))
-        } else {
+                                      detail: "\(socket) is there and nothing listens: a riskell died and left it behind",
+                                      fix: "risk dev", source: .file))
+        case .missing where c.pid != nil:
+            checks.append(ReportCheck(id: "running.socket", label: "socket", severity: .fail,
+                                      detail: "\(socket) is missing: riskell is loaded but not listening", fix: "risk log 30", source: .file))
+        case .missing:
             checks.append(ReportCheck(id: "running.socket", label: "socket", severity: .info,
                                       detail: "no socket: riskell is not running", source: .file))
         }
-        if let pid = int(c.app, "pid") {
+        let origin: ReportCheck.Origin = c.app == nil ? .launchd : .app
+        if let pid = c.pid {
             checks.append(ReportCheck(id: "running.process", label: "process", severity: .ok,
-                                      detail: "pid \(pid), riskell \(str(c.app, "version") ?? "?")", source: .app))
+                                      detail: "pid \(pid), riskell \(c.version ?? "?")", source: origin))
         } else {
-            checks.append(notRunning("running.process", "process"))
+            checks.append(noAnswer(c, "running.process", "process"))
         }
-        let checkout = c.repo.map { ((try? String(contentsOf: $0.appendingPathComponent("VERSION"), encoding: .utf8)) ?? "").trimmingCharacters(in: .whitespacesAndNewlines) } ?? ""
-        if let version = str(c.app, "version"), !checkout.isEmpty {
+        if let version = c.version, let checkout = checkoutVersion(c.repo) {
             let same = version == checkout
             checks.append(ReportCheck(id: "running.version", label: "running version", severity: same ? .ok : .warn,
                                       detail: same ? "riskell \(version) is the checkout's version" : "the bar runs \(version), the checkout is \(checkout)",
-                                      fix: same ? nil : "risk dev", source: .app))
-        } else if c.app != nil {
+                                      fix: same ? nil : "risk dev", source: origin))
+        } else if let version = c.version {
             checks.append(ReportCheck(id: "running.version", label: "running version", severity: .info,
-                                      detail: "the bar did not report its version", source: .app))
+                                      detail: "riskell \(version) is running: there is no checkout to compare it with", source: origin))
+        } else if c.pid != nil {
+            checks.append(ReportCheck(id: "running.version", label: "running version", severity: .info,
+                                      detail: "the bar did not report its version", source: origin))
         } else {
-            checks.append(notRunning("running.version", "running version"))
+            checks.append(noAnswer(c, "running.version", "running version"))
         }
-        if c.app != nil {
-            let services = strings(c.app, "services")
+        if let app = c.app {
+            let services = strings(app, "services")
             checks.append(ReportCheck(id: "running.services", label: "services", severity: .ok,
                                       detail: services.isEmpty ? "none: no atom on a showing bar needs one" : services.joined(separator: " "),
                                       source: .app))
-            let bars = strings(c.app, "bars"), atoms = int(c.app, "atoms") ?? 0
+            let bars = strings(app, "bars"), atoms = int(app, "atoms") ?? 0
             checks.append(ReportCheck(id: "running.atoms", label: "atoms", severity: .ok,
                                       detail: "\(atoms) atom(s) on \(bars.isEmpty ? "no bar" : bars.joined(separator: ", "))", source: .app))
         } else {
-            checks.append(notRunning("running.services", "services"))
-            checks.append(notRunning("running.atoms", "atoms"))
+            checks.append(noAnswer(c, "running.services", "services"))
+            checks.append(noAnswer(c, "running.atoms", "atoms"))
         }
         return ReportSection(id: "running", title: "running app", checks: checks)
     }
@@ -426,10 +481,10 @@ enum Doctor {
         }
         guard let app = c.app else {
             return ReportSection(id: "wm", title: "window manager", checks: checks + [
-                notRunning("wm.subscription", "subscription"),
-                notRunning("wm.protocol", "protocol"),
-                notRunning("wm.settings", "settings"),
-                notRunning("wm.gaps", "gaps"),
+                noAnswer(c, "wm.subscription", "subscription"),
+                noAnswer(c, "wm.protocol", "protocol"),
+                noAnswer(c, "wm.settings", "settings"),
+                noAnswer(c, "wm.gaps", "gaps"),
             ])
         }
         let name = str(app, "wm") ?? "none"
@@ -509,8 +564,8 @@ enum Doctor {
         let gesturesOurs = gesturesAreRiskells(c)
         var checks: [ReportCheck] = []
         if c.app == nil {
-            checks.append(notRunning("permissions.accessibility", "accessibility"))
-            checks.append(notRunning("permissions.location", "location"))
+            checks.append(noAnswer(c, "permissions.accessibility", "accessibility"))
+            checks.append(noAnswer(c, "permissions.location", "location"))
             return ReportSection(id: "permissions", title: "permissions", checks: checks)
         }
         let trusted = bool(c.app, "accessibility") == true
@@ -562,8 +617,8 @@ enum Doctor {
                                       fix: "\(binary(c.repo, c)) --gestures-fix --yes", source: source))
         }
         guard let app = c.app else {
-            checks.append(notRunning("gestures.touch", "trackpad"))
-            checks.append(notRunning("gestures.scrollguard", "scroll guard"))
+            checks.append(noAnswer(c, "gestures.touch", "trackpad"))
+            checks.append(noAnswer(c, "gestures.scrollguard", "scroll guard"))
             return ReportSection(id: "gestures", title: "gestures", checks: checks)
         }
         // a MultitouchSupport attachment older than the last wake delivers no frames: the swipes, the capsule and the scroll guard's finger
@@ -645,14 +700,14 @@ enum Doctor {
     // MARK: text
 
     private static func render(_ sections: [ReportSection], _ c: Context) -> String {
-        let macos = c.facts.macos ?? "?", pid = int(c.app, "pid").map { ", pid \($0)" } ?? ""
+        let macos = c.facts.macos ?? "?", pid = c.pid.map { ", pid \($0)" } ?? ""
         var out = "riskell doctor: macOS \(macos), \(c.facts.arch)\(pid) · \(stamp(c.generated))\n"
         for s in sections {
             out += "\n\(s.title)\n"
             let width = min(22, max(10, s.checks.map(\.label.count).max() ?? 10))
             for row in s.checks {
                 out += "  \(mark(row.severity))  \(padded(row.label, width))\(row.detail)\n"
-                if let fix = row.fix, row.severity != .ok, row.severity != .info { out += "      fix: \(fix)\n" }
+                if let fix = row.fix, row.severity != .ok { out += "      fix: \(fix)\n" }
             }
         }
         return out
@@ -684,8 +739,8 @@ enum Doctor {
             ("generatedAt", .text(iso(c.generated))),
             ("platform", .object([("macos", .text(c.facts.macos ?? "")), ("arch", .text(c.facts.arch))])),
             ("running", .object([
-                ("pid", int(c.app, "pid").map { JSON.number($0) } ?? .null),
-                ("version", str(c.app, "version").map { JSON.text($0) } ?? .null),
+                ("pid", c.pid.map { JSON.number($0) } ?? .null),
+                ("version", c.version.map { JSON.text($0) } ?? .null),
                 ("socket", .text(c.short(c.paths.socket()))),
             ])),
             ("ok", .flag(!failed)),
@@ -760,9 +815,10 @@ enum Doctor {
 
     // MARK: the bundle
 
-    /// One redacted report: `report.json`, `log.txt` (the last 200 lines under a header that says what is left out), as a tar.gz in DIR.
-    /// Nothing is written anywhere else, and nothing outside DIR is touched.
-    private static func writeBundle(_ dir: String, json: String, _ c: Context) throws -> URL {
+    /// One redacted report in DIR: `report.json` (the report's own object, with every string a bundle may not carry taken out) and
+    /// `log.txt` (the last 200 lines under a header that says what is left out), as a tar.gz. Nothing is written outside DIR. The report
+    /// comes in as text so a test can hand it one of its own.
+    static func writeBundle(_ dir: String, json: String, log: [String], home: String, generated: Date) throws -> URL {
         let fm = FileManager.default
         let root = URL(fileURLWithPath: (dir as NSString).expandingTildeInPath, isDirectory: true)
         try fm.createDirectory(at: root, withIntermediateDirectories: true)
@@ -771,9 +827,9 @@ enum Doctor {
         let stage = root.appendingPathComponent(name)
         try fm.createDirectory(at: stage, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: stage) }
-        try json.write(to: stage.appendingPathComponent("report.json"), atomically: true, encoding: .utf8)
-        var text = header(c.generated) + "\n"
-        for line in c.log.suffix(200) { text += redact(line, home: c.paths.home.path) + "\n" }
+        try redactedJSON(json, home: home).write(to: stage.appendingPathComponent("report.json"), atomically: true, encoding: .utf8)
+        var text = header(generated) + "\n"
+        for line in log.suffix(200) { text += redact(line, home: home) + "\n" }
         try text.write(to: stage.appendingPathComponent("log.txt"), atomically: true, encoding: .utf8)
         let tarball = root.appendingPathComponent(name + ".tar.gz")
         guard Detect.run("/usr/bin/tar", ["-czf", tarball.path, "-C", root.path, name], quiet: true) != nil else {
@@ -798,14 +854,22 @@ enum Doctor {
     /// removes the line, and the debug lines that print window or app names do too.
     static func redact(_ line: String, home: String) -> String {
         let lower = line.lowercased()
-        for word in ["secret", "token", "cookie", "password", "passphrase", "ssid", "bssid", "city", "coordinate", "weather", "lat=", "lon="]
-        where lower.contains(word) {
+        if credentialWords.contains(where: { lower.contains($0) }) {
             return "[redacted: the line mentions a credential, a place or a network]"
         }
         for verb in ["overview:", "overview-state:", "overview-snap", "window-order", "center-focused:", "focus-other:", "focus-latency:", "click-other:", "edit-test", "pop-frame"] {
             if lower.hasPrefix(verb) { return "[redacted: \(verb) prints window or app names]" }
         }
-        var out = shorten(line, home: home)
+        return masked(shorten(line, home: home))
+    }
+
+    /// The words that make a log line, a report value or a key unfit for a bundle: a credential, a network name, a place.
+    private static let credentialWords = ["secret", "token", "cookie", "password", "passphrase", "ssid", "bssid", "city", "coordinate", "weather", "lat=", "lon="]
+
+    /// What a bundle takes out in place, wherever it appears: an OpenCode id, an `sk-` token, a long token or hash, an address, a pair of
+    /// coordinates, a MAC.
+    private static func masked(_ text: String) -> String {
+        var out = text
         out = replacing(out, #"\bwrk_[A-Za-z0-9]{6,}"#, "wrk_<redacted>")
         out = replacing(out, #"\bsk-[A-Za-z0-9_\-]{8,}"#, "<redacted>")
         out = replacing(out, #"\b[A-Za-z0-9+/_\-]{24,}={0,2}\b"#, "<redacted>")     // a token or a hash
@@ -813,6 +877,41 @@ enum Doctor {
         out = replacing(out, #"-?\b\d{1,3}\.\d+,\s*-?\d{1,3}\.\d+\b"#, "<coordinates>")
         out = replacing(out, #"\b([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}\b"#, "<address>")
         return out
+    }
+
+    /// The report as a bundle carries it: the same object with the home folder written `~` and every token, id, address or credential taken
+    /// out of its strings. It walks the JSON rather than the report's own fields, so a value that came from the app is covered too.
+    static func redactedJSON(_ text: String, home: String) -> String {
+        guard let data = text.data(using: .utf8), let any = try? JSONSerialization.jsonObject(with: data) else {
+            return redact(text, home: home)      // not a report: one line, treated like a log line
+        }
+        return walked(any, home: home).rendered() + "\n"
+    }
+
+    /// One JSON value with every string put through `safe`. A key is kept (the report's ids are the shape it is read with) and a value
+    /// under a key that names a credential is replaced whole, the way a log line that mentions one is dropped whole.
+    private static func walked(_ any: Any, home: String) -> JSON {
+        if let object = any as? [String: Any] {
+            return .object(object.keys.sorted().map { key in
+                if credentialWords.contains(where: { key.lowercased().contains($0) }) {
+                    return (key, JSON.text("[redacted: the value under this key is left out]"))
+                }
+                return (key, walked(object[key]!, home: home))
+            })
+        }
+        if let list = any as? [Any] { return .list(list.map { walked($0, home: home) }) }
+        if let text = any as? String { return .text(safe(text, home: home)) }
+        return JSON.value(any)
+    }
+
+    /// One string of a bundle's report: the home folder as `~`, the masks above, and a value that mentions a credential or a place replaced
+    /// whole, because a report has no line to drop it from.
+    static func safe(_ value: String, home: String) -> String {
+        let lower = value.lowercased()
+        if credentialWords.contains(where: { lower.contains($0) }) {
+            return "[redacted: the value mentions a credential, a place or a network]"
+        }
+        return masked(shorten(value, home: home))
     }
 
     /// A path as the report prints it, anywhere in a line: the home folder becomes `~`, so no report carries a user name or a folder
@@ -830,15 +929,82 @@ enum Doctor {
 
     // MARK: probes this report adds
 
-    /// Asks the running bars for the state only they know: the `doctor` word over the event socket, at most a second. nil when nothing
-    /// answers (not running, a build older than this check, or a socket that is there but dead).
-    static func ask(_ paths: Paths) -> [String: Any]? {
-        let socket = paths.socket()
-        guard FileManager.default.fileExists(atPath: socket.path) else { return nil }
-        guard let out = Detect.run("/bin/sh", ["-c", "printf doctor | /usr/bin/nc -U -w 1 " + quoted(socket.path)], quiet: true),
-              let data = out.data(using: .utf8),
-              let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
-        return obj
+    /// What asking the socket for the `doctor` word produced: the answer, or which way it was missing. The ways apart matter, because a
+    /// build older than this report says nothing while a dead one refuses the connection.
+    enum SocketAnswer {
+        case answered([String: Any])
+        case silent
+        case refused
+        case missing
+    }
+
+    /// Asks the running bars for the state only they know: the `doctor` word over the event socket, at most a second, without a shell.
+    static func ask(_ paths: Paths) -> SocketAnswer {
+        let path = paths.socket().path
+        guard FileManager.default.fileExists(atPath: path) else { return .missing }
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { return .refused }
+        defer { close(fd) }
+        var address = sockaddr_un()
+        address.sun_family = sa_family_t(AF_UNIX)
+        _ = withUnsafeMutablePointer(to: &address.sun_path) {
+            $0.withMemoryRebound(to: CChar.self, capacity: 104) { strncpy($0, path, 103) }
+        }
+        let length = socklen_t(MemoryLayout<sockaddr_un>.size)
+        let connected = withUnsafePointer(to: &address) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, length) } }
+        guard connected == 0 else { return .refused }
+        var timeout = timeval(tv_sec: 1, tv_usec: 0)      // one second at most: this runs in front of a person
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+        var one: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
+        let word = Array("doctor".utf8)
+        guard word.withUnsafeBytes({ write(fd, $0.baseAddress!, word.count) }) == word.count else { return .silent }
+        var buffer = [UInt8](repeating: 0, count: 64 * 1024), answer = Data()
+        while true {
+            let n = read(fd, &buffer, buffer.count)
+            if n <= 0 { break }
+            answer.append(contentsOf: buffer[0..<n])
+        }
+        guard !answer.isEmpty, let object = (try? JSONSerialization.jsonObject(with: answer)) as? [String: Any] else { return .silent }
+        return .answered(object)
+    }
+
+    /// The agent as launchd sees it: the pid it holds and the program it started. One `launchctl print`, no socket and no waiting.
+    static func agent(label: String) -> Agent {
+        guard let report = Detect.run("/bin/launchctl", ["print", "gui/\(getuid())/\(label)"], quiet: true) else {
+            return Agent(pid: nil, program: nil)
+        }
+        var pid: Int? = nil, program: String? = nil
+        for line in report.split(separator: "\n") {
+            if pid == nil, line.hasPrefix("\tpid = ") { pid = Int(line.dropFirst("\tpid = ".count)) }
+            if program == nil, line.hasPrefix("\tprogram = ") { program = String(line.dropFirst("\tprogram = ".count)) }
+        }
+        return Agent(pid: pid, program: program)
+    }
+
+    /// The version an app bundle reports, read from the program inside it (`.../riskell.app/Contents/MacOS/riskell` reads that bundle's
+    /// CFBundleShortVersionString). A release binary outside a bundle has none.
+    static func bundleVersion(_ program: String) -> String? {
+        var url = URL(fileURLWithPath: program).deletingLastPathComponent()
+        while url.path != "/" {
+            if url.pathExtension == "app" {
+                guard let data = try? Data(contentsOf: url.appendingPathComponent("Contents/Info.plist")),
+                      let any = try? PropertyListSerialization.propertyList(from: data, format: nil),
+                      let plist = any as? [String: Any],
+                      let version = plist["CFBundleShortVersionString"] as? String, !version.isEmpty else { return nil }
+                return version
+            }
+            url = url.deletingLastPathComponent()
+        }
+        return nil
+    }
+
+    /// The checkout's VERSION: the number the build writes into Build.version and `scripts/risk` into the bundle's Info.plist.
+    static func checkoutVersion(_ repo: URL?) -> String? {
+        guard let repo else { return nil }
+        let text = (try? String(contentsOf: repo.appendingPathComponent("VERSION"), encoding: .utf8)) ?? ""
+        let version = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return version.isEmpty ? nil : version
     }
 
     /// The macOS Spaces on the main display: a window manager drives one desktop, so a second one makes windows jump between them.
@@ -876,8 +1042,19 @@ enum Doctor {
 
     // MARK: small helpers
 
-    private static func notRunning(_ id: String, _ label: String) -> ReportCheck {
-        ReportCheck(id: id, label: label, severity: .info, detail: "riskell is not running", source: .app)
+    /// A row only the running app can answer, with nothing to print: `riskell is not running` when there is no socket to ask, and the
+    /// older app's own reason when a socket is there and silent. A missing answer is never a warning: it is not a broken install.
+    private static func noAnswer(_ c: Context, _ id: String, _ label: String) -> ReportCheck {
+        switch c.socket {
+        case .missing, .refused:
+            return ReportCheck(id: id, label: label, severity: .info, detail: "riskell is not running", source: .app)
+        case .silent:
+            return ReportCheck(id: id, label: label, severity: .info,
+                               detail: "not visible: the running app predates this report", source: .file)
+        case .answered:
+            return ReportCheck(id: id, label: label, severity: .info,
+                               detail: "the running app did not report this", source: .app)
+        }
     }
 
     /// Whether riskell owns the trackpad gestures: the app's setting when it answers, else the one in config.json.
@@ -954,8 +1131,6 @@ enum Doctor {
     private static func uid() -> String {
         Detect.run("/usr/bin/id", ["-u"])?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "501"
     }
-
-    private static func quoted(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'" }
 
     static func stamp(_ date: Date) -> String {
         let f = DateFormatter()
