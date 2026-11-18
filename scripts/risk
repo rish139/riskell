@@ -162,7 +162,8 @@ case ${1:-} in
             if ! launchctl print $dom/$label >/dev/null 2>&1; then write_plist; reload; echo "no agent was running: installed one"
             elif ! grep -qF "$app/Contents/MacOS/riskell" $plist 2>/dev/null; then write_plist; reload; echo "moved the agent into the app bundle"
             else launchctl kickstart -k $dom/$label; echo restarted; fi ;;
-  log)      if [[ -n $2 ]]; then tail -n $2 $HOME/.cache/riskell/riskell.log; else tail -f $HOME/.cache/riskell/riskell.log; fi ;;
+  log)      with_ext log "${@:2}" ;;   # the last few lines of the agent's log, or follow it: --follow, --json
+  ctl)      with_ext ctl "${@:2}" ;;   # the socket words as commands, so scripting does not start with nc -U: ctl --list
   ext)      tool=$root/.build/release/riskell-ext      # validate | new | add | remove | list | sync: see docs/WRITING-EXTENSIONS.md
             [[ -x $tool ]] || swift build -c release --product riskell-ext --package-path $root >/dev/null || exit 1
             RISKELL_ROOT=$root $tool "${@:2}" && exit 0 || rc=$?
