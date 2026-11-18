@@ -31,15 +31,11 @@ verified, move it to the "Verified" list with the date, the macOS version and th
 ### Placement and preferences
 | Item | What to try | Why it is unverified |
 |---|---|---|
-| **Services follow placement, live** (`Services/Needs.swift`) | In riskell preferences remove the weather atom from every bar, then `risk log` and Activity Monitor: no weather request, no timer. Place it again: the forecast returns. Repeat with Network (the Location prompt appears only once it is placed) and AI usage (the local log read). | Tested at launch with scratch layouts (`riskell --dump` lists the running services) and by build; a drag in the real editor was not driven, because synthetic mouse input is not used on a running bar. Stopping and restarting Wi-Fi monitoring and the Sys battery listener in one session was never run. |
+| **Services follow placement, live** | In riskell preferences remove the weather atom from every bar, then `risk log` and Activity Monitor: no weather request, no timer. Place it again: the forecast returns. Repeat with Network (the Location prompt appears only once it is placed) and AI usage (the local log read). | Tested at launch with scratch layouts (`riskell --dump` lists the running services) and by build; a drag in the real editor was not driven, because synthetic mouse input is not used on a running bar. Stopping and restarting Wi-Fi monitoring and the Sys battery listener in one session was never run. |
 | **EXTENSIONS card** | `risk ext add Examples/load-ext`, open riskell preferences, press the − / + and On chips; the Load atom changes at once and `~/.config/riskell/ext/load-ext.json` holds the values. | The card was drawn (`--settings`), and the write and rebuild are covered by `riskell --ext-selftest`; the click path was not driven. |
-
 | **Weather and AI usage as packages** | Place weather and AI usage, change `location` in `config.json` while running, and toggle `usage.claude`; the atoms follow without a restart. | Weather was run live in a scratch instance (fetch, and a location change refetching); usage was checked only with `--fake-usage`, never against real Claude Code logs. The weather glyphs now take `Pal.font` instead of the system font: layout matched, but day and night glyphs were compared on different data. |
-
 | **Battery, CPU and fans as a package** | `risk dev`, then hover each of the three and open the CPU card (search, kill a process, right-click the CPU figure for Activity Monitor); unplug and plug the charger; check the fan card's live reading. Remove all three from every bar and confirm in Activity Monitor that riskell stops waking. | Compared with the built-in versions on identical layouts (bars and cards matched apart from live numbers) and run in scratch instances only. The weather-style real-data comparison, charger events and a process kill were not exercised. Idle CPU was noisy on a busy machine (0.25 to 0.35 s per 30 s for the full layout, as before). |
-
 | **Volume and network as packages** | `risk dev`, then: scroll over the volume atom (steps 1 % per 6 px of trackpad), right-click mutes, open the mixer and watch the meters move; open the network card (every tab: Wi-Fi, Bluetooth, Ethernet, VPN), connect and disconnect a Bluetooth device, and on a build that has not been granted Location, grant it and check riskell restarts and shows the network name. | Compared with the built-in versions on scratch instances (bars and cards matched, apart from live audio streams and devices). The mixer meters now tick from a SwiftUI timeline at 0.125 s instead of a `Timer`, the Location restart goes through `KitHost.app`, and neither was exercised on real hardware. |
-
 | **Workspaces and the app icon as a package** | `risk dev`, then: click, swipe and middle-click on the rail; hover to open the card, drag a tile to another workspace and to the `+` slot, right-click a tile to close it; focus a window and watch the app icon; switch the window manager (yabai, AeroSpace, command, none). | Compared with the built-in versions on a scratch instance (the rail, the icon and the card matched, apart from live text); the drag and drop, the swipe following and the other window managers were not exercised. The actions go through the kit's `WindowActions`. |
 
 ### Storefront
@@ -56,7 +52,7 @@ verified, move it to the "Verified" list with the date, the macOS version and th
 | Item | What to try | Why it is unverified |
 |---|---|---|
 | Other display modes / Mac models | Switch to another scaled mode (a stock 14" is about 1512 x 982) and restart; check bars, cards, the top bar beside the notch. Also a 13", a 16", an external monitor with no notch. | Only forced scale factors were tested, on one screen. |
-| System preference writes on macOS 26 (`riskell --gestures-fix --yes`, `--gestures-restore --yes`, docs/GESTURES.md) | On a machine where the 3-finger gestures are on: `--gestures-fix` (dry run first), then `--yes`; confirm the gestures stop, then `--gestures-restore --yes` and confirm they come back. Check whether the trackpad keys need a logout and the Dock keys a `killall Dock`. | Only a throwaway suffix domain was written (test values read back). The real trackpad and Dock domains were never written. Unknown: whether System Settings keeps a second copy per host (ByHost) that `--gestures-fix` does not write, and whether the trackpad keys apply without a logout. |
+| System preference writes on macOS 27.2 (`riskell --gestures-fix --yes`, `--gestures-restore --yes`, docs/GESTURES.md) | On a machine where the 3-finger gestures are on: `--gestures-fix` (dry run first), then `--yes`; confirm the gestures stop, then `--gestures-restore --yes` and confirm they come back. Check whether the trackpad keys need a logout and the Dock keys a `killall Dock`. | Only a throwaway suffix domain was written (test values read back). The real trackpad and Dock domains were never written. Unknown: whether System Settings keeps a second copy per host (ByHost) that `--gestures-fix` does not write, and whether the trackpad keys apply without a logout. |
 | Live screen change (plug in or unplug a monitor, change resolution) | Plug in an external monitor and unplug it; the bars must re-fit within about a second, with no leftover panels. Check the top bar's notch gap again after a mode change. | The observer and `relayout()` (main.swift) were written but never fired on a real change: the test needs a physical or virtual display change. |
 | No-notch top bar (stand-in gap, below the menu bar) | On an external monitor: the top bar sits under the menu bar's strip, the centre gap is empty and cards from the top bar open below it. | Snapshots only. Top-bar cards (Popout.swift `place`, the `f.maxY - Real.band` offset) do not yet subtract the menu bar inset, so they sit about 24 pt high there. The stand-in gap is drawn as a black cutout. |
 | Wing fit on real content | Put long app names (the app icon atom shows the full name) and many islands on the top bar at 1512 and at 2268; check the start wing shrinks, then drops islands by priority, and the compat pill stays. | `--check-fit` measures the snapshot's state (the app icon's width depends on the focused window, so the natural width varies between runs). A 600 pt wide fake screen overflows (the compat pill cannot be dropped) and shows it. |
@@ -71,26 +67,12 @@ verified, move it to the "Verified" list with the date, the macOS version and th
 | Card open/close springs and the strip island float | Judged by eye on the author's display only. |
 | Esc / q closing the editor, the edit backdrop | Confirmed by the author on one machine. |
 
-## Verified
-
-### Public release (2026-11-17)
-- A clone of the tag `v0.1.0` with no credentials builds and passes the installer self-test (the kit is fetched anonymously).
-- The registry on GitHub Pages serves `index.json` and the storefront page, `risk ext search` reads it by default, and the app CI passes on a macOS runner.
-- `brew tap rish139/riskell && brew install riskell` builds and installs the release from source (46 s) and links `risk`; the formula pins the v0.1.0 tarball.
-| Item | Date | Where |
-|---|---|---|
-| Script pills: text and JSON output, hover card, click, file watch | 2026-11-16 | macOS 27.2 (26B123), author's machine |
-| Live config reload, theme switching, drop-in scheme files | 2026-11-16 | same |
-| Chat-style cards on all four bars, strip island float, battery centring | 2026-11-16 | same |
-| Layout editor: outlines, backdrop, Esc / q, tray, theme picker | 2026-11-16 | same |
-| OmniWM backend (the daily driver) | ongoing | same |
-
 ### Added 2026-11-16 (after the geometry, gestures, pills and installer merges)
-| Item | What to try | Why it is unverified |
+
 |---|---|---|
 | Picture-in-Picture detection (event-driven) | Open a real PiP window (Safari, Orion, Chrome) over the bottom bar and the right edge; drag it across the bars; close it. The bar should drop under it within a click or about 5 s, follow it, and come back. | Tested only with a fake window titled "Picture in Picture" on a second instance. |
 | Top bar wing-fit on a real crowded bar | Drag many widgets onto the top bar; the lowest-priority islands should drop and the rest shrink to at most 20 %, never overlapping the notch. | `--check-fit` is numeric; never watched on the live bar. |
-| Collapsible settings panel, SPACING & SIZE card (edge gap, window gap, corner roundness live; scale on restart) | Fold and unfold cards; change each value and watch the bars and OmniWM's gaps follow; set `"scale": 1.5` or `2` and open the editor: it must fit the screen. | Checked by `--check-panel` and snapshots; not by hand. Corner roundness on the strips needs a restart. |
+| Collapsible cards in riskell preferences, SPACING & SIZE among them (edge gap, window gap, corner roundness live; scale on restart) | Fold and unfold cards; change each value and watch the bars and OmniWM's gaps follow; set `"scale": 1.5` or `2` and open the editor: it must fit the screen. | Checked by `--check-panel` and snapshots; not by hand. Corner roundness on the strips needs a restart. |
 | Live display change (plug a monitor, change the display mode) | With riskell running, change the scaled mode in System Settings; bars should re-fit within a second. | The observer has never been fired by a real change. |
 | Rich and streaming pills on the live bar | A `stream` pill, a `values` pill and a `history` sparkline; remove the pill from the layout and confirm its process is gone (`pgrep`). | Verified on a second instance only; the layout file is not live-reloaded, so removing a pill from the layout only stops its process after a restart. |
 | Gestures election live | Flip `"gestures"` between `system` and `riskell` in config.json with riskell running; swipe, overview; conflict pills. | Verified by log lines, not by real touches. |
@@ -98,3 +80,20 @@ verified, move it to the "Verified" list with the date, the macOS version and th
 | Minimum macOS version | Run on macOS 14 and 15. | `Package.swift` says macOS 14; only the author's macOS 27.2 build has ever run it. |
 | Guided installer in a real terminal | `./install.sh` in a fresh user account; check the glyphs (check marks, battery cells) in the terminal's font, and the launchd step. | Only snapshots, a pseudo-terminal test and a scratch home were used. |
 | `--uninstall` and `--check` modes | Run them after a real install. | Not run against a real launch agent. |
+
+## Verified
+
+### Public release (2026-11-17)
+- A clone of the tag `v0.1.0` with no credentials builds and passes the installer self-test (the kit is fetched anonymously).
+- The registry on GitHub Pages serves `index.json` and the storefront page, `risk ext search` reads it by default, and the app CI passes on a macOS runner.
+- `brew tap rish139/riskell && brew install riskell` builds and installs the release from source (46 s) and links `risk`; the formula pinned the v0.1.0 tarball at the time of the test (it now pins v0.1.2).
+
+### Previously verified
+
+| Item | Date | Where |
+|---|---|---|
+| Script pills: text and JSON output, hover card, click, file watch | 2026-11-16 | macOS 27.2 (26B123), author's machine |
+| Live config reload, theme switching, drop-in scheme files | 2026-11-16 | same |
+| Chat-style cards on all four bars, strip island float, battery centring | 2026-11-16 | same |
+| Layout editor: outlines, backdrop, Esc / q, tray, theme picker | 2026-11-16 | same |
+| OmniWM backend (the daily driver) | ongoing | same |

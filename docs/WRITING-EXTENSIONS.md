@@ -12,6 +12,11 @@ risk ext validate <dir>        check it             risk ext remove <id> | list 
 `scripts/risk`). `risk ext` runs a small tool that is built with the app on first use. `add` and `remove` change `extensions.lock.json`,
 regenerate the import list, rebuild and restart riskell. A clean build takes about 35 seconds.
 
+**Contents:** [Which kind](#which-kind) · [A reading](#a-reading) ·
+ [An atom that draws itself](#an-atom-that-draws-itself) ·
+ [The rules](#the-rules-the-validator-checks-the-ones-a-machine-can) · [Settings](#settings) ·
+ [Check, try, share](#check-try-share) · [Trust](#trust)
+
 ## Which kind?
 
 | You want | Kind | Build |
@@ -20,7 +25,7 @@ regenerate the import list, rebuild and restart riskell. A clean build takes abo
 | colours | **theme** (`docs/THEMES.md`) | none, live |
 | a figure, gauge and hover card from Swift | **reading** | yes |
 | your own drawing | **atom** | yes |
-| a background capability | **behaviour** | yes, reviewed |
+| a background capability | **behaviour** | yes, but not open to third parties yet |
 
 Choose the first one that fits. A `reading` looks exactly like a built-in atom with no layout code to get wrong; an `atom` is for the
 cases that need their own drawing.

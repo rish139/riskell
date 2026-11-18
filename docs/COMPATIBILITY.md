@@ -4,8 +4,15 @@ riskell sits on things it does not own: private macOS frameworks, OmniWM's IPC a
 Any of them can change under an update and break riskell quietly. This file is the record of **what the dependencies are, every custom
 setting and why, the decisions and measurements behind them, and the checklist to run after macOS or OmniWM updates.**
 
-Last verified: **macOS 27.2 (26B123), OmniWM 0.8.0 (protocol 22, build bf118cca)**, 2026-11-15. These are the constants in
-`Sources/riskell/Services/Compat.swift` (`Compat.Verified`).
+Last verified: **macOS 27.2 (26B123), OmniWM 0.8.0 (IPC protocol 22)**, 2026-11-15. The macOS and OmniWM versions are the constants in
+`Sources/riskell/Services/Compat.swift` (`Compat.Verified`); the protocol number is `Omni.protocolVersion`.
+
+**Contents:** [Version tracker](#1-the-version-tracker-built-in) ·
+ [Dependencies](#2-dependencies-that-can-break-on-an-update) ·
+ [Custom settings](#3-custom-settings-what-differs-from-stock-and-why) ·
+ [The swipe](#4-the-3-finger-workspace-swipe-what-was-measured-and-what-was-decided) ·
+ [Worth knowing](#5-other-things-worth-knowing) ·
+ [Update checklist](#6-checklist-after-a-macos-or-omniwm-update-when-the-pill-says-update-due)
 
 ## 1. The version tracker (built in)
 
@@ -59,7 +66,7 @@ first, before riskell touched anything), `settings.toml.bak-sens8` (sensitivity 
 | `general.ipcEnabled` | **true** | riskell's whole connection to OmniWM. **Enforced.** |
 | `general.updateChecksEnabled` | false | the user updates deliberately; the tracker is the reminder |
 | `general.defaultLayoutType` | "dwindle" | the Hyprland-style layout (stock is "niri") |
-| `gaps.outer` top / left / bottom / right | **56 / 58 / 50 / 6** with the left strip, bottom bar on and the right bar off | room for the bars that are on. **riskell writes these itself** (`Services/Gaps.swift`, when a bar is switched on or off in the settings panel; first change backs the file up as `settings.toml.bak-riskell-gaps`; OmniWM applies it live, measured within 1 s). A bar that is on takes strip 52 + 6 (left / right) or 50 (bottom), a bar that is off leaves the plain 6 px margin; top is always 56. The version pill shows FIX if the file disagrees. If `Frame.swift`'s geometry `G` changes, change `Config.gap*` |
+| `gaps.outer` top / left / bottom / right | **56 / 58 / 50 / 6** with the left strip, bottom bar on and the right bar off | room for the bars that are on. **riskell writes these itself** (`Services/Gaps.swift`, when a bar is switched on or off in riskell preferences; first change backs the file up as `settings.toml.bak-riskell-gaps`; OmniWM applies it live, measured within 1 s). A bar that is on takes strip 52 + 6 (left / right) or 50 (bottom), a bar that is off leaves the plain 6 px margin; top is always 56. The version pill shows FIX if the file disagrees. If `Frame.swift`'s geometry `G` changes, change `Config.gap*` |
 | `gaps.size` | 7.0 | inner gap |
 | `gaps.fullscreenUsesOuterGaps` | true | OmniWM "fullscreen" keeps the bars visible |
 | `focus.followsMouse` | true | |

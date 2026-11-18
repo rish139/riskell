@@ -3,7 +3,7 @@
 This agreement is based on the structure of the Apache Software Foundation's Individual Contributor License Agreement. It is not legal
 advice, and it should be reviewed by a lawyer before riskell is used commercially.
 
-**Scope.** This agreement applies only to contributions to the part of the repository that is licensed under the PolyForm Noncommercial
+**Scope.** This agreement applies only to contributions to the part of the repository that is licensed under the Functional Source
 License (the application, its scripts and its documentation). It is not needed for contributions to the Apache-2.0 parts (`Sources/riskell-ext/`,
 `schemas/`, `Examples/`, and the separate RiskellKit repository), which are accepted under Apache-2.0 as that license provides, and it is never needed to
 publish an extension, which stays in its own repository under its author's license.

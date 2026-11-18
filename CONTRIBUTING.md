@@ -1,6 +1,6 @@
 # Contributing to riskell
 
-riskell is a native macOS app that draws the bars for a Mac window manager (OmniWM). Read `README.md` for what it does and
+riskell is a native macOS app that draws the bars for a window manager (OmniWM by default; a window manager is optional). Read `README.md` for what it does and
 `docs/BARS.md` for how the bars and atoms fit together.
 
 ## Building
@@ -13,7 +13,7 @@ swift build -c release
 
 The binary is `.build/release/riskell`.
 
-## Running it as an agent
+## Running it as a launch agent
 
 `scripts/risk` runs the release build from your checkout as a launch agent (it starts at login and restarts if it dies):
 
@@ -41,7 +41,7 @@ RISKELL_CONFIG="$scratch/config.json" RISKELL_LAYOUT="$scratch/layout.json" \
   --snap "$scratch/out" --stay 6
 ```
 
-It writes `left.png`, `top.png` and `bottom.png` into the output folder. `--no-reserve` is required for a second instance: without
+It writes `left.png`, `top.png`, `bottom.png` and `right.png` into the output folder. `--no-reserve` is required for a second instance: without
 it the instance rewrites OmniWM's gaps for the live bars. `scripts/orient-snap` wraps this for one atom on one bar (see `docs/BARS.md`).
 
 ## Licences and the CLA
@@ -52,7 +52,7 @@ What a contribution needs depends on where it goes:
 |---|---|
 | An **extension** (a pill, a theme, a reading or an atom) | None. It lives in its own repository under its author's license and is never merged into this one. |
 | The **Apache-2.0 parts**: `Sources/riskell-ext`, `schemas`, `Examples`, and the separate RiskellKit repository | None. Contributions are accepted under Apache-2.0, as section 5 of that license provides. No sign-off is required. |
-| The **application** (everything else, PolyForm Noncommercial) | The [CLA](CLA.md), signed once with a comment on the first pull request. Copyright stays with the contributor. The agreement exists only so that the application can also be offered under commercial licenses. |
+| The **application** (everything else, FSL-1.1-MIT) | The [CLA](CLA.md), signed once with a comment on the first pull request. Copyright stays with the contributor. The agreement exists only so that the application can also be offered under commercial licenses. |
 
 A pull request that touches only the Apache-2.0 parts is not checked for the CLA.
 

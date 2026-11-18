@@ -1,13 +1,15 @@
 # config.json
 
-riskell's settings file is `~/.config/riskell/config.json` (`RISKELL_CONFIG` points a second instance at another one). It is watched and applied live, except `wm`, which needs `risk restart`. A missing file means the defaults; a file that is not valid JSON is ignored until it is valid again. The layout (which atom is on which bar) lives in `layout.json`, not here.
+riskell's settings file is `~/.config/riskell/config.json` (`RISKELL_CONFIG` points a second instance at another one). It is watched and applied live, except `wm`, `scale` and `disabledExtensions`, which are read at launch. A missing file means the defaults; a file that is not valid JSON is ignored until it is valid again. The layout (which atom is on which bar) lives in `layout.json`, not here.
 
 ## The keys
 
 | Key | Meaning |
 |---|---|
-| `wm` | Window manager: `"auto"` (default), `"omniwm"`, `"yabai"`, `"none"` or `"command"`. |
-| `theme` | Colour scheme id (bundled or a file in `themes/`). The editor's theme picker writes it. |
+| `wm` | Window manager: `"auto"` (default), `"omniwm"`, `"yabai"`, `"aerospace"`, `"none"` or `"command"`. |
+| `theme` | Colour scheme id (bundled or a file in `themes/`). The editor's theme picker writes it. Applies live. |
+| `gestures` | `"off"` (default) or `"riskell"` for the three-finger swipe, the overview swipe and the scroll guard. Needs the Accessibility permission. See [GESTURES](GESTURES.md). |
+| `display` | Which screen the bars live on: `"auto"` (default), `"main"`, `"primary"` or a screen name. |
 | `scale` | Layout scale. Absent = automatic from the bar's height. Applies on restart. `RISKELL_SCALE` overrides it. |
 | `spacing` | Edge gap, window gap and corner roundness (below). Absent = the defaults. Applies live. |
 | `disabledExtensions` | A list of ids of installed extensions (as `risk ext list` prints them) that must not load, for example `["gpu-load"]`. Read at launch: restart after changing it. The way back from an extension that misbehaves. |

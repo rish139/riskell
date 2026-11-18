@@ -25,6 +25,9 @@ A pill can also live in its own file: put `*.json` files in `~/.config/riskell/p
 | `click` | a command run when the pill is clicked; a `run` pill refreshes afterwards |
 | `history` | how many of the pill's own `value`s riskell remembers for a sparkline, 8 to 120 (clamped) |
 
+**Contents:** [What the command prints](#what-the-command-prints) · [Examples](#examples) ·
+ [Rules it keeps](#rules-it-keeps)
+
 ## What the command prints
 
 Either **plain text**: the first line is the pill's text, any further lines become the hover card:

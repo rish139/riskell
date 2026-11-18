@@ -3,6 +3,15 @@
 How the bars are put together, how the layout is stored and changed, and the rules every atom follows so it can sit on any bar.
 (Compatibility with OmniWM / macOS is in `COMPATIBILITY.md`; this file is about riskell's own bars.)
 
+**Contents:** [The four bars](#the-four-bars) · [Atoms](#atoms) ·
+ [The layout model](#the-layout-model-layoutswift) ·
+ [riskell preferences](#edit-mode-and-riskell-preferences-editmodeswift) ·
+ [Switching bars, and gaps](#switching-bars-on-and-off-and-omniwms-gaps) ·
+ [Popouts](#cards-that-stay-between-the-bars-popoutplace) ·
+ [Card style](#card-style-flush-or-chat-chatcardswift) · [Snapshots](#snapshot-harness-scriptsorient-snap) ·
+ [Known gaps](#known-gaps) · [Scale](#scale) · [Spacing](#spacing-and-window-gaps) ·
+ [Panel size](#the-layout-panels-size)
+
 ## The four bars
 
 | Bar | Shape | Zones | Notes |
@@ -53,23 +62,22 @@ Saved to **`~/.config/riskell/layout.json`** (riskell's own file), debounced 0.3
 file. On load the file is validated: unknown atoms and atoms already placed (first wins, in the order top, bottom, left, right) are dropped, empty islands
 removed, the `compat` island forced to the top bar's start. A file from before the right bar existed loads fine. Delete the file to get the defaults.
 
-## Edit mode and the settings panel (`EditMode.swift`)
+## Edit mode and riskell preferences (`EditMode.swift`)
 
 Open with **ctrl-alt-,** or `printf settings | nc -U ~/.cache/riskell/ev.sock`. Opening turns edit mode on; **Done**, **Esc** or a plain **q** turns it off
 (the panel takes keys while it is open; `SettingsPanel.closesEditor` is the rule, `riskell --key-test` checks it).
-- The panel: a header (Layout, esc hint, Done), then cards BARS, THEME, WIDGETS (`Card` in EditMode.swift; `Pal.hoverFill`). It scales and fades in on open (0.15 s).
-
-- **Drag a pill** (dashed outline). Drop **on an island** = join it at the boundary nearest the pointer (this also reorders). Drop **anywhere else on a
+- The panel: a header (Layout, esc hint, Done), then cards BARS, THEME, SPACING & SIZE, WIDGETS, EXTENSIONS (`Card` in EditMode.swift; `Pal.hoverFill`). It scales and fades in on open (0.15 s).
+- **Drag an atom** (dashed outline). Drop **on an island** = join it at the boundary nearest the pointer (this also reorders). Drop **anywhere else on a
   bar** = a new island of its own, in the zone the pointer is in (thirds on the bottom bar, halves elsewhere), between the islands already there.
   An accent line shows the slot; an outline marks the island you would join. Dragging works across bars (screen coordinates).
   The rules are `Config.plan` / `Config.apply`: plain, no heuristics; an island left empty disappears.
-- **x** on a pill removes it; it appears under **Not on a bar** in the panel, with one button per bar to put it back (added as an island at the
+- **x** on an atom removes it; it appears under **Not on a bar** in the panel, with one button per bar to put it back (added as an island at the
   bar's end, switching that bar on if it was off).
-- Per bar: **On / Off** (a bar can be switched off only while it has no pills; the chip stays lit and nothing happens otherwise; the top bar has no
+- Per bar: **On / Off** (a bar can be switched off only while it has no atoms; the chip stays lit and nothing happens otherwise; the top bar has no
   switch), **Floating / Hug**. **Island gap** and **Reset layout**. An empty bar shows a dashed slot while editing.
-- Popouts are suppressed while editing; a pill's own taps are off (the drag layer sits on top).
+- Popouts are suppressed while editing; an atom's own taps are off (the drag layer sits on top).
 - While editing, a translucent veil (`EditBackdrop.swift`, the theme's `text1` at low opacity) covers the main screen. It sits just under the bars'
-  level: above windows, below the bars and the settings panel; it takes no clicks. It fades in and out in 0.15 s and is ordered out when editing ends.
+  level: above windows, below the bars and riskell preferences; it takes no clicks. It fades in and out in 0.15 s and is ordered out when editing ends.
 - A placed widget's dashed outline hugs it with a 3 pt gap. Horizontal atoms: outside, corner G.radius + 3 (concentric with the pill). Strip atoms: inside
   the atom's frame. The x is an 11 pt crit disc centred on the outline's top-right corner (brighter and larger under the pointer); it stays inside the bar.
 
@@ -108,7 +116,7 @@ x (`Config.notchAbs`) and converted per render, because the bar's left edge move
 ## Card style: flush or chat (`ChatCard.swift`)
 
 Each bar has a style for the cards that open from it (`Config.spill`, saved as `spill` in layout.json: `"fill"` or `"chat"`, per bar; absent or
-unknown = `fill`; set in the settings panel under each bar's Floating / Hug chips). **Flush** is everything above. **Chat** needs a floating bar (a
+unknown = `fill`; set in riskell preferences under each bar's Floating / Hug chips). **Flush** is everything above. **Chat** needs a floating bar (a
 hugged bar always uses flush, whatever is stored): the bar does not fill in, the card is a fully rounded card, and the island it belongs to goes solid and
 is joined to it by a short neck (`ChatCard.neck`) with a concave fillet (`ChatCard.flare`) at each end, so pill, neck and card are one silhouette.
 
@@ -146,7 +154,7 @@ Other debug aids: `--edit` (edit mode on in snapshots), `--edit-test` (drives `p
 - The vertical 24 h clock form is not visually confirmed (the harness could not force 24 h); the fan's MAX chip needs a live SMC maxRPM.
 - The top bar cannot be switched off (notch wings).
 - Overview tile geometry is driven by `leftW` / `rightW`; with both strips off the row simply uses the full width.
-- Memory: 41 MB fresh, ~64 MB after opening the overview (flat across repeats); one long session showed 227 MB (peak 588 MB), cause not found.
+- Memory: about 105 MB with the reference layout ([EFFICIENCY](EFFICIENCY.md)); one long session showed 227 MB (peak 588 MB), cause not found.
 
 ## Scale
 

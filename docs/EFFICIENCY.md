@@ -6,7 +6,7 @@ riskell runs all day, so what it costs at rest is a feature. The rules, what was
 - **Event-driven.** Kernel file events (config, themes, pills), sockets, notifications. A repeating timer needs a reason that is true right now.
 - **Off means nothing runs.** A pill that is on no bar runs no command. Gestures off start no event tap and no trackpad reader. A card that is
   closed is not built. A stream pill is one long-lived process, never polled. A built-in service (CPU and battery, thermals, weather, Wi-Fi, AI usage)
-  runs only while an atom that needs it is placed on a bar that is on (`Services/Needs.swift`). Measured with `scripts/idle-cpu`, two runs each, the same
+  runs only while an atom that needs it is placed on a bar that is on (`ExtensionHost.swift`'s `BarActivity`; `Services/Needs.swift` holds the table for the application's own services). Measured with `scripts/idle-cpu`, two runs each, the same
   binary: the author's full layout used 0.26 and 0.28 s of CPU over 30 s; the same layout with only the clock placed used 0.13 and 0.12 s.
 - **Setters ignore unchanged values**, so a reading that did not change redraws nothing.
 - **Measure, then change.** Every efficiency change is an A/B on the same binary with `scripts/idle-cpu` (three runs per variant) and a profile.
@@ -73,7 +73,7 @@ Compare variants of the same layout (for example without the clock) to find what
 ## Extension kit (2026-11-16)
 
 Splitting the design tokens, primitives and reading renderer into RiskellKit, and moving pills onto the kit's `Reading`:
-- **Pixels:** every bar, the pill cards, the battery and vitals cards and the settings panel match a build of `main` except for live data
+- **Pixels:** every bar, the pill cards, the battery and vitals cards and riskell preferences match a build of `main` except for live data
   (power draw, battery level, clock), which also differs between two runs of `main` itself.
 - **Idle CPU** (`scripts/idle-cpu` method, same scratch fixtures, CPU seconds over 30 s, three runs each): `main` 0.27, 0.31, 0.62 (the last
   was disturbed by other work on the machine); kit 0.37, 0.31, 0.34. No change at this method's noise (about 0.04 s).

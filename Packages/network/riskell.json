@@ -5,7 +5,7 @@
   "name": "Network",
   "version": "1.0.0",
   "kit": "^0.6",
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "FSL-1.1-MIT",
   "summary": "Wi-Fi or Ethernet state and throughput, with a card for interfaces, Bluetooth and VPN.",
   "module": "NetworkExt",
   "entry": "NetworkPackage",

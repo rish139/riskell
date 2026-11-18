@@ -1,65 +1,85 @@
+<div align="center">
+
 # riskell
 
-**A desktop shell framework for macOS.**
+### The desktop shell macOS doesn't ship.
 
-riskell provides the building blocks of a desktop shell (bars, hover cards, a workspace overview, riskell preferences (a layout editor), themes and window
-manager integration) in one native Swift application, together with an extension system for adding to them. Extensions are written by
-people or by their coding agents, checked by a command line validator, and shared as ordinary Swift packages.
+Bars, hover cards, a workspace overview, a layout editor and themes — one native Swift application,<br>
+no second runtime, and four ways to add your own, checked by a validator instead of a style guide.
 
-The project began as a port of a Quickshell setup from Linux. It works alongside a tiling window manager and does not replace one;
-[OmniWM](https://github.com/OmniNull/OmniWM) is the reference integration.
+<img src="docs/images/hero.png" width="880" alt="riskell on a 14-inch MacBook Pro: four bars around placeholder windows">
 
-![The shell on a 14-inch MacBook Pro: four bars around placeholder windows](docs/images/hero.png)
+<sub>The shell on a 14-inch MacBook Pro. The bars are snapshots of the running application; the windows between them are placeholders.</sub>
 
-*The shell on a 14-inch MacBook Pro. The bars are snapshots of the running application; the windows between them are placeholders.*
+<a href="#install">Install</a> ·
+<a href="#the-tour">The tour</a> ·
+<a href="#what-it-does">What it does</a> ·
+<a href="#how-it-is-built">How it's built</a> ·
+<a href="#extend-it">Extend it</a> ·
+<a href="#run-it">Run it</a> ·
+<a href="#what-is-tested">What's tested</a> ·
+<a href="#documentation">Docs</a>
 
-> **Status: early release (v0.1.2).** riskell is in daily use on one Mac. Other Macs, window managers and macOS versions are untested, and the
-> extension system is new. [What is tested and what is not](#what-is-tested-and-what-is-not) lists each case.
+<sub><code>v0.1.2</code> &nbsp;·&nbsp; early release, in daily use on one Mac &nbsp;·&nbsp; macOS 14+ &nbsp;·&nbsp; Apple silicon &nbsp;·&nbsp; FSL-1.1-MIT</sub>
 
-**Contents:**
-[Install](#install) ·
-[Features](#features) ·
-[The shell in pictures](#the-shell-in-pictures) ·
-[Architecture](#architecture) ·
-[Extending riskell](#extending-riskell) ·
-[Usage](#usage) ·
-[Window managers](#window-managers) ·
-[Resource use](#resource-use) ·
-[Data access](#data-access) ·
-[Test status](#what-is-tested-and-what-is-not) ·
-[Planned](#planned) ·
-[Troubleshooting](#troubleshooting) ·
-[Documentation](#documentation) ·
-[License](#license)
+</div>
+
+> **Early release.** riskell runs as the real bar on the author's Mac every day. Other Macs, window managers and macOS versions are
+> untested, and the extension system is new. [What is tested and what is not](#what-is-tested) lists every case, and
+> [docs/UNVERIFIED.md](docs/UNVERIFIED.md) gives the steps to try each one. Reports from other setups are the most useful contribution
+> right now.
+
+---
+
+## Why another bar
+
+On Linux, a desktop shell is a framework: Quickshell or AGS gives you the surface, and you build the bars you want on top of it. On macOS
+you mostly get two choices — a bar configured by shell scripts, or widgets written in HTML and JavaScript — and then you keep the result
+legible by hand, in every theme, at every scale.
+
+riskell takes the framework approach and makes it typed and native. It began as a port of the author's Quickshell setup on Linux, and it is a
+desktop shell framework in the same sense: the bars, cards, overview and editor are its surfaces, everything on them is an atom, and every
+atom is a package on a small public kit. The kit owns the colours, the type and the lengths, so an atom written by a stranger on a different
+display looks like the ones that ship. A validator rejects the three ways that usually break: a hard-coded colour, a fixed pixel size, a
+timer of its own.
+
+| | What it is | How you configure it |
+|---|---|---|
+| **riskell** | A shell: four bars, hover cards, overview, the layout editor, themes, an extension kit | riskell preferences, JSON, and extensions in Swift, JSON or Base16 |
+| [SketchyBar](https://github.com/FelixKratz/SketchyBar) | A top bar on top of the window manager's own machinery | shell scripts |
+| [Übersicht](https://github.com/felixhageloh/uebersicht) | Desktop widgets, no bar | React/JSX widgets |
+| [SwiftBar](https://github.com/swiftbar/SwiftBar) | Menu bar items from a script's output | one script per item |
+| Quickshell, AGS | The same idea as riskell, on Wayland | QML, TypeScript |
+
+It is not a window manager and does not tile windows; it works alongside one. It is not a launcher, and it is not a fixed set of widgets.
+[OmniWM](https://github.com/OmniNull/OmniWM) is the reference integration; yabai, AeroSpace and your own scripts work too, and
+[each is marked with what it is worth](#window-managers).
 
 ---
 
 ## Install
 
-### Requirements
-
-- macOS 14 or later on Apple silicon (Intel Macs are not supported), and the Xcode Command Line Tools (`xcode-select --install`). Full Xcode is
-  not required.
-- The font **Geist Mono** (SIL Open Font License): `brew install --cask font-geist-mono`. Sizes are tuned to it, and without it macOS
-  substitutes another font and text widths change.
-- A tiling window manager is optional. OmniWM is the one riskell was built and tested with. See [Window managers](#window-managers).
-
-### Homebrew
-
 ```sh
 brew tap rish139/riskell
-brew trust rish139/riskell              # Homebrew 7 and later refuses an untrusted third-party tap; skip this on older versions
+brew trust rish139/riskell              # Homebrew 7 and later refuses an untrusted third-party tap; skip on older versions
 brew install riskell
 brew install --cask font-geist-mono     # the font the sizes are tuned to
-risk install                            # start riskell now and at login (or run riskell-install for the guided installer)
+risk install                            # start riskell now and at login (riskell-install for the guided installer)
 ```
 
-The formula builds the release from source with Apple's Swift toolchain (about a minute) and links `risk`, the control script. After an upgrade run
-`risk install` again, because the launch agent points into the keg. `brew install --HEAD riskell` builds the main branch instead.
+That is the whole install. The formula builds the release from source with Apple's Swift toolchain, takes about a minute, and links `risk`,
+the control script. After an upgrade run `risk install` again — the launch agent points into the keg. `brew install --HEAD riskell` builds
+the main branch instead.
 
-### From source
+| Needs | Why |
+|---|---|
+| macOS 14 or later, Apple silicon | SwiftUI and the private frameworks the shell pins itself with. Intel is not supported. |
+| Xcode Command Line Tools (`xcode-select --install`) | Swift; full Xcode is not required. |
+| **Geist Mono** | Every size is tuned to it. Without it macOS substitutes another font and the widths move. |
+| A tiling window manager | Optional. With one, windows stay clear of the bars; without one, nothing to reserve. |
 
-The guided installer checks the Mac, asks a few questions, writes the settings and starts riskell:
+<details>
+<summary><b>From a clone, with the guided installer</b></summary>
 
 ```sh
 git clone https://github.com/rish139/riskell.git && cd riskell
@@ -68,90 +88,53 @@ git clone https://github.com/rish139/riskell.git && cd riskell
 
 ![The installer's review and bar-choice screens](docs/images/installer.png)
 
-Nothing is written until the final screen. The installer links `risk` into a folder on the PATH; when none is writable it adds
-`~/.local/bin` to `~/.zshrc` (and to `~/.bash_profile`, `~/.bashrc` and fish's `config.fish` when they exist), in a marked block after a backup.
-`--no-path` skips this and `--uninstall` removes the block. `./install.sh --dry-run` shows the plan and the JSON that would be written, and
-`./install.sh --yes` accepts the detected defaults without questions. [docs/INSTALL.md](docs/INSTALL.md) lists everything the installer
-writes.
+It checks the Mac, asks a few questions, writes the settings and starts riskell. Nothing is written until the final screen. It links `risk`
+into a folder on `PATH`; when none is on `PATH` and writable it adds `~/.local/bin` to `~/.zshrc` (and to `~/.bash_profile`, `~/.bashrc`
+and fish's `config.fish` when they exist), in a marked block after a backup. `--no-path` skips that, `--uninstall` removes it, `--dry-run`
+prints the plan and the JSON it would write, and `--yes` accepts the detected defaults without questions.
+[docs/INSTALL.md](docs/INSTALL.md) lists everything it writes.
 
-To install manually:
+</details>
+
+<details>
+<summary><b>By hand</b></summary>
 
 ```sh
 swift build -c release
-scripts/risk install      # runs riskell as a launch agent: starts at login and restarts if it exits
+scripts/risk install      # a launch agent: starts at login, restarts if it exits
 ```
 
-`risk` also provides `dev` (rebuild and restart), `restart`, `log`, `status`, `ext` (extensions) and `uninstall`; from a checkout that has not
-been installed, run it as `scripts/risk`. Builds are signed with a local
-certificate named `riskell-dev` when one exists. Without it, macOS asks again for keychain and Location access after every rebuild.
+`risk` also provides `dev` (rebuild and restart), `restart`, `log`, `status`, `ext` and `uninstall`; from a checkout that is not installed,
+run it as `scripts/risk`. Builds are signed with a local certificate named `riskell-dev` when one exists. Without it macOS treats each
+rebuild as a new application and asks again for keychain and Location access.
 
-## Features
-
-**The shell**
-- Four bars: top, bottom, left and right. Each is a solid "hug" band with concave fillets, or a set of floating islands, and each can be
-  switched off. The right bar is off by default.
-- Islands hold one or more atoms separated by a hairline. Start, centre (bottom bar only) and end zones are filled independently.
-- A notch-aware top bar with one wing on each side that always fits. On a Mac without a notch the bar sits under the menu bar with a
-  stand-in gap.
-- Now-playing media in the notch wings: the application icon on the left and play and pause on the right, shown while media plays and
-  for a short time after it pauses.
-- Windows stay clear of the bars: riskell keeps OmniWM's outer gaps in step with the bars that are on.
-- The bars live in a private SkyLight space, so they do not move when the Space changes, and they hide on native full-screen Spaces.
-- Hover cards in two styles, flush or chat, chosen per bar. Cards open on hover, can be pinned open with a click, and close on click-away.
-- Island gap, edge gap, window gap and corner roundness are adjustable.
-
-**Atoms that ship with riskell**
-- Workspaces, application icon, clock and calendar, battery, CPU, memory and power, fans, volume and microphone, network, weather and AI
-  usage. Every one of them is a package on the same kit extensions use (`Packages/`), so each is also a worked example of how to write one.
-- Every atom has a horizontal form and a vertical form with the same content and the same card, so any atom can sit on any bar.
-- A version pill in the top bar that appears only when something needs attention ([COMPATIBILITY](docs/COMPATIBILITY.md)).
-
-**Layout and themes**
-- A drag-and-drop layout editor with a tray of unplaced atoms, collapsible sections, spacing and scale controls and a reset.
-- Eleven bundled themes with enforced contrast, a live picker, and drop-in Base16 files.
-- Settings apply live from kernel file events: edits to `config.json` take effect within about a third of a second.
-
-**Workspaces and windows**
-- A workspace overview with live window pictures, a slot for a new workspace, a find-as-you-type field, drag-and-drop of windows between
-  workspaces and middle-click to close a window.
-- OmniWM integration over its IPC socket, with no polling. Backends for yabai, AeroSpace and custom commands are written and untested.
-- Optional three-finger gestures: sideways to switch workspace with the rail following the fingers, up for the overview, and a scroll
-  guard. Conflicts with macOS's own gestures are detected and reported.
-
-**Script pills**
-- A widget from any command, with no build step. Output is text or JSON: an SF Symbol, a tone, a gauge, up to three further figures, a
-  sparkline, and a hover card of lines or a two-column grid.
-- Scheduled (`every`), event-driven (`watch` a file) or streaming (`stream`, one long-running process). A click can run a command.
-- Drop-in files in `~/.config/riskell/pills/`, applied live.
-
-**The framework**
-- [RiskellKit](https://github.com/rish139/riskell-kit): an Apache-2.0 Swift package in its own repository, with design tokens, drawing parts, the reading renderer and the extension API.
-- Four extension kinds: pills, themes, reading atoms and custom atoms. Compiled extensions are linked into the one binary, run only while
-  their atom is showing, and match every theme.
-- `risk ext`: validate, scaffold, install and remove extensions. A JSON Schema for the manifest, a generated API reference, an
-  `AGENTS.md` for coding agents, and a working example.
-
-**Operation**
-- A guided terminal installer with a dry run, a no-questions mode and an uninstaller.
-- `risk`: install, dev (rebuild and restart), restart, log, status, ext (extensions), uninstall, and OmniWM helpers. The installer puts it on
-  the PATH.
-- A Unix socket for scripting, and a measured efficiency record with a method for repeating the measurement.
-- Display handling: one scale factor from the notch or menu bar height, a live display-change observer, fake displays for testing, and
-  `--check-fit` and `--check-panel` reporting PASS or FAIL.
+</details>
 
 ---
 
-## The shell in pictures
+## The tour
 
-### Atoms and hover cards
+<table>
+<tr>
+<td width="50%"><img src="docs/images/cards.png" width="100%" alt="Hover cards for ten atoms, each hanging from the top bar"><br>
+<sub><b>Hover cards.</b> Every atom opens one: a calendar, power and health, per-core load, fan dials, a mixer, Wi-Fi and Bluetooth, a forecast.</sub></td>
+<td width="50%"><img src="docs/images/editor.png" width="100%" alt="riskell preferences with the bars in edit mode"><br>
+<sub><b>riskell preferences.</b> ctrl-alt-, puts every atom under a dashed outline. Drag it anywhere, including the tray.</sub></td>
+</tr>
+<tr>
+<td><img src="docs/images/overview.png" width="100%" alt="The workspace overview"><br>
+<sub><b>The workspace overview.</b> ctrl-alt-space: one tile per workspace, live window pictures, drag a window between tiles.</sub></td>
+<td><img src="docs/images/themes.gif" width="100%" alt="The same bars in all eleven bundled themes"><br>
+<sub><b>Eleven themes.</b> Base16 files, applied live, contrast enforced rather than assumed.</sub></td>
+</tr>
+</table>
 
-An atom is one widget. Hovering an atom opens its card. All cards below are shown in the flush style, hanging from the top bar: the bar
-fills in beneath the card so that the two read as one surface. The chat style, a rounded card joined to the island by a short neck, can
-be selected per bar.
+### The atoms that ship
 
-![Hover cards for the clock, battery, CPU, fans, volume, network, weather, AI usage, workspaces and a script pill, each hanging from the top bar](docs/images/cards.png)
+Every one is a package in `Packages/` on the same kit an extension uses — seven packages covering ten atoms — so each is also a worked
+example of how to write one.
 
-| Atom | Shows | Card |
+| Atom | On the bar | In the card |
 |---|---|---|
 | Workspaces | the window manager's workspaces as a rail of beads | every workspace with its windows; drag to move a window |
 | Application icon | the focused application's icon and name | |
@@ -164,35 +147,13 @@ be selected per bar.
 | Weather | temperature | hourly and daily forecast ([Open-Meteo](https://open-meteo.com)) |
 | AI usage | Claude Code usage from its local logs, when enabled; two opt-in sources (the Claude plan limits, OpenCode Go usage) | token use in the five-hour and seven-day windows; the opt-in sources add their own figures |
 
-### riskell preferences
-
-**ctrl-alt-,** opens the editor. Every atom receives a dashed outline. Atoms are dragged between islands and bars, dropped on an empty
-bar to start a new island, and removed with the **x**. The panel sets which bars are on, whether each is a hug band or floating islands,
-the card style, spacing, roundness, scale and the theme. The layout is saved to `~/.config/riskell/layout.json`.
-
-![riskell preferences: the settings panel and the top and bottom bars in edit mode](docs/images/editor.png)
-
-### Themes
-
-Eleven [Base16](https://github.com/tinted-theming/schemes) schemes are bundled: Gruvbox (dark and light), Catppuccin (Mocha and Latte),
-Rosé Pine, Nord, Tokyo Night, Kanagawa, Everforest, Dracula and GitHub Dark High Contrast. riskell does not use a scheme's colours as
-given. It derives its own tokens and adjusts text and accent colours until they reach a contrast floor against the background, so a
-scheme with a faint grey still produces readable text. Any Base16 `.yaml` file placed in `~/.config/riskell/themes/` appears in the
-picker, and switching is immediate.
-
-![The same bars in all eleven themes, cycling](docs/images/themes.gif)
-
-<details>
-<summary>All eleven side by side</summary>
-
-![All eleven themes](docs/images/themes.png)
-
-</details>
+Each atom has a horizontal and a vertical form carrying the same data and the same card, laid out for the bar it is on — so any atom can
+sit on any of the four bars.
 
 ### Script pills
 
-A pill is a widget defined by a shell command. It needs no Swift and no rebuild: it is added to `config.json` or dropped into
-`~/.config/riskell/pills/`, and it then appears in the editor's tray, ready to place.
+A pill is a widget defined by a command. No Swift, no rebuild: drop a file in `~/.config/riskell/pills/` or name it in `config.json`, and it
+appears in the editor's tray ready to place.
 
 ![Script pills with a gauge, a sparkline and two-column hover cards](docs/images/pills.png)
 
@@ -201,83 +162,126 @@ A pill is a widget defined by a shell command. It needs no Swift and no rebuild:
 ```
 
 The command prints one line of text, or one line of JSON with `text`, `icon` (an SF Symbol), `tone`, `value` (0 to 1, drawn as a gauge),
-`values`, `spark` and `lines` for the card. `every` is in seconds, with a minimum of 2. `watch` re-runs the command when a file changes,
-without polling, and `stream` keeps one long-running process whose output lines are readings. See [docs/PILLS.md](docs/PILLS.md).
-
-### Workspace overview
-
-**ctrl-alt-space** opens the overview: every workspace as a tile in one row, the focused workspace outlined, a slot for a new workspace
-and a find field below. riskell's own bars are drawn inside each tile, and a window can be dragged from one tile to another.
-
-![The workspace overview](docs/images/overview.png)
+`values` (up to three further figures), `spark` (a sparkline), and `lines` for the card — either plain lines or a two-column grid. `every`
+is in seconds, minimum 2; `click` runs a command. `watch` re-runs on a file change without polling, and `stream` keeps one long-running
+process whose output lines become readings. [docs/PILLS.md](docs/PILLS.md).
 
 ### Screen sizes
 
-All sizes are design units. One scale factor, taken from the height of the notch (or of the menu bar on a Mac without a notch), converts
-them to points. The picture shows the same layout on three screens; the first two are the same Mac in two display modes.
+Every size is a design unit. One scale factor, taken from the height of the notch (or of the menu bar on a Mac without one), turns them
+into points — so the picture is the same on a 2268-wide notch screen, a 1512-wide one, and a 1920-wide monitor.
 
-![The shell on a 2268-wide notch screen, a 1512-wide notch screen and a 1920-wide external monitor](docs/images/scale.png)
+![The same layout on three screens](docs/images/scale.png)
 
-On a screen with a notch, the top bar is divided into two wings, one on each side of the notch. A wing that is too wide shrinks, down to
-80 %. If it still does not fit, its lowest-priority islands are hidden. `riskell --check-fit` prints the result for a set of fake screens.
+On a notched screen the top bar is split into two wings either side of the notch. A wing shrinks uniformly to 80 % first, and only then
+hides its lowest-priority islands; the version pill is never dropped. `riskell --check-fit` prints PASS or FAIL per fake screen without a
+second display.
 
 ---
 
-## Architecture
+## What it does
 
-riskell has two parts. The **shell** is the application: it owns every window and draws the surfaces. The **framework** is what extensions
-build on: a small public package, [RiskellKit](https://github.com/rish139/riskell-kit), that provides the design tokens, drawing parts and extension API, so that anything written
-against it matches the shell in every theme and at every screen size.
+**Four bars.** Top, bottom, left and right; each is a solid "hug" band with concave corner fillets or a set of floating islands, and the
+bottom, left and right can be switched off. Islands hold one or more atoms separated by a hairline, and the start, centre (bottom bar only)
+and end zones are filled independently. Gap, edge gap, window gap and corner roundness are adjustable. The bars live in a private SkyLight
+space, so they do not slide when the Space changes, and they hide on native full-screen Spaces.
+
+**A notch-aware top bar.** One wing on each side that shrinks, then drops its least important islands, to fit. On a Mac without a notch the
+bar sits under the menu bar with a stand-in gap. Now-playing media lives in the wings: the application icon on the left, play and pause on
+the right, shown while media plays and for up to 15 minutes after it pauses.
+
+**Windows stay clear.** A bar cannot reserve screen space on macOS — only the window manager can — so riskell writes the gaps instead of
+moving your windows itself, after backing up the settings file the first time. When the number drifts (a second instance, a WM update, a
+settings reset) the top bar says `FIX` and names the value it found.
+
+**A version pill that stays quiet.** riskell records the macOS and OmniWM versions it was last checked against. Anything else gets one pill
+in the top bar, only while it differs: `UPDATE DUE · macOS 27.3`, or `FIX · OmniWM workspaceSwipeEnabled = true` for a setting that an
+OmniWM update reset. Nothing is drawn when all is as verified.
+
+**Hover cards, two ways.** Flush (hanging from the bar, which fills in beneath the card so the two read as one surface) or chat (a rounded
+card joined by a short neck), chosen per bar and stored as `fill` and `chat`. Cards open on hover, pin open with a click, and close on
+click-away.
+
+**riskell preferences.** ctrl-alt-, opens it. Every atom gets a dashed outline; atoms are dragged between islands and bars, dropped on an
+empty bar to start a new island, and removed with the **x**. The panel sets which bars are on, hug or floating, card style, spacing,
+roundness, scale and theme, in collapsible sections, with a reset for each. The atoms and bars are saved to `layout.json`; theme, spacing
+and scale to `config.json`.
+
+**Themes that stay readable.** Eleven [Base16](https://github.com/tinted-theming/schemes) schemes ship: Gruvbox (dark and light),
+Catppuccin (Mocha and Latte), Rosé Pine, Nord, Tokyo Night, Kanagawa, Everforest, Dracula and GitHub Dark High Contrast. A scheme's colours
+are not used as given — riskell derives its own tokens and moves text and accents until they clear a contrast floor against the background,
+so a faint grey scheme still produces readable text. Any Base16 `.yaml` in `~/.config/riskell/themes/` appears in the picker, and switching
+is immediate. `riskell --check-themes` prints the ratios.
+
+**Live settings.** Nearly everything in `config.json` applies live, from kernel file events rather than polling: an edit takes effect within
+about a third of a second. `wm`, `scale` and `disabledExtensions` are read at launch.
+
+**Workspaces and windows.** An overview with live window pictures, the focused workspace outlined, a slot for a new workspace,
+find-as-you-type, drag-and-drop of windows between workspaces and middle-click to close one. riskell's own bars are drawn inside each tile.
+OmniWM is read over its IPC socket with no polling. Optional three-finger gestures: sideways to switch workspace with the rail following the
+fingers, up for the overview, plus a scroll guard so the window under the pointer does not move. Gestures that conflict with macOS's own are
+detected and reported, one `FIX` pill each.
+
+**Scripting and checks.** A Unix socket; `risk` for install, dev, restart, log, status, extensions and uninstall; a measured efficiency record
+with a method for repeating the measurement. One scale factor from the notch or menu bar height, a live display-change observer, fake displays
+for testing, and `--check-fit` / `--check-panel` reporting PASS or FAIL.
+
+---
+
+## How it is built
+
+Two parts. The **shell** is the application: it owns every window and draws the surfaces. The **framework** is
+[RiskellKit](https://github.com/rish139/riskell-kit), a small Apache-2.0 package in its own repository with the design tokens, drawing
+parts and extension API — so anything written against it matches the shell in every theme, at every size.
 
 ![The layers: extensions build on RiskellKit, which builds on the shell, which runs on macOS and the window manager](docs/images/architecture.png)
 
-| Surface | State | What extensions can add to it |
+| Surface | State | What an extension can add |
 |---|---|---|
 | Bars (top, bottom, left, right) | built | atoms: widgets that sit in islands |
 | Hover cards | built | the card an atom opens |
 | Workspace overview | built | not yet |
-| riskell preferences (layout editor) | built | the EXTENSIONS card: settings an extension declares in its manifest |
+| riskell preferences | built | the EXTENSIONS card: typed settings an extension declares in its manifest |
 
-Design rules that apply to the shell and to every extension:
+Five rules hold for the shell and for everything written against the kit:
 
-- **Native.** Swift and SwiftUI, with no web views and no second runtime.
+- **Native.** Swift and SwiftUI. No web view, no second runtime, no second process.
 - **Event-driven.** Nothing polls without a reason, and nothing runs for a surface that is not showing.
-- **Consistent.** Colours, type and sizes come from the theme and from one scale factor, so a widget looks the same on every display.
-- **Valid by construction.** The extension API has no way to express an unreadable colour, a fixed pixel size or a stray timer, and
-  `risk ext validate` reports any attempt with the fix.
-- **Readable by machines.** A JSON Schema for the manifest, a generated API reference and task-oriented documentation allow a coding agent
-  to write an extension and check it without guessing.
-
-riskell is not a window manager and does not tile windows. It is not only a launcher, and it is not a collection of fixed widgets.
-SketchyBar is configured through shell scripts and Übersicht widgets are written in HTML and JavaScript; riskell takes the
-shell-framework approach known from Quickshell and AGS on Linux and applies it to macOS with typed, native extensions.
+- **Consistent.** Colour, type and length come from the theme and from one scale factor.
+- **Valid by construction.** The API has no way to express an unreadable colour, a fixed pixel size or a stray timer — and the validator
+  reports the attempts that get around it, with the fix.
+- **Readable by machines.** A JSON Schema, a generated API reference and task-oriented docs let a coding agent write an extension and check
+  it without guessing.
 
 ---
 
-## Extending riskell
+## Extend it
 
-There are four ways to add to riskell, from no code to custom drawing:
+Four kinds are open today, from no code to custom drawing:
 
-| Goal | Kind | Build step |
-|---|---|---|
-| show a number or text from a command or a file | a **pill** | none |
-| change the colours | a **theme** (a Base16 file) | none |
-| compute a figure, gauge and hover card in Swift | a **reading** extension | yes |
-| draw a widget with SwiftUI | an **atom** extension | yes |
+| You want | Kind | Build | Time |
+|---|---|---|---|
+| a number or text from a command or file | a **pill** | none | minutes |
+| new colours | a **theme** (Base16 YAML) | none | minutes |
+| a figure, gauge and hover card in Swift | a **reading** atom | yes | an hour |
+| your own drawing, in both bar forms | an **atom** | yes | an afternoon |
+
+A **preset** (layout + pills + theme + extensions in one bundle) and a **behaviour** (a background capability) are designed; neither is open
+to outsiders yet. [docs/EXTENSION-KIT.md](docs/EXTENSION-KIT.md) has the details.
 
 ![An extension: a reading atom, a hand-drawn atom, their cards, and both on a strip](docs/images/extension.png)
 
-An extension is a Swift package that depends on **RiskellKit** and is compiled into the single riskell binary. There is no second
-process: the extension is native, costs nothing while its atom is not showing, and receives its colours, type and sizes from the kit.
+An extension is a Swift package depending on RiskellKit, compiled into the one binary. No second process: it is native, costs nothing while
+its atom is not showing, and receives colours, type and sizes from the kit.
 
 ```sh
 risk ext new reading my-widget     # scaffold a package
 risk ext validate my-widget        # check it; each finding names the fix
-risk ext add my-widget             # link it in, rebuild and restart
+risk ext add my-widget             # link it in, rebuild, restart
 ```
 
 <details>
-<summary>A reading extension</summary>
+<summary><b>A reading extension, in full</b></summary>
 
 ```swift
 import RiskellKit
@@ -299,70 +303,70 @@ public struct Gpu: ReadingAtom {
 }
 ```
 
-The kit draws the row on the horizontal bars, the column on the strips, the gauge and the card. A `Reading` has no colour parameter. It
-carries a tone (`.ok`, `.warn`, `.crit`, `.accent`, `.heat(x)` and others), and the theme chooses the colour. This is why an extension is
-legible in every theme.
+The kit draws the row on a horizontal bar, the column on a strip, the gauge, and the card. A `Reading` has no colour parameter: it carries
+a tone (`.ok`, `.warn`, `.crit`, `.accent`, `.heat(x)` and others) and the theme picks the colour. That is why an extension is legible in
+every theme without the author testing any.
 
 </details>
 
 <details>
-<summary>Rules enforced by the validator</summary>
+<summary><b>The rules the validator enforces</b></summary>
 
-`risk ext validate` prints `file:line: rule <id>: <what>. Fix: <how>.` for each violation.
+`risk ext validate` prints `file:line: rule <id>: <what>. Fix: <how>.` once per violation.
 
-- **Colours and type come from the kit** (`Pal`, `T`, a `Tone`). A hard-coded `Color` or font size breaks themes and the type scale.
+- **Colour and type come from the kit** (`Pal`, `T`, a `Tone`). A hard-coded `Color` or font size breaks themes and the type scale.
 - **Sizes are design units** (`G.pill`, `G.strip`). An extension never reads the screen, so it renders identically at any resolution.
-- **Nothing wakes up independently.** `Timer`, `DispatchSource` and `Thread` are not permitted. Extensions use `env.every`, `env.watch`,
-  `env.on(feed)` or, for an atom that draws itself, `env.repeating`. riskell cancels these while the atom is not showing.
-- **Both forms are required** for an atom that draws itself, so it cannot be registered without a vertical form.
-- **No windows.** riskell owns every window.
+- **Nothing wakes up on its own.** `Timer`, `DispatchSource` and `Thread` are refused; extensions use `env.every`, `env.watch`,
+  `env.on(feed)` or, for an atom that draws itself, `env.repeating`. riskell stops them while the atom is not showing.
+- **Both forms are required** for a self-drawn atom, so no atom can be registered without a vertical form.
+- **No windows.** riskell owns every window; a card opens through the kit's popout hook.
 
-There is no sandbox and no permission system. A compiled extension runs with the user's rights, as a Homebrew formula or a shell plugin
-does, and its source should be read before it is installed.
+There is no sandbox and no permission system. A compiled extension runs with your rights, as a Homebrew formula or a shell plugin does —
+read the source before you install it, and `risk ext add` shows you what is in it.
 
 </details>
 
 <details>
-<summary>Sharing an extension</summary>
+<summary><b>Sharing one</b></summary>
 
-An extension is a Git repository with a `riskell.json` manifest, and it stays under its author's license and copyright. **Publishing one
-requires no agreement and no approval**: tag a release, add the GitHub topic `riskell-extension` (or `riskell-theme`, `riskell-preset`),
-and anyone can install it with `risk ext add <repository>`. A curated registry with automated checks is planned
-([docs/STOREFRONT.md](docs/STOREFRONT.md)); a listing in it is metadata that points at the author's repository.
+An extension is a Git repository with a `riskell.json` manifest, and it stays under its author's license and copyright. **Publishing needs
+no agreement and no approval**: tag a release, add the GitHub topic `riskell-extension` (or `riskell-theme`, `riskell-preset`), and anyone
+can install it with `risk ext add <repository>`.
+
+[riskell-registry](https://github.com/rish139/riskell-registry) is the index: one small JSON file per extension, pinned to a commit, so
+nobody can change what you install behind your back. `risk ext publish` checks your repository and prints the listing; CI on the pull
+request clones the pinned commit and re-validates it. [docs/STOREFRONT.md](docs/STOREFRONT.md) has the design, and says plainly what the
+storefront cannot know — there is no install counter, and there never will be one.
 
 </details>
 
-The documentation is written for people and for coding agents. [AGENTS.md](AGENTS.md) states which kind to choose and the rules.
-[docs/WRITING-EXTENSIONS.md](docs/WRITING-EXTENSIONS.md) is the walkthrough. The [API reference](https://github.com/rish139/riskell-kit/blob/main/docs/KIT-API.md) is generated from the code,
-the manifest has a [JSON Schema](schemas/riskell-extension.schema.json), and `Examples/load-ext` is a complete extension. The design and
-the list of unbuilt parts are in [docs/EXTENSION-KIT.md](docs/EXTENSION-KIT.md).
+The documentation is written for people and for coding agents: [AGENTS.md](AGENTS.md) says which kind to choose and the rules,
+[docs/WRITING-EXTENSIONS.md](docs/WRITING-EXTENSIONS.md) is the walkthrough, the [API reference](https://github.com/rish139/riskell-kit/blob/main/docs/KIT-API.md)
+is generated from the code, the manifest has a [JSON Schema](schemas/riskell-extension.schema.json), and `Examples/load-ext` is a complete
+extension.
 
 ---
 
-## Usage
+## Run it
 
-### Keys and commands
-
-| | |
+| Key | Action |
 |---|---|
 | **ctrl-alt-,** | open or close riskell preferences |
 | **ctrl-alt-space** | open or close the workspace overview |
-| three fingers sideways or up | switch workspace or open the overview (when [gestures](#gestures) are enabled) |
+| three fingers sideways, or up | switch workspace, or open the overview (when [gestures](#gestures) are on) |
 
-riskell also listens on a Unix socket, so other programs can control it:
+Other programs can drive it through a Unix socket:
 
 ```sh
 printf settings     | nc -U -w1 ~/.cache/riskell/ev.sock   # the editor
 printf overview     | nc -U -w1 ~/.cache/riskell/ev.sock   # the overview
-printf bar-right-on | nc -U -w1 ~/.cache/riskell/ev.sock   # switch a bar on or off: bar-<top|bottom|left|right>-<on|off>
+printf bar-right-on | nc -U -w1 ~/.cache/riskell/ev.sock   # bar-<bottom|left|right>-<on|off>
 printf workspace-3  | nc -U -w1 ~/.cache/riskell/ev.sock   # go to workspace 3
 ```
 
-### Files
-
-| File | Purpose |
+| File | What lives there |
 |---|---|
-| `~/.config/riskell/config.json` | settings: window manager, theme, scale, spacing, location, usage sources, pills. Applied live except `wm`. See [docs/CONFIG.md](docs/CONFIG.md). |
+| `~/.config/riskell/config.json` | settings: window manager, theme, scale, spacing, location, usage sources, pills. See [docs/CONFIG.md](docs/CONFIG.md). |
 | `~/.config/riskell/layout.json` | the layout: which atoms are on which bar, hug or floating, which bars are on. Written by the editor. |
 | `~/.config/riskell/pills/*.json` | drop-in script pills |
 | `~/.config/riskell/themes/*.yaml` | drop-in Base16 schemes |
@@ -372,147 +376,154 @@ printf workspace-3  | nc -U -w1 ~/.cache/riskell/ev.sock   # go to workspace 3
 ### Gestures
 
 riskell can read the trackpad directly. Three fingers sideways switch workspace while the rail follows the fingers, three fingers up open
-the overview, and scrolls are dropped while three fingers are down so that the window under the pointer does not move. Gestures are
-**off by default** and are enabled with `"gestures": "riskell"` in `config.json`. They need the Accessibility permission, which macOS
-requests once. macOS's own three- and four-finger gestures and OmniWM's workspace swipe must be disabled, because they act on the same
-touches; the top bar shows a `FIX` pill for each one still enabled. The installer can disable the macOS gestures, and
-`riskell --gestures-restore --yes` re-enables them. See [docs/GESTURES.md](docs/GESTURES.md).
+the overview, and scrolls are dropped while three fingers are down so the window under the pointer stays put. Gestures are **off by
+default**; `"gestures": "riskell"` turns them on and needs the Accessibility permission, which macOS asks for once. macOS's own three- and
+four-finger gestures and OmniWM's workspace swipe must be off, because they act on the same touches — the top bar shows a `FIX` pill for
+each one still enabled. The installer can turn the macOS gestures off, and `riskell --gestures-restore --yes` turns them back on.
+[docs/GESTURES.md](docs/GESTURES.md).
 
-## Window managers
+### Window managers
 
-| `wm` value | Status |
+| `wm` | Status |
 |---|---|
-| `omniwm` (or `auto` when OmniWM is installed) | In daily use. Workspaces, windows and focus come from OmniWM's IPC. riskell keeps OmniWM's outer gaps in step with the bars that are on by editing `gaps.outer` in its `settings.toml`, after making a backup on the first change. |
+| `omniwm` (or `auto` when OmniWM is installed) | In daily use. Workspaces, windows and focus over its IPC. riskell keeps its `gaps.outer` in step with the bars that are on, after a backup on the first change. |
 | `yabai` | Written from yabai's documentation. **Not tested.** |
 | `aerospace` | Written from AeroSpace's documentation. **Not tested.** |
-| `command` | The user's own scripts: one prints the state as JSON and others handle focus, move and close ([docs/WM-COMMAND.md](docs/WM-COMMAND.md)). The state side was tested; the action commands were not. |
+| `command` | Your own scripts: one prints the state as JSON, others handle focus, move and close ([docs/WM-COMMAND.md](docs/WM-COMMAND.md)). The state side is tested; the actions are not. |
 | `none` | Bars without workspaces. |
 
-## Resource use
+### Resource use
 
-Measured on the reference layout on a 14-inch MacBook Pro: about 1 % of one core at idle (0.3 seconds of CPU per 30 seconds), about
-105 MB resident and 8 threads. All work is event-driven (file events, sockets, notifications). The remaining timers are the clock's seconds
-bar (1 s), the CPU atom (2 s) and a fan read (10 s). Atoms (all of them packages), pills and extension readings run only while their bar is
-showing, so a bar that is switched off or hidden by a full-screen Space stops them, and an atom that is not placed starts nothing: no timer, no
-listener, no network request, no permission prompt. The measurements, the profile and the method are in
-[docs/EFFICIENCY.md](docs/EFFICIENCY.md).
+About 1 % of one core at idle on the reference layout (0.3 s of CPU per 30 s), about 105 MB resident, 8 threads. All work is event-driven:
+file events, sockets, notifications. The timers that remain are the clock's seconds bar (1 s), the CPU atom (2 s), a 2 s system sampler, a
+10 s fan read, and a 5 s picture-in-picture safety net. Everything an atom starts — all of them packaged, plus pills and readings — runs only
+while its bar is showing, so a bar that is off, or hidden by a full-screen Space, stops it, and an atom that is not placed starts nothing: no
+timer, no listener, no request, no permission prompt. The numbers, the profile and the method are in [docs/EFFICIENCY.md](docs/EFFICIENCY.md).
 
-## Data access
+### Data access
 
-| | |
+| What | Detail |
 |---|---|
-| Network | Weather from Open-Meteo, only when a location is set (your coordinates go to Open-Meteo). The installer makes one city lookup against Open-Meteo's geocoding service while the name is typed. `risk ext search`, `add` and `update` fetch the registry index from GitHub Pages and clone the repositories you install from. Opt-in only: with `usage.claudeLimits`, the Claude Code token goes to Anthropic's usage endpoint (unofficial); with `usage.opencode`, the OpenCode session cookie goes to opencode.ai's console. Nothing else. |
-| Local logs | Claude Code usage reads the token counts in Claude Code's own session logs (`*.jsonl` under `~/.claude/projects`), only when enabled. It reads no credentials and sends nothing. |
-| Keychain | Off by default. Opt-in with `usage.claudeLimits` (unofficial): riskell reads the Claude Code login token from the login keychain to ask Anthropic for your plan's real limits. Anthropic's terms do not allow using that token in other tools, so the account could be restricted. |
-| Browser data | Off by default. Opt-in with `usage.opencode`: riskell reads the opencode.ai session cookie from a browser profile (Zen by default) to show your OpenCode Go usage. |
-| Accessibility | Only for the optional gestures (the scroll guard). |
-| Location | Only so that macOS provides Wi-Fi network names. |
-| Files | riskell writes `~/.config/riskell/`, backs up OmniWM's `settings.toml` before the first change to its gaps, and, with gestures enabled, can change two trackpad and Dock settings after saving the originals. |
+| Network | Weather from Open-Meteo, only when a location is set (your coordinates go to Open-Meteo). The installer makes one city lookup against its geocoding service while you type the name. `risk ext search`, `add` and `update` fetch the registry index from GitHub Pages and clone the repositories you install from. Opt-in only: `usage.claudeLimits` sends the Claude Code token to Anthropic's usage endpoint (unofficial); `usage.opencode` sends the OpenCode session cookie to opencode.ai's console. Nothing else. |
+| Local logs | Claude Code usage reads token counts from Claude Code's own session logs (`*.jsonl` under `~/.claude/projects`), only when enabled. It reads no credentials and sends nothing. |
+| Keychain | Off by default. `usage.claudeLimits` (unofficial) reads the Claude Code login token to ask Anthropic for your plan's real limits. Anthropic's terms do not allow that token in other tools, so the account could be restricted. |
+| Browser data | Off by default. `usage.opencode` reads the opencode.ai session cookie from a browser profile (Zen by default) to show your OpenCode Go usage. |
+| Accessibility | Only for the optional gestures and the scroll guard. |
+| Location | Only so that macOS will give up Wi-Fi network names. |
+| Files | riskell writes `~/.config/riskell/`, backs up OmniWM's `settings.toml` before the first gap change, and, with gestures on, can change two trackpad and Dock settings after saving the originals. |
 
-riskell has no telemetry, no analytics and no accounts: the only things it sends are the requests in the table above, and only for the options you turn on or the commands you run. Personal settings remain in `~/.config/riskell/` and are never part of the
-source.
+No telemetry, no analytics, no accounts. The only things that leave the machine are the requests above, and only for options you turned on
+or commands you ran. Your settings stay in `~/.config/riskell/` and are never part of the source.
 
-## What is tested and what is not
+---
 
-| | |
+## What is tested
+
+| Level | Detail |
 |---|---|
-| **In daily use** | One Apple-silicon MacBook Pro 14-inch (M1 Max), macOS 27.2 (build 26B123), OmniWM 0.8.0 (IPC protocol 22): the bars, atoms and cards, the editor, themes, pills, the overview, OmniWM integration and the three-finger swipe. |
+| **In daily use** | One Apple-silicon MacBook Pro 14-inch (M1 Max), macOS 27.2 (26B123), OmniWM 0.8.0 (IPC protocol 22): bars, atoms and cards, the editor, themes, pills, the overview, OmniWM integration and the three-finger swipe. |
 | **Checked numerically and by rendered pictures** | Other screen sizes and scales, and screens without a notch, using fake displays (`riskell --check-fit`, `--check-panel`). |
 | **Written, not tested** | The yabai, AeroSpace and command backends; macOS 14 and 15; a clean-machine install; connecting or disconnecting a monitor while running; dragging windows in the overview at other scales. |
 
-[docs/UNVERIFIED.md](docs/UNVERIFIED.md) lists each untested item with the steps to try it. Reports from other setups are the most useful
-contribution at this stage.
+[docs/UNVERIFIED.md](docs/UNVERIFIED.md) lists each one with the steps to try it.
 
-riskell depends on macOS interfaces that are not public and may change in any update: SkyLight (pins the bars in a private space),
-MultitouchSupport (the swipe) and MediaRemote (now playing, read through the system `perl`). It records the macOS and OmniWM versions it
-was last checked against and shows an `UPDATE DUE` pill in the top bar when the installed versions differ.
-[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) lists the dependencies and provides a checklist for use after an update.
+riskell depends on macOS interfaces that are not public and can change in any update: SkyLight (pins the bars in a private space),
+MultitouchSupport (the swipe) and MediaRemote (now playing, read through the system `perl`). That is what the `UPDATE DUE` pill watches.
+[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) lists every dependency and the checklist to walk after an update.
+
+---
 
 ## Planned
 
-Nothing here is a commitment, and the order is not fixed. [docs/ROADMAP.md](docs/ROADMAP.md) gives the reasoning.
+Nothing here is a commitment and the order is not fixed; [docs/ROADMAP.md](docs/ROADMAP.md) has the reasoning.
 
 **Before a wider release**
 - [ ] Testing on other Apple-silicon Macs and macOS versions (14 and 15), and with yabai and AeroSpace.
-- [ ] A Homebrew tap.
+- [x] A Homebrew tap: `brew tap rish139/riskell && brew install riskell`, then `risk install`.
 
 **Framework**
-- [x] A registry and storefront for atoms, pills and themes: `risk ext search`, `add <name>`, `update` and `publish`, with
-  [riskell-registry](https://github.com/rish139/riskell-registry) as the index (listings pinned to a commit, GitHub as the backend, one static page).
-  The atoms that ship with riskell are its first listings ([docs/STOREFRONT.md](docs/STOREFRONT.md)). Still to do: presets, the CI that renders each
-  extension on several displays, bars and themes, and an in-app browse card.
-- [x] riskell preferences: the layout editor is renamed, and extensions declare typed settings in their manifest (number, switch, choice)
-  that appear in its EXTENSIONS card, so an extension needs no settings interface of its own.
+- [x] A registry and storefront: `risk ext search`, `add`, `update`, `publish`, with
+  [riskell-registry](https://github.com/rish139/riskell-registry) as the index — listings pinned to a commit, GitHub as the backend, one
+  static page. The atoms that ship with riskell are its first listings. Still to do: presets, CI that renders each extension on several
+  displays, bars and themes, and an in-app browse card.
+- [x] riskell preferences: the layout editor renamed, and typed settings declared in a manifest appear in its EXTENSIONS card, so an
+  extension needs no settings interface of its own.
 - [ ] Preset bundles (layout, pills, theme and extensions together) and `risk ext preset apply`.
 - [ ] Background-behaviour extensions from outside the application, with a review policy.
 
 **Shell**
-- [x] Every atom is a package on the kit, and nothing runs for an atom that is not placed on a bar that is on.
+- [x] Every atom is a package on the kit, and nothing runs for an atom that is not on a bar that is on.
 - [ ] The notch beyond media: a shelf, quick actions and timers.
 - [ ] Draw the clock's seconds bar and the CPU deck with Core Animation layers (about 0.8 % of a core).
+
+---
 
 ## Troubleshooting
 
 <details>
-<summary>A gap appears on the right and the top bar shows <code>FIX · OmniWM right gap = …</code></summary>
+<summary><b>A gap appears on the right and the top bar shows <code>FIX · OmniWM right gap = …</code></b></summary>
 
 riskell sets the outer gaps in OmniWM's `settings.toml` to match the bars that are on; a bar that is off leaves a 6-point margin. When the
-file contains a different value, usually because a second riskell process wrote its own, the `FIX` pill shows the value it found.
-Restoring the number under `[gaps.outer]` in `~/.config/omniwm/settings.toml` resolves it, and OmniWM applies the change immediately.
+file holds a different value — usually a second riskell process wrote its own — the `FIX` pill shows the value it found. Restoring the
+number under `[gaps.outer]` in `~/.config/omniwm/settings.toml` fixes it, and OmniWM applies the change immediately.
 
-A second instance started for testing must be given `--no-reserve` as a separate argument. That flag prevents the instance from
-rewriting OmniWM's gaps. The harness described in `docs/BARS.md` passes it.
+A second instance started for testing must be given `--no-reserve` as a separate argument; that keeps it out of OmniWM's gaps. The harness
+in [docs/BARS.md](docs/BARS.md) passes it.
 
 </details>
 
 <details>
-<summary>Text looks wrong or too wide</summary>
+<summary><b>Text looks wrong or too wide</b></summary>
 
 Install Geist Mono (`brew install --cask font-geist-mono`) and restart riskell. Without it macOS substitutes another font.
 
 </details>
 
 <details>
-<summary>macOS repeatedly asks for keychain or Location access after a rebuild</summary>
+<summary><b>macOS keeps asking for keychain or Location access after a rebuild</b></summary>
 
-A rebuild without a stable signature appears to macOS as a new application. Create a self-signed code-signing certificate named
-`riskell-dev` in the login keychain (Keychain Access, Certificate Assistant), and `scripts/risk` will sign builds with it.
-
-</details>
-
-<details>
-<summary>The bars do not appear after starting riskell</summary>
-
-`scripts/risk status` shows whether the launch agent is running, and `scripts/risk log 50` prints the last 50 log lines. A second full
-instance cannot start while another holds the lock (`~/.cache/riskell/riskell.lock`); test instances started with `--snap`, `--dump` or
-`--no-reserve` are exempt.
+A rebuild without a stable signature looks like a new application to macOS. Create a self-signed code-signing certificate named
+`riskell-dev` in the login keychain (Keychain Access ▸ Certificate Assistant) and `scripts/risk` will sign with it.
 
 </details>
 
 <details>
-<summary>Gestures do nothing, or macOS and riskell both respond</summary>
+<summary><b>The bars do not appear</b></summary>
 
-Look for `FIX · gesture: …` pills in the top bar. Each names a setting that is still enabled and conflicts with riskell's swipe. The
-scroll guard also needs the Accessibility permission; until it is granted, riskell retries every 3 seconds.
+`scripts/risk status` shows whether the launch agent is running, and `scripts/risk log 50` prints the last 50 lines. A second full instance
+cannot start while another holds the lock (`~/.cache/riskell/riskell.lock`); instances started with `--snap`, `--dump` or `--no-reserve` are
+exempt.
 
 </details>
+
+<details>
+<summary><b>Gestures do nothing, or macOS and riskell both respond</b></summary>
+
+Look for `FIX · gesture: …` pills in the top bar; each names a setting still enabled that conflicts with the swipe. The scroll guard needs
+the Accessibility permission, and until it is granted riskell retries every 3 seconds.
+
+</details>
+
+---
 
 ## Documentation
 
-| | |
+| Topic | Files |
 |---|---|
-| Using riskell | [BARS](docs/BARS.md) (bars, layout, editor, snapshots) · [CONFIG](docs/CONFIG.md) · [PILLS](docs/PILLS.md) · [THEMES](docs/THEMES.md) · [GESTURES](docs/GESTURES.md) · [INSTALL](docs/INSTALL.md) |
+| Using it | [BARS](docs/BARS.md) (bars, layout, editor, snapshots) · [CONFIG](docs/CONFIG.md) · [PILLS](docs/PILLS.md) · [THEMES](docs/THEMES.md) · [GESTURES](docs/GESTURES.md) · [INSTALL](docs/INSTALL.md) |
 | Window managers and compatibility | [COMPATIBILITY](docs/COMPATIBILITY.md) · [WM-COMMAND](docs/WM-COMMAND.md) · [UNVERIFIED](docs/UNVERIFIED.md) |
 | Extending | [AGENTS](AGENTS.md) · [WRITING-EXTENSIONS](docs/WRITING-EXTENSIONS.md) · [KIT-API](https://github.com/rish139/riskell-kit/blob/main/docs/KIT-API.md) · [EXTENSION-KIT](docs/EXTENSION-KIT.md) · [STOREFRONT](docs/STOREFRONT.md) |
-| Working on riskell | [ARCHITECTURE](docs/ARCHITECTURE.md) · [EFFICIENCY](docs/EFFICIENCY.md) · [ROADMAP](docs/ROADMAP.md) · [CONTRIBUTING](CONTRIBUTING.md) |
+| Working on it | [ARCHITECTURE](docs/ARCHITECTURE.md) · [EFFICIENCY](docs/EFFICIENCY.md) · [ROADMAP](docs/ROADMAP.md) · [CONTRIBUTING](CONTRIBUTING.md) |
 
-The pictures in this document are produced by `scripts/make-screenshots` from fake data, so that they can be regenerated after a change.
+The pictures in this document are produced by `scripts/make-screenshots` from fake data, so they can be regenerated after a change.
 
 ## License
 
-The application is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE); commercial use needs a license from the author
-(open an issue). [RiskellKit](https://github.com/rish139/riskell-kit), `risk ext`, the manifest schema and the examples are Apache-2.0, and
-an extension keeps whatever license its author chooses. Colour schemes: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+The application is under the [Functional Source License 1.1, MIT Future License](LICENSE) (`FSL-1.1-MIT`): use it for anything, including
+at work, except shipping a product that replaces it; each release becomes MIT two years after it ships. [LICENSING.md](LICENSING.md) puts
+that in a table and says what a commercial license covers. [RiskellKit](https://github.com/rish139/riskell-kit), `risk ext`, the manifest
+schema and the examples are Apache-2.0; an extension keeps whatever license its author chooses; colour schemes are credited in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Releases `0.1.0`–`0.1.2` were PolyForm Noncommercial and stay under it.
 
-Contributing: [CONTRIBUTING.md](CONTRIBUTING.md) (a one-time [CLA](CLA.md) for the application only; nothing for extensions or the Apache-2.0
-parts), the [Code of Conduct](CODE_OF_CONDUCT.md), and private vulnerability reports in [SECURITY.md](SECURITY.md).
+Contributing: [CONTRIBUTING.md](CONTRIBUTING.md) (a one-time [CLA](CLA.md) for the application only; nothing for extensions or the
+Apache-2.0 parts), the [Code of Conduct](CODE_OF_CONDUCT.md), and private vulnerability reports in [SECURITY.md](SECURITY.md).

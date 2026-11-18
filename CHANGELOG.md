@@ -2,7 +2,25 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [Semantic Versioning](https://semver.org).
 
-## [Unreleased]
+## [0.2.0] - 2026-11-18
+
+### Licensing
+- The application moves from PolyForm Noncommercial 1.0.0 to the Functional Source License 1.1, MIT Future License (`FSL-1.1-MIT`). Work use
+  and company use are now allowed; a paid product built on riskell is not, for two years, after which each release is MIT. `LICENSING.md`
+  answers the common questions in a table, and the trademark and `riskell.` registry-namespace limits are stated there. Releases `0.1.0` to
+  `0.1.2` stay under PolyForm Noncommercial. `risk ext` accepts both FSL identifiers as known SPDX licenses.
+- The bundled atom packages carry `FSL-1.1-MIT` in their headers and manifests, so `risk ext validate` finds no unknown license in them.
+
+### Documentation
+- `README.md` rebuilt: a centred title block with the tagline and status in one line, a "Why another bar" comparison before the install step, a
+  2×2 picture grid for the tour, headings that can be scanned as a list of claims, and the deep material moved into collapsed sections.
+- `docs/STOREFRONT.md` no longer claims a capability report that does not exist, and says plainly what the storefront cannot know (no install
+  counter, no telemetry, and why GitHub Pages offers no logs). Previews are no longer listed as unbuilt.
+- The documentation was checked against the code as a whole. Corrected: the top bar cannot be switched off, `risk ext` gained `search`, `info`,
+  `update` and `publish` in three lists that predated them, `config.json` named neither `gestures` nor `display` and omitted `aerospace`,
+  `Compat.Verified` does not hold the protocol number or a build hash, the memory figure disagreed with `docs/EFFICIENCY.md`, the live-reload
+  claim ignored `wm`, `scale` and `disabledExtensions`, the atom count is ten in seven packages, and the paused-media window is 15 minutes.
+  The panel is called riskell preferences everywhere, and the six longest documents have a contents line.
 
 ## [0.1.2] - 2026-11-17
 
@@ -63,7 +81,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `listings/`: one registry listing for each built-in atom, `schemas/riskell-listing.schema.json`, `riskell --list-atoms` and
   `scripts/listings-check.sh`, which keeps the listings in step with the app.
 
-### Added (the storefront)
+### Added: the storefront
 - `risk ext search`, `info`, `add <name>`, `update [--yes]` and `publish`: extensions are found in a registry (`riskell-registry`, listings pinned to a
   commit, an `index.json` the client reads, `RISKELL_REGISTRY` to point elsewhere) and installed at the pinned commit; the manifest must agree with the
   listing. Pills and themes are files copied into the config folder and applied live (`~/.config/riskell/extensions.json` records them). `update`
@@ -74,6 +92,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   (`docs/images/store/`).
 
 ### Fixed
+- The overview is resolution-independent: every size in it follows the one scale factor, and it follows display changes.
+- The weather card footer showed a hardcoded city; it now shows the place from `config.json`.
+- Script pills (and extension atoms) no longer run while their bar is switched off or hidden by a fullscreen Space.
 - `risk ext new` scaffolded extensions that depended on RiskellKit 1.0, which does not exist, so they could not build; they now depend on the kit's
   current minor (`.upToNextMinor(from: "0.6.0")`, `"kit": "^0.6"`), as does `Examples/load-ext`.
 
@@ -109,8 +130,3 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ### Documentation
 - A README with a full feature list, screenshots of everything, and a roadmap. The pictures come from `scripts/make-screenshots`, which
   renders them from fake data (a made-up wallpaper, fake workspaces, placeholder device and process names) so they can be made again.
-
-### Fixed
-- The overview is resolution-independent: every size in it follows the one scale factor, and it follows display changes.
-- The weather card footer showed a hardcoded city; it now shows the place from `config.json`.
-- Script pills (and extension atoms) no longer run while their bar is switched off or hidden by a fullscreen Space.

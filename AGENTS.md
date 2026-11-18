@@ -13,7 +13,7 @@ An extension is a git repo with a `riskell.json` manifest. Pick the smallest kin
 | new colours | `theme` | no | `risk ext new theme <name>` |
 | a figure, gauge and hover card from Swift code | `reading` | yes | `risk ext new reading <name>` |
 | your own drawing (both bar forms) | `atom` | yes | `risk ext new atom <name>` |
-| a background capability (input, automation) | `behaviour` | yes | ask a maintainer first |
+| a background capability (input, automation) | `behaviour` | yes | not open yet: ask a maintainer first |
 
 Publishing an extension needs no agreement: it lives in its own repository under its author's license.
 

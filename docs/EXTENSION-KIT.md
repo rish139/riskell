@@ -6,6 +6,11 @@ How riskell is extended, and why it is shaped this way. The how-to is `docs/WRIT
 The four requirements, in the order they win a conflict: **robust, efficient, beautiful, easy**. Beauty and ease come from making the good
 result the only easy one (the API has no way to say "wrong"), not from reviewing what people submit.
 
+**Contents:** [Status](#status) · [Kinds](#1-kinds) · [How it loads](#2-how-an-extension-gets-into-the-app) ·
+ [The API](#3-the-api) · [Robustness](#4-robustness) · [Efficiency](#5-efficiency-contract) ·
+ [Beauty](#6-beauty-and-consistency) · [Open questions](#7-open-questions) · [Non-goals](#8-non-goals) ·
+ [Measurements](#measurements)
+
 ## Status
 
 | piece | state |
@@ -14,11 +19,11 @@ result the only easy one (the API has no way to say "wrong"), not from reviewing
 | the app draws pills and extension readings with the same kit code | built; snapshots identical to before the split |
 | `reading` and `atom` extensions, linked through `extensions.lock.json` | built, tested end to end (`Examples/load-ext`) |
 | built-in atoms moved out: every atom that ships with riskell is a package in `Packages/` (kit 0.2.0 `PopState`, 0.3.0 `env.config` and `env.cache`, 0.4.0 `Demo` and `onRightClick`, 0.5.0 `onScrollSteps` and `AppHooks`, 0.6.0 `WindowsModel`, `RailState` and `WindowActions`) | built; placed as `ext:clock`, an older layout.json's `clock` is read as it |
-| `risk ext` (`validate`, `new`, `add`, `remove`, `list`, `sync`) | built |
+| `risk ext` (`validate`, `new`, `add`, `remove`, `list`, `search`, `info`, `update`, `publish`, `sync`) | built |
 | `schemas/riskell-extension.schema.json`, `AGENTS.md`, `docs/WRITING-EXTENSIONS.md` | written |
 | settings card in riskell preferences (EXTENSIONS) | built: `settings` in the manifest, written to `~/.config/riskell/ext/<id>.json`, applies at once; `riskell --ext-selftest` |
 | disabling an installed extension from `config.json` (`disabledExtensions`) | built |
-| the registry and its CI render matrix, `risk publish` | not built (`docs/STOREFRONT.md` is the plan) |
+| the registry, the storefront and `risk ext publish` | built (`docs/STOREFRONT.md`); the CI render matrix is not |
 | `behaviour` extensions from outside the app (the closed list in `Extensions/Extension.swift` is unchanged) | not built |
 
 ## 1. Kinds
@@ -72,8 +77,8 @@ multiplies by one scale factor where a number becomes a window frame.
   in 9 s); now it does not (0). Script pills use the same gate, which also makes the claim in `docs/PILLS.md` true for them.
 - **Feeds:** `.battery .volume .focusedApp .spaces .minute`. A feed is a Combine sink on the app's own `Store`, so subscribing adds no
   polling. `.minute` is a timer that exists only while someone is subscribed. The built-in services (CPU/battery/volume,
-  thermals, weather, Wi-Fi, AI usage) run only while an atom that needs them is placed on a bar that is on (`Services/Needs.swift`, one table in
-  `main.swift`). The window manager and the notch wings' media feed are not gated by an atom.
+  thermals, weather, Wi-Fi, AI usage) run only while an atom that needs them is placed on a bar that is on (`ExtensionHost.swift`'s `BarActivity`, which every package's atoms
+  go through). The window manager and the notch wings' media feed are not gated by an atom.
 - **Prefs:** `env.prefs.number/bool/string` from `~/.config/riskell/ext/<id>.json`.
 
 ## 4. Robustness

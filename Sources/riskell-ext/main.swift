@@ -45,7 +45,7 @@ func report(_ rule: String, _ file: String, _ line: Int? = nil, _ message: Strin
 
 /// SPDX identifiers that are common in open source; anything else is a warning to check the spelling against spdx.org/licenses.
 let spdx: Set<String> = ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "MPL-2.0", "GPL-2.0-only", "GPL-3.0-only", "GPL-3.0-or-later",
-                         "LGPL-3.0-only", "AGPL-3.0-only", "Unlicense", "CC0-1.0", "0BSD", "Zlib", "BUSL-1.1",
+                         "LGPL-3.0-only", "AGPL-3.0-only", "Unlicense", "CC0-1.0", "0BSD", "Zlib", "BUSL-1.1", "FSL-1.1-MIT", "FSL-1.1-Apache-2.0",
                          "PolyForm-Noncommercial-1.0.0", "PolyForm-Small-Business-1.0.0", "Prosperity-3.0.0"]
 
 func validateManifest(_ dir: String) -> [String: Any]? {

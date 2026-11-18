@@ -12,6 +12,10 @@ writes the settings, starts riskell and checks that it is running. Nothing is wr
 The installer is part of the same Swift package as riskell (`Sources/riskell-setup`, Foundation only). Build it on its own with
 `swift build -c release --product riskell-setup`; it compiles in a few seconds and does not depend on the riskell target.
 
+**Contents:** [What it asks](#what-the-flow-asks) · [What it writes](#what-it-writes) ·
+ [The steps](#the-steps-of-an-install) · [Flags](#flags) · [Undo](#undo) · [By hand](#installing-by-hand) ·
+ [Privacy](#privacy) · [Development notes](#development-notes)
+
 ## What the flow asks
 
 | Step | Question | Writes |

@@ -20,7 +20,7 @@ next is `docs/ROADMAP.md`; what has not been tested on real hardware is `docs/UN
   popout hook, `ReadingAtom`/`CustomAtom`/`Env`/feeds. The app depends on it by URL (`Package.swift`); so does every extension. To change the
   kit and the app together, check the kit out next to this repository and run `swift package edit riskell-kit --path ../riskell-kit`
   (`swift package unedit riskell-kit` to go back).
-- `Sources/riskell-ext/`: the extension CLI, run as `risk ext` (`validate`, `new`, `add`, `remove`, `list`, `sync`). `extensions.lock.json` and a generated block in
+- `Sources/riskell-ext/`: the extension CLI, run as `risk ext` (`validate`, `new`, `add`, `remove`, `list`, `search`, `info`, `update`, `publish`, `sync`). `extensions.lock.json` and a generated block in
   `Package.swift` link installed extensions into the binary; `Sources/riskell/Generated/` holds the generated import list.
   `Examples/load-ext` is the working example; `schemas/` holds the manifest schema.
 - `Sources/riskell-setup/`: the guided terminal installer, a second small executable (Foundation only).

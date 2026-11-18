@@ -35,7 +35,7 @@ asks for it. The ones for what ships with riskell are rendered by riskell itself
 
 ## First residents
 
-The atoms that ship with riskell are the first listings (clock, weather, AI usage, system, volume, network, windows), marked `bundled`: they are in
+The seven packages that ship with riskell are the first listings (clock, weather, usage, system, volume, network, windows), covering ten atoms, marked `bundled`: they are in
 the application's lock already, `risk ext add clock` says so, and it puts one back after `risk ext remove`. Each is also a package in `Packages/`
 and a worked example. (`listings/` in this repository maps each atom to its source files and is checked by `scripts/listings-check.sh`; the
 registry's listings are what gets distributed.)
@@ -59,10 +59,23 @@ There is no permission system, but nothing is installed unsaid: `risk ext add` s
 code runs with your rights, shows a pill's shell commands, and asks before anything is built (`--yes` answers for scripts). The client checks
 everything a listing says (an https repository, a full commit hash, plain names and paths, plain small files) and turns git's command-running
 `ext::` transport off. The trust model is a package manager's: pinned commits, a lockfile, source you can read, and the validator's findings
-shown at install time. `risk ext validate` can also print what the code touches (shell, network, files) as information, never as a gate.
-Behaviour extensions that touch input stay first-party or hand-reviewed.
+shown at install time. `risk ext validate` checks the rules it can see in source — no raw colour, no fixed font size, no screen reads, no timers of
+its own, no windows — and reports them as findings, never as a gate. Behaviour extensions that touch input stay first-party or hand-reviewed.
+
+## What this page cannot tell you, and why
+
+There is no telemetry, no install counter, no heart button and no download number, and there will not be one: the client never reports home, and
+the storefront is a static page on GitHub Pages, which does not expose per-file request logs. So any figure on this page is one of:
+
+- **GitHub's own numbers** for the three repositories (stars, issues, pull requests, and the maintainer-only clone and view counts of the code
+  repository — which count `git clone`, not installs);
+- **what people tell us**, in an issue;
+- **nothing at all**.
+
+Where a number is missing it stays missing rather than being estimated. The honest way to say "this is used" is a labelled issue, not a counter.
 
 ## Not built yet
 
-Presets and `risk ext preset apply`; the render matrix and a build against two kit versions in CI; preview images on the storefront; an in-app
-browse card in riskell preferences (last); a signed or verified-author mark.
+Presets and `risk ext preset apply`; a capability report from `risk ext validate` (the shell commands, files and hosts an extension's source
+touches, printed as information — the checks above are style and resource rules, not this); the render matrix and a build against two kit
+versions in CI; an in-app browse card in riskell preferences (last); a signed or verified-author mark.

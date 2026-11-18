@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// SPDX-License-Identifier: FSL-1.1-MIT
 // Copyright 2026 Rishabh Tiwari
 
 import AppKit
