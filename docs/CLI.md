@@ -183,12 +183,12 @@ run pass/fail checks on each fake display
 - example: `risk fit --panels`
 - replaces: `riskell --check-fit`, `riskell --check-panel`
 
-### `risk snap [card] [--style S] [--out DIR] [--json]`
+### `risk snap <maker>…|all|--list [--out DIR] [--theme ID|all] [--scale N] [--display WxH] [--card ATOM] [--json] [--dry-run]`
 
-render pictures of bars, cards and the installer
+render the picture set from scratch instances
 
-- example: `risk snap vol --out /tmp/p`
-- replaces: `riskell --snap`, `riskell --pop`, `scripts/overview-check`, `scripts/make-previews`, `scripts/make-screenshots`
+- example: `risk snap card clock --out /tmp/p`
+- replaces: `riskell --snap`, `riskell --pop`, `riskell --settings --snap`, `scripts/overview-check`
 
 ### `risk wm start`
 

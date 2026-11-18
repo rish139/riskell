@@ -137,9 +137,10 @@ let commandTable: [Command] = [
 
     Command("fit [--scale N] [--panels] [--json]", "run pass/fail checks on each fake display",
             example: "risk fit --panels", tier: .experimental, replaces: ["riskell --check-fit", "riskell --check-panel"]),
-    Command("snap [card] [--style S] [--out DIR] [--json]", "render pictures of bars, cards and the installer",
-            example: "risk snap vol --out /tmp/p", tier: .experimental,
-            replaces: ["riskell --snap", "riskell --pop", "scripts/overview-check", "scripts/make-previews", "scripts/make-screenshots"]),
+    Command("snap <maker>…|all|--list [--out DIR] [--theme ID|all] [--scale N] [--display WxH] [--card ATOM] [--json] [--dry-run]",
+            "render the picture set from scratch instances",
+            example: "risk snap card clock --out /tmp/p", tier: .experimental,
+            replaces: ["riskell --snap", "riskell --pop", "riskell --settings --snap", "scripts/overview-check"]),
     Command("wm start", "start omniwm and put each window on its number",
             example: "risk wm start", tier: .experimental, replaces: ["risk wm omniwm"]),
     Command("bench [cpu] [--runs N] [--json]", "measure idle cpu, memory and threads of a scratch instance",

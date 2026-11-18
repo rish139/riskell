@@ -203,7 +203,7 @@ enum Ctl {
     }
 
     /// Connects, writes one line and closes: the app reads one word per connection and trims it (`Services/EventSocket.swift`).
-    private static func send(_ line: String, to path: String) throws {
+    static func send(_ line: String, to path: String) throws {
         let descriptor = socket(AF_UNIX, SOCK_STREAM, 0)
         guard descriptor >= 0 else { throw SendError.connect(String(cString: strerror(errno))) }
         defer { close(descriptor) }
