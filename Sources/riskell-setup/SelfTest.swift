@@ -35,6 +35,28 @@ enum SelfTest {
         return d
     }
 
+    /// A unix socket at PATH for the report's probe: bound and listening (the descriptor comes back, so the file stays), or bound and
+    /// closed at once, which leaves a socket file that refuses connections.
+    private static func openSocket(at path: String, listening: Bool) -> Int32? {
+        try? FileManager.default.createDirectory(atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
+        unlink(path)
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { return nil }
+        var address = sockaddr_un()
+        address.sun_family = sa_family_t(AF_UNIX)
+        _ = withUnsafeMutablePointer(to: &address.sun_path) {
+            $0.withMemoryRebound(to: CChar.self, capacity: 104) { strncpy($0, path, 103) }
+        }
+        let length = socklen_t(MemoryLayout<sockaddr_un>.size)
+        guard withUnsafePointer(to: &address) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, length) } } == 0 else {
+            close(fd)
+            return nil
+        }
+        guard listening else { close(fd); return nil }
+        listen(fd, 1)
+        return fd
+    }
+
     static func configMerge() {
         let existing: [String: Any] = ["pills": [["id": "x"]], "spacing": ["edgeGap": 12], "wm": "none", "theme": "nord", "scale": 1.2]
         let out = ConfigIO.merge(existing, owned: [("wm", "omniwm"), ("scale", nil)])
@@ -273,6 +295,60 @@ enum SelfTest {
             .write(to: plist, atomically: true, encoding: .utf8)
         check("an agent plist names its program", Doctor.plistProgram(plist) == "/tmp/riskell")
         check("a missing plist names nothing", Doctor.plistProgram(plist.appendingPathExtension("nope")) == nil)
+
+
+        // what the agent runs against this checkout's release binary: a rebuild that has not reached the agent warns, a bundle without
+        // its binary fails (scripts/risk writes both, and only risk dev refreshes the copy the agent starts)
+        let checkout = tempDir("agent")
+        let release = checkout.appendingPathComponent(".build/release/riskell")
+        let program = checkout.appendingPathComponent(".build/riskell.app/Contents/MacOS/riskell")
+        for url in [release, program] {
+            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            FileManager.default.createFile(atPath: url.path, contents: Data("x".utf8))
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755, .modificationDate: Date(timeIntervalSinceNow: -120)], ofItemAtPath: url.path)
+        }
+        check("an app bundle newer than the release binary is fine",
+              Doctor.bundleCheck(program: program.path, release: release, home: checkout.path).severity == .ok)
+        try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: release.path)
+        let older = Doctor.bundleCheck(program: program.path, release: release, home: checkout.path)
+        check("an agent started before the last build is a warning with risk dev", older.severity == .warn && older.fix == "risk dev", older.detail)
+        try? FileManager.default.removeItem(at: program)
+        check("a bundle without its binary is a failure",
+              Doctor.bundleCheck(program: program.path, release: release, home: checkout.path).severity == .fail)
+
+        // the version the bar reports, when its own answer is not there: the app bundle's plist, else the checkout's VERSION
+        let fake = tempDir("app").appendingPathComponent("riskell.app")
+        try? FileManager.default.createDirectory(at: fake.appendingPathComponent("Contents/MacOS"), withIntermediateDirectories: true)
+        try? ("<?xml version=\"1.0\"?><plist version=\"1.0\"><dict><key>CFBundleShortVersionString</key><string>9.9.9</string></dict></plist>")
+            .write(to: fake.appendingPathComponent("Contents/Info.plist"), atomically: true, encoding: .utf8)
+        check("the version of the app the agent runs comes from its bundle",
+              Doctor.bundleVersion(fake.appendingPathComponent("Contents/MacOS/riskell").path) == "9.9.9")
+        check("a program outside a bundle has no bundle version", Doctor.bundleVersion("/tmp/riskell") == nil)
+        let versioned = tempDir("version")
+        try? "1.2.3\n".write(to: versioned.appendingPathComponent("VERSION"), atomically: true, encoding: .utf8)
+        check("the checkout's VERSION is the last fallback", Doctor.checkoutVersion(versioned) == "1.2.3" && Doctor.checkoutVersion(nil) == nil)
+
+        // the socket's three ways of saying nothing, which the report tells apart: no file, a file nothing listens on, a build that
+        // takes the doctor word for an event and replies with nothing
+        func state(_ home: URL) -> String {
+            switch Doctor.ask(Paths(home: home.path)) {
+            case .answered: return "answered"
+            case .silent: return "silent"
+            case .refused: return "refused"
+            case .missing: return "missing"
+            }
+        }
+        let quiet = URL(fileURLWithPath: "/tmp/riskell-setup-socket-\(getpid())")      // a unix socket path is at most 104 bytes
+        try? FileManager.default.removeItem(at: quiet)
+        let socketPath = quiet.appendingPathComponent(".cache/riskell/ev.sock").path
+        openSocket(at: socketPath, listening: false)
+        check("a socket with nothing behind it is refused", state(quiet) == "refused")
+        let listener = openSocket(at: socketPath, listening: true)
+        check("a socket that says nothing is an app older than this report", state(quiet) == "silent")
+        if let listener { close(listener) }
+        unlink(socketPath)
+        check("no socket at all is riskell not running", state(quiet) == "missing")
+        try? FileManager.default.removeItem(at: quiet)
 
         // the instance lock: held from an open file description, then released
         let lock = tempDir("lock").appendingPathComponent("riskell.lock")
