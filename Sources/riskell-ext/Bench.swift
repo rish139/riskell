@@ -82,6 +82,96 @@ enum Bench {
         measures.first { $0.id == word || $0.id == "card:" + word || $0.hot == word }
     }
 
+    // MARK: - measuring
+
+    /// One run's numbers: the CPU seconds the instance used over the window, the same as a percent of one core, and the resident memory
+    /// (MB) and thread count at the end of the window.
+    struct Sample {
+        let seconds: Double
+        let percent: Double
+        let memory: Int
+        let threads: Int
+    }
+
+    /// A measure that has been run: every sample, the median of them (the number to judge by) and the spread between them. A single run has
+    /// no spread, and `noise` says so by being nil: the output must never let one run look like a median of three.
+    struct Result {
+        let measure: Measure
+        let samples: [Sample]
+        let median: Sample
+        let noise: Double?
+
+        init(_ measure: Measure, _ samples: [Sample]) {
+            self.measure = measure
+            self.samples = samples
+            let sorted = samples.sorted { $0.seconds < $1.seconds }
+            let middle = sorted.count / 2
+            let seconds = sorted.count % 2 == 1 ? sorted[middle].seconds : (sorted[middle - 1].seconds + sorted[middle].seconds) / 2
+            self.median = Sample(seconds: seconds, percent: seconds * 100 / Double(measure.window),
+                                 memory: sorted[middle].memory, threads: sorted[middle].threads)
+            self.noise = samples.count < 2 ? nil : (sorted[sorted.count - 1].seconds - sorted[0].seconds)
+        }
+    }
+
+    /// What the number is judged against. `docs/EFFICIENCY.md`'s figures come from the maintainer's 14-inch MacBook Pro and name no model
+    /// (`publishedModel` is nil), so a run here reports `cannot-compare` while still printing both numbers; filling the model in once turns
+    /// the same code into a real comparison.
+    enum Verdict: String {
+        case reproduced, exceeded, below, cannotCompare = "cannot-compare"
+    }
+
+    /// The published band widened by this run's own noise: a run inside it reproduced the figure, one above it exceeded it. nil when the
+    /// page claims nothing for the measure.
+    static func verdict(_ result: Result, machine: String) -> Verdict? {
+        guard let published = result.measure.published else { return nil }
+        guard let publishedModel, publishedModel == machine else { return .cannotCompare }
+        let band = (result.noise ?? 0.1) / Double(result.measure.window) * 100      // the page's single-run noise is 0.1 s
+        if result.median.percent > published.high + band { return .exceeded }
+        if result.median.percent < published.low - band { return .below }
+        return .reproduced
+    }
+
+    /// What a run needs from outside the table: the built app, the two files it reads, and the scratch folder everything it writes goes in.
+    struct Setup {
+        let binary: String
+        let layout: String
+        let config: String
+        let scratch: String
+    }
+
+    /// The machine, the OS, the build and the files a number belongs to. Without them a number says nothing: the same layout on another
+    /// machine, or the same machine on another build, is another figure.
+    struct Fingerprint {
+        let machine: String         // hw.model
+        let os: String              // macOS version and build
+        let revision: String        // git rev-parse --short HEAD, or "unknown" outside a git checkout
+        let binary: String
+        let layout: String
+        let config: String
+        let cores: Int
+    }
+
+    /// The defaults are the two scripts' own: the owner's layout, read and never written, and an empty config. Everything else the instance
+    /// writes goes into this run's scratch folder.
+    private static func setup() -> Setup {
+        guard let root = checkout() else { fail("run it inside the riskell checkout (no extensions.lock.json above here)") }
+        let binary = root + "/.build/release/riskell"
+        guard fm.isExecutableFile(atPath: binary) else { fail("build first (swift build -c release)") }
+        let home = ProcessInfo.processInfo.environment["HOME"] ?? NSHomeDirectory()
+        let layout = home + "/.config/riskell/layout.json"
+        return Setup(binary: binary, layout: fm.fileExists(atPath: layout) ? layout : "the built-in layout", config: "/dev/null",
+                     scratch: "/tmp/risk-bench-\(getpid())")
+    }
+
+    private static func fingerprint(_ setup: Setup) -> Fingerprint {
+        let root = checkout() ?? ""
+        let revision = sh(["git", "rev-parse", "--short", "HEAD"], in: root.isEmpty ? nil : root)
+        let os = sh(["sw_vers", "-productVersion"]).1 + " (" + sh(["sw_vers", "-buildVersion"]).1 + ")"
+        return Fingerprint(machine: sh(["sysctl", "-n", "hw.model"]).1, os: "macOS " + os,
+                           revision: revision.0 == 0 ? revision.1 : "unknown", binary: setup.binary,
+                           layout: setup.layout, config: setup.config, cores: Int(sh(["sysctl", "-n", "hw.ncpu"]).1) ?? 0)
+    }
+
     // MARK: - the command
 
     static func run(_ args: [String]) -> Int32 {
@@ -112,7 +202,12 @@ enum Bench {
             print(document())
             return 0
         }
-        return usage(nil)
+        switch words.first {
+        case "idle" where words.count == 1:
+            return runMeasures([measures[0]], count: runs ?? 3, json: json)
+        default:
+            return usage(nil)
+        }
     }
 
     /// The value of a flag: the next argument, unless it is another flag.
@@ -166,6 +261,227 @@ enum Bench {
         lines.append("  " + tty.dim("risk bench idle | card <atom> | all [--runs N] [--json] — each run is a scratch instance, killed afterwards"))
         return lines.joined(separator: "\n")
     }
+
+    // MARK: - the scratch instance
+
+    /// The one instance a run has going, the busy loops the loaded measure keeps for its whole length, and this run's folder: all three go
+    /// however the command ends, and the instance's `--stay` is the last resort.
+    private static var scratch = ""
+    private static var child: Process?
+    private static var loads: [Process] = []
+    private static var signalSources: [DispatchSourceSignal] = []
+
+    /// Runs one measure `count` times, in order. Each run is a scratch instance of the built app: its own config, layout, cache and event
+    /// socket, `--no-reserve` so it never takes the running bar's, and `--stay` so it cannot outlive this process. Ten seconds to settle (the
+    /// bars drawn, the first readings in), then the CPU seconds it uses over `measure.window`.
+    private static func samples(_ measure: Measure, count: Int, _ setup: Setup) -> [Sample] {
+        if measure.loaded { startLoad() }
+        defer { stopLoad() }
+        var out: [Sample] = []
+        for index in 0..<count {
+            let shots = setup.scratch + "/snap-\(measure.id)-\(index)"
+            try? fm.createDirectory(atPath: shots, withIntermediateDirectories: true)
+            let instance = Process()
+            instance.executableURL = URL(fileURLWithPath: setup.binary)
+            instance.arguments = ["--no-usage", "--no-reserve", "--fake-media", "--snap", shots, "--stay", "\(measure.window + 14)"]
+            instance.environment = environment(measure, setup)
+            instance.standardOutput = FileHandle.nullDevice
+            instance.standardError = FileHandle.nullDevice
+            child = instance
+            do { try instance.run() } catch { child = nil; fail("could not start \(setup.binary): \(error)") }
+            let pid = instance.processIdentifier
+            pause(10)
+            let start = cpuSeconds(pid)
+            pause(Double(measure.window))
+            let used = cpuSeconds(pid) - start
+            let sample = Sample(seconds: used, percent: used * 100 / Double(measure.window), memory: residentMB(pid), threads: threadCount(pid))
+            let alive = instance.isRunning
+            instance.terminate()        // SIGTERM: the app shuts down cleanly, and --stay is the way out if it does not
+            instance.waitUntilExit()
+            child = nil
+            guard alive else { fail("the instance exited during run \(index + 1) of \(measure.id): a dead process's CPU time is not a measurement") }
+            out.append(sample)
+        }
+        return out
+    }
+
+    /// The instance's environment: everything the caller had except its own RISKELL_ variables, then this run's. A stray RISKELL_FORCE_HOT
+    /// in the shell therefore cannot open a card on the idle measure, and nothing can point an instance at a real config, cache or socket.
+    private static func environment(_ measure: Measure, _ setup: Setup) -> [String: String] {
+        var env = ProcessInfo.processInfo.environment.filter { !$0.key.hasPrefix("RISKELL_") }
+        env["RISKELL_CONFIG"] = setup.config
+        env["RISKELL_LAYOUT"] = setup.layout
+        env["RISKELL_CACHE_DIR"] = setup.scratch + "/cache"
+        env["RISKELL_EVENT_SOCKET"] = setup.scratch + "/ev.sock"
+        env["RISKELL_DEMO"] = "1"           // placeholder names for devices, volumes, processes and addresses
+        if let hot = measure.hot { env["RISKELL_FORCE_HOT"] = hot }
+        return env
+    }
+
+    /// The instance's CPU time in seconds: `ps -o cputime` prints `MM:SS.ss`, and `HH:MM:SS.ss` past an hour.
+    private static func cpuSeconds(_ pid: Int32) -> Double {
+        let parts = sh(["ps", "-o", "cputime=", "-p", "\(pid)"]).1.trimmingCharacters(in: .whitespaces).split(separator: ":")
+        let numbers = parts.compactMap { Double($0) }
+        guard !numbers.isEmpty, numbers.count == parts.count else { return 0 }
+        return numbers.reduce(0) { $0 * 60 + $1 }
+    }
+
+    /// Resident memory in MB, as `scripts/resource-check` reads it.
+    private static func residentMB(_ pid: Int32) -> Int { Int((Double(sh(["ps", "-o", "rss=", "-p", "\(pid)"]).1) ?? 0) / 1024) }
+
+    /// `ps -M` prints a line a thread, plus a header.
+    private static func threadCount(_ pid: Int32) -> Int {
+        max(0, sh(["ps", "-M", "-p", "\(pid)"]).1.split(separator: "\n").count - 1)
+    }
+
+    /// One busy loop a core, so "every core busy" means what it says. Nothing of it survives the measure.
+    private static func startLoad() {
+        let cores = Int(sh(["sysctl", "-n", "hw.ncpu"]).1) ?? 1
+        for _ in 0..<max(1, cores) {
+            let loop = Process()
+            loop.executableURL = URL(fileURLWithPath: "/usr/bin/yes")
+            loop.standardOutput = FileHandle.nullDevice
+            loop.standardError = FileHandle.nullDevice
+            guard (try? loop.run()) != nil else { continue }
+            loads.append(loop)
+        }
+    }
+
+    private static func stopLoad() {
+        for loop in loads where loop.isRunning { loop.terminate() }
+        for loop in loads { loop.waitUntilExit() }
+        loads = []
+    }
+
+    /// The instance, the loops and the folder: what a ^C or a kill must never leave behind. (`exit` in a signal handler skips the `defer`
+    /// in the run, so the handler calls this itself.)
+    private static func stopEverything() {
+        if let instance = child, instance.isRunning {
+            instance.terminate()
+            instance.waitUntilExit()
+        }
+        child = nil
+        stopLoad()
+        if !scratch.isEmpty { try? fm.removeItem(atPath: scratch) }
+    }
+
+    private static func watchSignals() {
+        guard signalSources.isEmpty else { return }
+        for sig in [SIGINT, SIGTERM, SIGHUP] {
+            signal(sig, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: sig, queue: .global())
+            source.setEventHandler {
+                stopEverything()
+                exit(128 + sig)
+            }
+            source.resume()
+            signalSources.append(source)
+        }
+    }
+
+    private static func pause(_ seconds: Double) { usleep(useconds_t(seconds * 1_000_000)) }
+
+    // MARK: - the runs
+
+    /// The run itself: the measures picked out, the scratch folder, the trap that kills whatever it starts, then the numbers in the form the
+    /// caller asked for. Every path out of here goes through `defer stopEverything()`.
+    private static func runMeasures(_ picked: [Measure], count: Int, json: Bool) -> Int32 {
+        guard !picked.isEmpty else { return usage("nothing to measure") }
+        let setup = setup()
+        scratch = setup.scratch
+        watchSignals()
+        try? fm.createDirectory(atPath: setup.scratch + "/cache", withIntermediateDirectories: true)
+        defer { stopEverything() }
+        let mark = fingerprint(setup)
+        var results: [Result] = []
+        for measure in picked { results.append(Result(measure, samples(measure, count: count, setup))) }
+        if json { print(jsonReport(results, mark)) } else { print(plainReport(results, mark)) }
+        return 0
+    }
+
+    private static func sampleJSON(_ sample: Sample) -> String {
+        "{\"seconds\": \(fixed(sample.seconds)), \"percent\": \(fixed(sample.percent)), \"memory\": \(sample.memory), \"threads\": \(sample.threads)}"
+    }
+
+    private static func fingerprintJSON(_ mark: Fingerprint) -> String {
+        "{\"machine\": \(jsonQuoted(mark.machine)), \"os\": \(jsonQuoted(mark.os)), \"revision\": \(jsonQuoted(mark.revision)), "
+            + "\"binary\": \(jsonQuoted(mark.binary)), \"layout\": \(jsonQuoted(mark.layout)), \"config\": \(jsonQuoted(mark.config)), "
+            + "\"cores\": \(mark.cores)}"
+    }
+
+    /// Every run, its median, the spread, the fingerprint, the published figure and the verdict: one object, so a script reads the same
+    /// numbers the terminal prints.
+    private static func jsonReport(_ results: [Result], _ mark: Fingerprint) -> String {
+        let rows = results.map { r in
+            let noise = r.noise.map { "{\"seconds\": \(fixed($0)), \"percent\": \(fixed($0 * 100 / Double(r.measure.window)))}" } ?? "null"
+            return "{\"measure\": \(jsonQuoted(r.measure.id)), \"window\": \(r.measure.window), \"runs\": \(r.samples.count), "
+                + "\"samples\": [" + r.samples.map(sampleJSON).joined(separator: ", ") + "], "
+                + "\"median\": " + sampleJSON(r.median) + ", \"noise\": " + noise
+                + ", \"published\": " + publishedJSON(r.measure.published)
+                + ", \"verdict\": " + (verdict(r, machine: mark.machine).map { jsonQuoted($0.rawValue) } ?? "null") + "}"
+        }
+        return "{\"schema\": \(schema), \"fingerprint\": " + fingerprintJSON(mark) + ", \"results\": [\n  "
+            + rows.joined(separator: ",\n  ") + "\n]}"
+    }
+
+    /// The runs as a terminal prints them: a line a run, then the median and the spread, the fingerprint the numbers belong to, and how the
+    /// median compares with the published figure.
+    private static func plainReport(_ results: [Result], _ mark: Fingerprint) -> String {
+        let tty = Terminal.tty()
+        let dim = Style(fg: tty.palette.color(.text4, tty.mode)), bold = Style(bold: true)
+        var lines: [String] = []
+        for result in results {
+            let window = result.measure.window
+            lines.append("")
+            lines.append(tty.heading("bench " + result.measure.id)
+                         + tty.dim("  \(result.measure.summary); \(result.samples.count == 1 ? "one run" : "\(result.samples.count) runs") of \(window) s"))
+            var rows: [[Cell]] = result.samples.enumerated().map { index, s in
+                [Cell("  run \(index + 1)", .left, dim), Cell(fixed(s.seconds) + " s / \(window) s", .right), Cell(fixed(s.percent) + " %", .right),
+                 Cell("\(s.memory) MB", .right), Cell("\(s.threads) threads", .right, dim)]
+            }
+            rows.append([Cell("  median", .left, dim), Cell(fixed(result.median.seconds) + " s / \(window) s", .right, bold),
+                         Cell(fixed(result.median.percent) + " %", .right, bold), Cell("\(result.median.memory) MB", .right),
+                         Cell("\(result.median.threads) threads", .right, dim)])
+            lines.append(contentsOf: tty.rows(rows))
+            if let noise = result.noise {
+                lines.append("  " + tty.dim("noise    ±" + fixed(noise) + " s between runs (" + fixed(noise * 100 / Double(window)) + " %)"))
+            } else {
+                lines.append("  " + tty.mark(.warn, "one run: a single run is noise of about ±0.1 s — --runs 3 gives a median"))
+            }
+        }
+        lines.append("")
+        let shown = mark.binary.replacingOccurrences(of: (checkout() ?? "") + "/", with: "")
+        lines.append(contentsOf: tty.rows([
+            [Cell("  machine", .left, dim), Cell("\(mark.machine) · \(mark.os) · \(mark.cores) cores")],
+            [Cell("  build", .left, dim), Cell("\(mark.revision) · \(shown)")],
+            [Cell("  layout", .left, dim), Cell(mark.layout)],
+            [Cell("  config", .left, dim), Cell(mark.config)],
+        ]))
+        for result in results {
+            guard let published = result.measure.published, let verdict = verdict(result, machine: mark.machine) else { continue }
+            let here = fixed(result.median.seconds) + " s over \(result.measure.window) s (" + fixed(result.median.percent) + " %)"
+            lines.append("")
+            switch verdict {
+            case .cannotCompare:
+                lines.append("  " + tty.mark(.warn, "cannot compare: the page's figure is from another machine"))
+                lines.append("    " + tty.dim("published " + published.text + "; here " + here))
+                lines.append("    " + tty.dim("the page names \"\(publishedMachine)\", this run is a \(mark.machine)"))
+            case .reproduced:
+                lines.append("  " + tty.mark(.ok, "reproduced: " + here + " is inside the published range"))
+                lines.append("    " + tty.dim("published " + published.text))
+            case .exceeded:
+                lines.append("  " + tty.mark(.fail, "exceeded: " + here + " is above the published range"))
+                lines.append("    " + tty.dim("published " + published.text))
+            case .below:
+                lines.append("  " + tty.mark(.ok, "below: " + here + " is under the published range"))
+                lines.append("    " + tty.dim("published " + published.text))
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// A measured number in JSON and in the terminal: two decimals, which is finer than the noise, so nothing is rounded into looking better.
+    private static func fixed(_ value: Double) -> String { String(format: "%.2f", value) }
 
     // MARK: - --emit-doc
 
