@@ -1,31 +1,80 @@
 # Roadmap
 
-What is built is in `docs/ARCHITECTURE.md` and `docs/EXTENSION-KIT.md` (which has a status table); this is what is next. Nothing here is
-promised. riskell supports Apple silicon only.
+What is built is in `docs/ARCHITECTURE.md` and `docs/EXTENSION-KIT.md` (which has a status table); this is what is next, in the order it will be
+taken. Nothing here is promised. riskell supports Apple silicon only.
 
-## Before a public release
-- Verification on other Apple-silicon Macs and window managers (`docs/UNVERIFIED.md`): yabai, AeroSpace, command actions, other displays,
-  macOS 14 and 15, a clean-machine install.
-- Packaging: done. `brew tap rish139/riskell && brew install riskell` builds the release from source, and `risk install` starts it.
+## Next: `risk`
 
-## Done: every atom is a package
-Each atom that ships with riskell (clock, weather, AI usage, battery, CPU, fans, volume, network, workspaces, application icon) is a package in
-`Packages/` on the same kit extensions use, listed in `listings/` (`scripts/listings-check.sh` keeps the listings in step), and starts nothing
-until it is on a showing bar. The kit grew for it: `PopState`, `env.config`, `env.cache`, `Demo`, `onRightClick`, `onScrollSteps`, `AppHooks`
-and the window-manager API.
+`risk` is how everything else is delivered — the importers, the port survey, the store client and the picture renderer all live in it — and,
+with [AGENTS.md](../AGENTS.md), the manifest schema and the validator, it is also the interface a coding agent uses. So it is treated as a
+product surface: `--json` on reads, documented exit codes (`10` rebuild needed, `2` usage, `1` failure), `--dry-run` where something writes,
+non-interactive off a TTY, `--yes` for destructive work, idempotent, and nothing that updates itself.
 
-## Extensions
-- Close the extensibility gaps: everything the application still owns that an extension cannot replace or extend is inventoried in
-  [`EXTENSIBILITY-GAPS.md`](EXTENSIBILITY-GAPS.md) (window-manager backends, the notch, the overview, the gesture and behaviour route, and more).
-- Done: riskell preferences. The panel is renamed, and an extension declares typed settings in its manifest (`settings`: number, bool, choice)
-  that appear in its EXTENSIONS card and apply at once. Text settings (a field you type into) stay in the file for now.
-- Done: the registry and storefront (`docs/STOREFRONT.md`): `risk ext search`, `info`, `add <name>`, `update`, `publish`, the riskell-registry
-  repository with its checks, and a static storefront page. Still to do: CI that renders every listing across displays, bars and themes (this needs a
-  check that the snapshot harness runs headless on a CI runner), preset bundles with `risk ext preset apply`, and an in-app
-  browse card in riskell preferences.
-- Done: the repositories are public (kit, riskell, registry, tap); riskell 0.1.2 is released, the registry is on GitHub Pages and the Homebrew tap installs it.
-- `behaviour` extensions from outside the app, with a review policy.
+| Command | What it does |
+|---|---|
+| `risk doctor [--json] [--bundle]` | binary and signature, launch agent, font, socket, window-manager connection and protocol, gap drift, gesture conflicts, macOS and WM versions against the verified record, permissions; `--bundle` writes one redacted report |
+| `risk ctl <settings\|overview\|bar-right-on\|workspace-3\|…>` | the socket words as commands, so scripting does not start with `printf \| nc -U` |
+| `risk snap` | the picture flags (`--snap`, `--theme all`, `--bar`, `--scale`, `-o`) as one command |
+| `risk bench [--json]` | reproduce the numbers in [`EFFICIENCY.md`](EFFICIENCY.md) on this machine |
+| `risk config get\|set\|path\|edit` · `risk wm status\|doctor\|backends` | settings and the window manager without hand-edited JSON |
+| `risk help` · completions | stable and experimental commands, declared; zsh, fish and bash |
 
-## Ideas
-- The notch beyond its media wings (a shelf, quick actions, timers): parked until it has been designed.
-- Draw the clock drain and the CPU deck with Core Animation layers (about 0.8 % of a core). Open cards are the biggest cost now (`docs/EFFICIENCY.md`).
+## Then: import, and portability from other shells
+
+A setup written somewhere else should be bringable here, and what comes across should be checked rather than approximated. No second runtime:
+no Qt, no QML, no web view. Ports are mechanical or algorithmic first; a coding agent handles the residual and is never a gate.
+
+1. **Themes.** `risk theme fetch <slug>` from [tinted-theming/schemes](https://github.com/tinted-theming/schemes), `risk theme import
+   colors.toml`, `risk theme export --omarchy`. Import only is a converter; publishing to a format is what makes a format central.
+2. **`docs/IMPORT.md`**: one page, from → command, for Omarchy themes, Waybar modules, SwiftBar/BitBar plugins and Quickshell widgets.
+3. **BitBar/SwiftBar import** (`"format": "bitbar"` on a pill): line one on the bar, the rest in the card.
+4. **Waybar import** (`risk pill import waybar`): `exec`, `interval`, streaming, `format`, `tooltip-format`, `on-click` and `format-icons`.
+5. **`derivedFrom`** in the manifest schema and a validator rule — `repo`, `rev`, `license`, `authors` — with "Ported from …" on the listing.
+6. **`risk port survey <repo> --json`**: the capability, data-source and paint gates over Omarchy's registry, with the measured yield and how
+   many survivors actually run on macOS.
+7. **A data-only emitter** and a `map` state table on the pill spec, once the survey says it is worth it.
+8. **Presets as artefacts** (`risk preset export|apply`): layout, config, pills, theme, extension locks and a rendered picture.
+
+Before the tests, the gallery and any verification tier: a **test target and `Tests/wm` fixture conformance**, so a window-manager parser can be
+run against payloads recorded from a real install, on a CI runner, without the maintainer owning that Mac.
+
+## Before a wider release
+
+- Verification on other Apple-silicon Macs and window managers ([`UNVERIFIED.md`](UNVERIFIED.md)): yabai, AeroSpace, command actions, other
+  displays, macOS 14 and 15, a clean-machine install.
+- `behaviour` extensions from outside the application, with a review policy.
+- A CI step that builds `riskell-ext` from a pinned commit, instead of the registry's current unpinned `main`.
+
+## Later
+
+- **The notch** beyond its media wings (a shelf, a quick-action dock, timers, an expanded media panel): parked until it has been designed.
+- **CI that renders every listing** across displays, bars and themes, with the images attached to the pull request. It depends on the snapshot
+  harness running headless on a runner.
+- An in-app browse card in riskell preferences.
+- Draw the clock drain and the CPU deck with Core Animation layers (about 0.8 % of a core). Open cards are the biggest cost now
+  ([`EFFICIENCY.md`](EFFICIENCY.md)).
+- Catalogue additions, when someone asks for one: brightness, Bluetooth device battery, disk, input language, a system monitor, `homebrew
+  outdated`, docker/k8s context, VPN, git status, GitHub notifications.
+
+## Constraints
+
+- **No second runtime.** No Qt, no QML, no web view, no second process for a widget.
+- **No `.dmg` and no notarisation.** A Homebrew build from source, or a bottle, is the distribution.
+- **No closed "Pro" fork.** A paid build of the whole application is possible under the licence and the CLA; a crippled free edition is not.
+- **No bulk auto-port.** A few at a time, each checked and pictured.
+- **No auto-import and no auto-update** of community code: show the commands, ask, then act.
+- **No telemetry**, and therefore no install counts.
+
+## Done
+
+- Every atom is a package: clock, weather, AI usage, battery, CPU, fans, volume, network, workspaces and the application icon all live in
+  `Packages/` on the same kit extensions use, are listed in `listings/` ([`scripts/listings-check.sh`](../scripts/listings-check.sh) keeps the
+  two in step), and start nothing until they are on a showing bar. The kit grew for it: `PopState`, `env.config`, `env.cache`, `Demo`,
+  `onRightClick`, `onScrollSteps`, `AppHooks` and the window-manager API.
+- riskell preferences: the panel is renamed, and an extension declares typed settings in its manifest (`settings`: number, bool, choice) that
+  appear in its EXTENSIONS card and apply at once. Text settings stay in the file for now.
+- The registry and storefront ([`STOREFRONT.md`](STOREFRONT.md)): `risk ext search`, `info`, `add <name>`, `update`, `publish`, the
+  riskell-registry repository with its checks, and a static storefront page.
+- The repositories are public (kit, riskell, registry, tap); 0.2.1 is the current release under FSL-1.1-MIT ([`LICENSING.md`](../LICENSING.md)).
+- The extensibility gaps are inventoried in [`EXTENSIBILITY-GAPS.md`](EXTENSIBILITY-GAPS.md) — window-manager backends, the notch, the overview,
+  the gesture and behaviour route, and more — and each row says what opening it would take.

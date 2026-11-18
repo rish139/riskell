@@ -2,6 +2,14 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Documentation
+- The roadmap now states the order. First `risk` as a product surface (`doctor`, `ctl`, `snap`, `bench`, `config`, `wm`, completions), then
+  import and portability from other shells (BitBar/SwiftBar, Waybar, Omarchy themes and bar widgets, provenance, and a survey before any
+  emitter). The constraints it works under are written down with it: no second runtime, no `.dmg`, no closed edition, no bulk ports, no
+  auto-import, no telemetry.
+
 ## [0.2.1] - 2026-11-18
 
 ### Documentation
