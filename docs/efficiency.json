@@ -1,0 +1,109 @@
+{
+  "schema": "riskell.efficiency/1",
+  "generatedBy": "riskell-ext bench emit-doc, from the measures in Sources/riskell-ext/Bench.swift",
+  "source": "docs/EFFICIENCY.md",
+  "publishedMachine": "the 14-inch MacBook Pro",
+  "publishedModel": null,
+  "measuredNote": "measured is null in every row: docs/efficiency.json holds what docs/EFFICIENCY.md publishes, and only a run fills that field (riskell-ext bench <id> --json, or bench all --json for the whole table)",
+  "measures": [
+    {
+      "id": "idle",
+      "summary": "at rest: nothing open, nothing hovered",
+      "window": 30,
+      "needs": ["instance"],
+      "hot": null,
+      "published": {"text": "0.33 s / 30 s (1.1 %), 104 to 110 MB, 6 to 9 threads", "percent": [1.10, 1.10], "seconds": 0.33},
+      "measured": null
+    },
+    {
+      "id": "loaded",
+      "summary": "at rest while every core is busy with other work",
+      "window": 30,
+      "needs": ["instance", "loaded"],
+      "hot": null,
+      "published": {"text": "0.09 s / 30 s", "percent": [0.30, 0.30], "seconds": 0.09},
+      "measured": null
+    },
+    {
+      "id": "card:clock",
+      "summary": "the date card held open",
+      "window": 20,
+      "needs": ["instance", "card:clock"],
+      "hot": "date",
+      "published": {"text": "1.4 to 1.9 %", "percent": [1.40, 1.90], "seconds": null},
+      "measured": null
+    },
+    {
+      "id": "card:bat",
+      "summary": "the battery card held open",
+      "window": 20,
+      "needs": ["instance", "card:bat"],
+      "hot": "bat",
+      "published": {"text": "1.4 to 1.9 %", "percent": [1.40, 1.90], "seconds": null},
+      "measured": null
+    },
+    {
+      "id": "card:workspaces",
+      "summary": "the workspaces card held open",
+      "window": 20,
+      "needs": ["instance", "card:workspaces"],
+      "hot": "workspaces",
+      "published": {"text": "1.4 to 1.9 %", "percent": [1.40, 1.90], "seconds": null},
+      "measured": null
+    },
+    {
+      "id": "card:weather",
+      "summary": "the weather card held open",
+      "window": 20,
+      "needs": ["instance", "card:weather"],
+      "hot": "weather",
+      "published": {"text": "1.4 to 1.9 %", "percent": [1.40, 1.90], "seconds": null},
+      "measured": null
+    },
+    {
+      "id": "card:usage",
+      "summary": "the AI usage card held open",
+      "window": 20,
+      "needs": ["instance", "card:usage"],
+      "hot": "usage",
+      "published": {"text": "1.4 to 1.9 %", "percent": [1.40, 1.90], "seconds": null},
+      "measured": null
+    },
+    {
+      "id": "card:fan",
+      "summary": "the fan card held open",
+      "window": 20,
+      "needs": ["instance", "card:fan"],
+      "hot": "fan",
+      "published": {"text": "2.7 %", "percent": [2.70, 2.70], "seconds": null},
+      "measured": null
+    },
+    {
+      "id": "card:net",
+      "summary": "the network card held open",
+      "window": 20,
+      "needs": ["instance", "card:net"],
+      "hot": "net",
+      "published": {"text": "3.5 %", "percent": [3.50, 3.50], "seconds": null},
+      "measured": null
+    },
+    {
+      "id": "card:cpu",
+      "summary": "the vitals card held open",
+      "window": 20,
+      "needs": ["instance", "card:cpu"],
+      "hot": "vitals",
+      "published": {"text": "6.1 %", "percent": [6.10, 6.10], "seconds": null},
+      "measured": null
+    },
+    {
+      "id": "card:vol",
+      "summary": "the mixer card held open",
+      "window": 20,
+      "needs": ["instance", "card:vol"],
+      "hot": "vol",
+      "published": {"text": "4.6 to 8.4 %", "percent": [4.60, 8.40], "seconds": null},
+      "measured": null
+    }
+  ]
+}
