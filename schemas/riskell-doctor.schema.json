@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "1",
+  "title": "riskell-setup --doctor --json",
+  "description": "One health report. Contracted: the schema number (this file's $id), the ten sections in the order a person meets a broken bar, a check's `id` (which is the contract; its label and detail are prose), each check's severity and where the fact came from, the counts, the first failing check's id, and whether the running bars answered. Read-only: nothing here is written and no word that changes anything is sent. The report's `exit` is the same number the run returns, and a report with a failed check is still a report, so both 0 and 1 are a good run. Checked by Tests/cli/contract.sh.",
+  "type": "object",
+  "required": ["schema", "generatedAt", "platform", "running", "ok", "exit", "sections", "app", "files", "summary"],
+  "properties": {
+    "schema": {
+      "const": 1,
+      "description": "The report's own number, bumped when a key moves or changes meaning. This file is named for it: $id is \"1\"."
+    },
+    "generatedAt": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "When the report was made, UTC to the second."
+    },
+    "platform": {
+      "type": "object",
+      "required": ["macos", "arch"],
+      "properties": {
+        "macos": { "type": "string", "description": "The version the check ran on, or an empty string when it could not be read." },
+        "arch": { "type": "string", "description": "arm64 on every supported Mac." }
+      }
+    },
+    "running": {
+      "type": "object",
+      "description": "What launchd says about the login agent. Null fields mean it is not installed or not running.",
+      "required": ["pid", "version", "socket"],
+      "properties": {
+        "pid": { "type": ["integer", "null"] },
+        "version": { "type": ["string", "null"], "description": "The version the installed app reports, not the one in this checkout." },
+        "socket": { "type": "string", "description": "The event socket, with the home folder cut to ~/." }
+      }
+    },
+    "ok": {
+      "type": "boolean",
+      "description": "No check failed. A warn does not clear it."
+    },
+    "exit": {
+      "enum": [0, 1],
+      "description": "The number the run returns: 0 when ok, else 1."
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "description": "In the order a person meets a broken bar, ending in the verdict row, which repeats the counts.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "status", "checks"],
+        "properties": {
+          "id": { "type": "string", "description": "Stable across versions: build, system, install, files, running, window manager, permissions, gestures, log, verdict." },
+          "title": { "type": "string", "description": "The heading. Display only." },
+          "status": {
+            "enum": ["ok", "warn", "fail", "info"],
+            "description": "The worst row in the section; an empty section is ok."
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "label", "severity", "detail", "source"],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "The contract, and the only stable name here: build.binary in every version. `detail` is not."
+                },
+                "label": { "type": "string", "description": "What a person reads. Display only." },
+                "severity": {
+                  "enum": ["ok", "warn", "fail", "info"],
+                  "description": "info is nothing to check here, never a problem."
+                },
+                "detail": { "type": "string", "description": "Prose, and it carries this machine's paths: print it, do not parse it." },
+                "fix": { "type": "string", "description": "The next command to run. Always there for a fail, otherwise optional." },
+                "source": {
+                  "enum": ["cli", "app", "file", "launchd"],
+                  "description": "Where the fact came from: probed here, asked of the running bars, read from a file, or read from launchd."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "app": {
+      "type": "object",
+      "description": "The running bars' own answer, as they sent it: the app's schema, not this one. `reachable` comes first and decides the rest, so a report without a running bar says so instead of looking silent. Everything else here is the app's payload and is not part of this contract.",
+      "required": ["reachable"],
+      "properties": {
+        "reachable": { "type": "boolean" },
+        "schema": { "type": "integer", "description": "AppStatus.schema: the app's own number, which moves on its own." },
+        "pid": { "type": "integer" },
+        "version": { "type": "string" },
+        "atoms": { "type": "integer", "minimum": 0, "description": "How many atoms the bars hold." },
+        "bars": { "type": "array", "items": { "type": "string" }, "description": "The bars that are on: left, right, top, bottom." }
+      },
+      "if": {
+        "properties": { "reachable": { "const": true } },
+        "required": ["reachable"]
+      },
+      "then": {
+        "required": ["schema", "pid", "version", "atoms", "bars"],
+        "description": "The bars answered, so the answer is all there."
+      }
+    },
+    "files": {
+      "type": "object",
+      "description": "What the files hold. A config's values are never carried, only the key names, so a report can be sent to a maintainer.",
+      "required": ["config", "layout", "log", "socket", "omniwm", "lock"],
+      "properties": {
+        "config": {
+          "$comment": "A JSON file the report reads: `valid` and `keys` are absent while the file does not exist.",
+          "type": "object",
+          "required": ["path", "exists"],
+          "properties": {
+            "path": { "type": "string", "description": "With the home folder cut to ~/." },
+            "exists": { "type": "boolean" },
+            "valid": { "type": "boolean" },
+            "keys": { "type": "array", "items": { "type": "string" }, "description": "Key names, sorted: never a value." }
+          }
+        },
+        "layout": {
+          "type": "object",
+          "required": ["path", "exists"],
+          "properties": {
+            "path": { "type": "string" },
+            "exists": { "type": "boolean" },
+            "valid": { "type": "boolean" },
+            "keys": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "log": {
+          "type": "object",
+          "required": ["path", "exists"],
+          "properties": {
+            "path": { "type": "string" },
+            "exists": { "type": "boolean" },
+            "bytes": { "type": "integer", "minimum": 0 },
+            "modifiedAt": { "type": "string" }
+          }
+        },
+        "socket": {
+          "type": "object",
+          "required": ["path", "exists", "answers"],
+          "properties": {
+            "path": { "type": "string" },
+            "exists": { "type": "boolean", "description": "The file is there." },
+            "answers": { "type": "boolean", "description": "It answered the `doctor` word: the difference between a stale socket file and a running bar." }
+          }
+        },
+        "omniwm": {
+          "type": "object",
+          "required": ["settings", "gapsBackup"],
+          "properties": {
+            "settings": { "type": "string" },
+            "gapsBackup": { "type": "boolean", "description": "riskell saved the outer gaps before writing its own." }
+          }
+        },
+        "lock": {
+          "type": "object",
+          "required": ["path", "held"],
+          "properties": {
+            "path": { "type": "string" },
+            "held": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["counts", "firstFailure"],
+      "properties": {
+        "counts": {
+          "type": "object",
+          "required": ["ok", "warn", "fail", "info"],
+          "properties": {
+            "ok": { "type": "integer", "minimum": 0 },
+            "warn": { "type": "integer", "minimum": 0 },
+            "fail": { "type": "integer", "minimum": 0 },
+            "info": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "firstFailure": {
+          "type": ["string", "null"],
+          "description": "The id of the first failing check, or null when nothing failed: the one thing to read first."
+        }
+      }
+    }
+  }
+}

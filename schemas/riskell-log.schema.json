@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "riskell.log/1",
+  "title": "riskell-ext log N --json",
+  "description": "The last N lines of the launch agent's log, one snapshot. Contracted: the lines in the order they were written, each with the line number it has in the file, and whether older lines were left out. The path is where it read them from, which a consumer may print but should not parse. `truncated` is the only thing that says a reader is not seeing the start of the log. A machine with no log yet prints the same object with no lines and exits 1. Checked by Tests/cli/contract.sh.",
+  "type": "object",
+  "required": ["schema", "path", "lines", "truncated"],
+  "properties": {
+    "schema": {
+      "const": "riskell.log/1"
+    },
+    "path": {
+      "type": "string",
+      "description": "The log file that was read, absolute. Incident data: print it, do not parse it."
+    },
+    "lines": {
+      "type": "array",
+      "description": "Oldest first, and empty when the file is empty, does not exist, or N is 0.",
+      "items": {
+        "type": "object",
+        "required": ["line", "n"],
+        "properties": {
+          "line": {
+            "type": "string",
+            "description": "The line as it was written, as far as UTF-8 can say: never re-wrapped, never with a trailing newline."
+          },
+          "n": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "The line's number in the file, counting from 1, so a gap means the lines in between were left out."
+          }
+        }
+      }
+    },
+    "truncated": {
+      "type": "boolean",
+      "description": "True when the file holds more lines before the first one here."
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "riskell.snap/1",
+  "title": "riskell-ext snap --list --json",
+  "description": "The picture set: what `risk snap` draws, what scripts/make-screenshots composes from those, and what the script's own maker list and this table disagree about. Contracted: every row has an id, whether this command draws it or the script composes it, whether making it starts a scratch instance, the file names it writes, and the link between the two sides (a drawn row lists the composed pictures it feeds, a composed row lists the makers it is made from). `findings` is empty when the two lists agree; a finding is a sentence for a person, and exit 1 comes with it. Checked by Tests/cli/contract.sh.",
+  "type": "object",
+  "required": ["schema", "makers", "findings"],
+  "properties": {
+    "schema": {
+      "const": "riskell.snap/1"
+    },
+    "makers": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "required": ["id", "summary", "by", "instance", "files"],
+        "if": {
+          "properties": { "by": { "const": "snap" } },
+          "required": ["by"]
+        },
+        "then": {
+          "required": ["feeds"],
+          "description": "A picture this command draws: `feeds` names the composed pictures made from it."
+        },
+        "else": {
+          "required": ["from"],
+          "description": "A picture scripts/make-screenshots composes: `from` names the makers it is made from."
+        },
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*$",
+            "description": "The maker to name on the command line: `risk snap <id> --out DIR`."
+          },
+          "summary": {
+            "type": "string",
+            "description": "One line about the picture. Display only: the text may be rewritten."
+          },
+          "by": {
+            "enum": ["snap", "script"],
+            "description": "Who runs the maker: this command, or scripts/make-screenshots."
+          },
+          "instance": {
+            "type": "boolean",
+            "description": "True when making the picture starts a scratch riskell. False for a picture drawn from text alone."
+          },
+          "files": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" },
+            "description": "The names that land in --out, in the order the app writes them. `<atom>` stands for the card's atom."
+          },
+          "feeds": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "A drawn row: the ids of the composed pictures made from these files."
+          },
+          "from": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "A composed row: the ids of the makers its files come from; empty when the script draws it from text."
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Where this table and scripts/make-screenshots disagree. Empty when they agree, and then the run exits 0."
+    }
+  }
+}
