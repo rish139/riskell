@@ -88,6 +88,7 @@ func info(_ name: String) {
     for k in ["license", "kit"] { if let v = l.d[k] as? String { print("\(k.padding(toLength: 11, withPad: " ", startingAt: 0))\(v)") } }
     if !l.atoms.isEmpty { print("atoms       \(l.atoms.map { "ext:" + $0 }.joined(separator: " "))") }
     if let a = l.d["authors"] as? [String] { print("authors     \(a.joined(separator: ", "))") }
+    if let p = l.provenance { print(p.prefix(1).lowercased() + p.dropFirst()) }   // this is what you are about to install
     print(l.bundled ? "ships with riskell" : "install: risk ext add \(l.id)")
 }
 
