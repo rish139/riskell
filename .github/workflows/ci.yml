@@ -38,5 +38,9 @@ jobs:
           .build/release/riskell --weather-selftest
           scripts/listings-check.sh
 
+      # the JSON the CLI prints is a contract (schemas/), and three of its screens are recorded (Tests/cli/golden): Tests/cli/README.md
+      - name: CLI contracts and golden screens
+        run: Tests/cli/contract.sh
+
       - name: Scrub check (no personal data in tracked files)
         run: scripts/scrub-check.sh

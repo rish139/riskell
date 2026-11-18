@@ -32,9 +32,10 @@ T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
 checks=0
 fails=0
+skipped=0
 pass() { checks=$((checks + 1)); printf 'PASS  %-14s %s\n' "$1" "$2"; }
 fail() { checks=$((checks + 1)); fails=$((fails + 1)); printf 'FAIL  %-14s %s\n' "$1" "$2"; }
-skip() { printf 'SKIP  %-14s %s\n' "$1" "$2"; }
+skip() { skipped=$((skipped + 1)); printf 'SKIP  %-14s %s\n' "$1" "$2"; }
 
 # One JSON command: its stdout must validate against the schema file named for it, and it must exit with one of the codes it
 # documents (a report that found a fault exits 1 and is still a report). The findings are printed under a FAIL, so the failure
@@ -147,8 +148,8 @@ fi
 
 echo
 if [ "$fails" -eq 0 ]; then
-  echo "contract: $checks checked, all of them as promised"
+  echo "contract: $checks checked, all of them as promised${skipped:+ ($skipped skipped)}"
 else
-  echo "contract: $fails of $checks checks failed"
+  echo "contract: $fails of $checks checks failed${skipped:+ ($skipped skipped)}"
   exit 1
 fi
