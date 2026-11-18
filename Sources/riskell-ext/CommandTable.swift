@@ -91,6 +91,8 @@ let commandTable: [Command] = [
             replaces: ["risk status", "riskell-setup --check", "riskell --dump"]),
     Command("log [N] [--follow] [--json]", "print the last few log lines, or follow them",
             example: "risk log 50 --json", replaces: ["risk log [N]", "tail ~/.cache/riskell/riskell.log"]),
+    Command("ctl <word|--list> [--json] [--dry-run] [--yes]", "send one word to the running bar, or list them",
+            example: "risk ctl overview --dry-run", replaces: ["printf overview | nc -U ~/.cache/riskell/ev.sock"]),
     Command("setup [--yes] [--dry-run]", "run the guided installer; flags answer its questions",
             example: "risk setup --dry-run", replaces: ["riskell-setup", "riskell-install"]),
     Command("config show [--json]", "show the resolved config and where each key came from",

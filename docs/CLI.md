@@ -55,6 +55,13 @@ print the last few log lines, or follow them
 - example: `risk log 50 --json`
 - replaces: `tail ~/.cache/riskell/riskell.log`
 
+### `risk ctl <word|--list> [--json] [--dry-run] [--yes]`
+
+send one word to the running bar, or list them
+
+- example: `risk ctl overview --dry-run`
+- replaces: `printf overview | nc -U ~/.cache/riskell/ev.sock`
+
 ### `risk setup [--yes] [--dry-run]`
 
 run the guided installer; flags answer its questions

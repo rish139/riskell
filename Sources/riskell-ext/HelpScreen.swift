@@ -11,7 +11,7 @@ enum HelpScreen {
     /// Prints the front door with no name, one command when a name is given (an alias works too), or the group's subcommands. 0 when it
     /// printed, 2 for a name the table does not know.
     static func run(_ args: [String]) -> Int32 {
-        let tty = terminal()
+        let tty = Terminal.tty()
         let name = args.joined(separator: " ").trimmingCharacters(in: .whitespaces)
         if name.isEmpty { print(frontDoor(tty).joined(separator: "\n")); return 0 }
         if let row = command(named: name) { print(detail(tty, row).joined(separator: "\n")); return 0 }
@@ -229,34 +229,5 @@ enum HelpScreen {
         var size = socklen_t(MemoryLayout<pid_t>.size)
         guard getsockopt(descriptor, SOL_LOCAL, LOCAL_PEERPID, &pid, &size) == 0, pid > 0 else { return nil }
         return pid
-    }
-
-    // MARK: the terminal
-
-    private static func terminal() -> Tty {
-        if let palette = themePalette() { return Tty.detect(palette: palette) }
-        let detected = Tty.detect(palette: Palette(hex: [:]))
-        return Tty(mode: .none, width: detected.width, palette: detected.palette)      // no theme to print in: plain text, not invented colours
-    }
-
-    /// The tokens of the theme in force, asked of the built `riskell` (the only thing that resolves a theme and enforces its floors).
-    /// nil when it is not built yet, e.g. `swift build --product riskell-ext` on a fresh checkout.
-    private static func themePalette() -> Palette? {
-        guard let root = checkout() else { return nil }
-        let binary = root + "/.build/release/riskell"
-        guard FileManager.default.isExecutableFile(atPath: binary) else { return nil }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: binary)
-        process.arguments = ["--palette", "--format", "json"]
-        let output = Pipe()
-        process.standardOutput = output
-        process.standardError = FileHandle.nullDevice
-        guard (try? process.run()) != nil else { return nil }
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0,
-              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let tokens = object["tokens"] as? [String: String] else { return nil }
-        return Palette(hex: tokens)
     }
 }
