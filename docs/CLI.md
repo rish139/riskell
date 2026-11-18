@@ -197,11 +197,11 @@ start omniwm and put each window on its number
 - example: `risk wm start`
 - replaces: `risk wm omniwm`
 
-### `risk bench [cpu] [--runs N] [--json]`
+### `risk bench [idle|card <atom>|all] [--runs N] [--list] [--json] [--emit-doc]`
 
-measure idle cpu, memory and threads of a scratch instance
+re-measure the efficiency table on this machine
 
-- example: `risk bench cpu --runs 3`
+- example: `risk bench idle --runs 3`
 - replaces: `scripts/idle-cpu`, `scripts/resource-check`
 
 ### `risk self-test [name] [--json]`

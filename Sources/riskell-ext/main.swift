@@ -21,6 +21,7 @@ import Foundation
 //   ctl <word> [--json] [--dry-run]    one word to the running bar, or --list: the socket without `printf | nc -U`
 //   log [N] [--follow] [--json]        the last log lines, or a follower
 //   snap <maker>…|all --out DIR        the picture set from scratch instances (Snap.swift), or --list: what it is
+//   bench [idle|card <atom>|all] [--runs N] [--json]   the numbers docs/EFFICIENCY.md publishes, measured again (Bench.swift), or --list
 // Exit status: 0 ok, 1 findings or a failed command, 2 usage.
 
 let fm = FileManager.default
@@ -29,7 +30,7 @@ let kinds = ["pill", "theme", "preset", "reading", "atom", "behaviour"]
 
 func fail(_ s: String) -> Never { FileHandle.standardError.write(Data((s + "\n").utf8)); exit(1) }
 func usage() -> Never {
-    print("usage: risk ext search <words> | info <name> | add <name|dir|git-url> [rev] | update [name] [--yes] | publish [dir] | remove <id> | list | validate <dir> | new <reading|atom|pill|theme> <name> | sync | help [command] | completions <zsh|fish|bash> | docs | ctl <word|--list> [--json] [--dry-run] | log [N] [--follow] [--json] | snap <maker>…|all --out DIR [--json] [--dry-run]")
+    print("usage: risk ext search <words> | info <name> | add <name|dir|git-url> [rev] | update [name] [--yes] | publish [dir] | remove <id> | list | validate <dir> | new <reading|atom|pill|theme> <name> | sync | help [command] | completions <zsh|fish|bash> | docs | ctl <word|--list> [--json] [--dry-run] | log [N] [--follow] [--json] | snap <maker>…|all --out DIR [--json] [--dry-run] | bench [idle|card <atom>|all|--list] [--runs N] [--json] [--emit-doc]")
     exit(2)
 }
 func read(_ p: String) -> String? { try? String(contentsOfFile: p, encoding: .utf8) }
@@ -364,6 +365,7 @@ case "docs": print(Docs.markdown())
 case "ctl": exit(Ctl.run(Array(a.dropFirst())))
 case "log": exit(LogCommand.run(Array(a.dropFirst())))
 case "snap": exit(Snap.run(Array(a.dropFirst())))
+case "bench": exit(Bench.run(Array(a.dropFirst())))
 case "validate": exit(a.count > 1 && validate(a[1]) ? 0 : 1)
 case "new": if a.count == 3 { scaffold(a[1], a[2]) } else { usage() }
 case "add":
