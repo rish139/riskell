@@ -20,6 +20,10 @@ jobs:
       - name: Build (release)
         run: swift build -c release
 
+      # the window managers' wire formats, replayed from Tests/RiskellWMTests/fixtures: no window manager runs here (Tests/wm/README.md)
+      - name: Unit tests
+        run: swift test
+
       - name: Extension tooling (the CLI and the example)
         run: |
           swift build -c release --product riskell-ext

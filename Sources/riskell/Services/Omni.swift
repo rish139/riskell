@@ -1,5 +1,6 @@
 import AppKit
 import RiskellKit
+import RiskellWM
 
 /// OmniWM bridge, in-process over its IPC socket (one JSON object per line). One persistent subscription carries the WM's whole state on
 /// every change (the workspaces, the windows, the focused window, the active workspace), so riskell never queries and never forks:
@@ -22,37 +23,15 @@ final class Omni: WindowManager {
         return out
     }
 
-    /// Workspaces the rail always shows (five); later ones appear while they hold windows or focus.
-    static let alwaysShown = 5
-
     /// OmniWM is up and accepting connections (checked once at start).
     static var available: Bool {
         guard let fd = Line.connect(path) else { return false }
         Darwin.close(fd); return true
     }
 
-    // MARK: wire types (only the fields riskell reads)
-    private struct Disp: Decodable { let isMain: Bool? }
-    private struct Workspace: Decodable {
-        let number: Int; let isFocused: Bool?; let display: Disp?
-    }
-    private struct Window: Decodable {
-        struct App: Decodable { let name: String? }
-        struct WS: Decodable { let number: Int? }
-        let id: String; let windowId: Int; let pid: Int?; let title: String?; let app: App?; let workspace: WS?
-        struct Fr: Decodable { let x: Double; let y: Double; let width: Double; let height: Double }
-        let isFocused: Bool?; let isScratchpad: Bool?; let display: Disp?
-        let frame: Fr?; let hiddenReason: String?; let mode: String?; let focusRank: Int?
-    }
-    private struct Head: Decodable {
-        struct R: Decodable { let kind: String }
-        let kind: String; let ok: Bool?; let status: String?; let result: R?
-    }
-    private struct Event<P: Decodable>: Decodable { struct R: Decodable { let payload: P }; let result: R }
-    private struct Workspaces: Decodable { let workspaces: [Workspace] }
-    private struct Windows: Decodable { let windows: [Window] }
-    private struct Active: Decodable { struct W: Decodable { let number: Int? }; let workspace: W? }
-    private struct Focused: Decodable { let window: Window? }
+    // the wire types are RiskellWM's (parse(line:) decodes a whole line without a socket)
+    private typealias Workspace = RiskellWM.Omni.Workspace
+    private typealias Window = RiskellWM.Omni.Window
 
     // MARK: state (main queue)
     private let store: Store
@@ -123,75 +102,55 @@ final class Omni: WindowManager {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: w)
     }
 
-    /// Called on the io queue: decode there, apply on main.
+    /// Called on the io queue: decode there (RiskellWM does the decoding), apply on main.
     private func received(_ line: Data) {
-        let dec = JSONDecoder()
-        guard let head = try? dec.decode(Head.self, from: line) else { return }
-        if head.ok == false { print("omniwm: \(head.status ?? "error"): \(String(decoding: line.prefix(300), as: UTF8.self))"); return }
-        guard head.kind == "event", let kind = head.result?.kind else { return }
-        // a focus or workspace change is enough to trigger the raise, whatever its payload decodes to
-        if kind == "focused-window" || kind == "active-workspace" { DispatchQueue.main.async { self.keepFloatingOnTop() } }
-        switch kind {
-        case "workspaces":
-            guard let p = try? dec.decode(Event<Workspaces>.self, from: line).result.payload else { return }
-            DispatchQueue.main.async { self.workspaces = p.workspaces; self.publish() }
-        case "windows":
-            guard let p = try? dec.decode(Event<Windows>.self, from: line).result.payload else { return }
-            DispatchQueue.main.async { self.windows = p.windows; self.publish() }
-        case "active-workspace":
-            guard let p = try? dec.decode(Event<Active>.self, from: line).result.payload else { return }
-            DispatchQueue.main.async { self.active = p.workspace?.number; self.publish() }
-        case "focused-window":
-            guard let p = try? dec.decode(Event<Focused>.self, from: line).result.payload else { return }
-            DispatchQueue.main.async { self.focusedWindow = p.window?.windowId; self.publish() }
-        default: break
+        switch RiskellWM.Omni.parse(line: line) {
+        case .failure(let status):
+            print("omniwm: \(status ?? "error"): \(String(decoding: line.prefix(300), as: UTF8.self))")
+        case .ignored:
+            break
+        case .event(let kind, let payload):
+            // a focus or workspace change is enough to trigger the raise, whatever its payload decodes to
+            if kind == "focused-window" || kind == "active-workspace" { DispatchQueue.main.async { self.keepFloatingOnTop() } }
+            switch payload {
+            case .workspaces(let p): DispatchQueue.main.async { self.workspaces = p; self.publish() }
+            case .windows(let p): DispatchQueue.main.async { self.windows = p; self.publish() }
+            case .activeWorkspace(let n): DispatchQueue.main.async { self.active = n; self.publish() }
+            case .focusedWindow(let id): DispatchQueue.main.async { self.focusedWindow = id; self.publish() }
+            case nil: break
+            }
         }
     }
 
     /// The Store from the current slices. The rail shows workspaces 1...N: N = the five that always existed, or more while a later one
     /// holds windows or focus. A focus change goes through `Store.set(spaces:)` (it confirms a pending swipe) and teaches Touch the direction.
-    /// A window's frame counts as a place only while at least half of it is on the screen: OmniWM parks hidden windows past the edge.
-    private static func mostlyOnScreen(_ r: CGRect) -> Bool {
-        let s = CGRect(x: 0, y: 0, width: NSScreen.screens.first?.frame.width ?? 0, height: NSScreen.screens.first?.frame.height ?? 0)
-        let i = s.intersection(r)
-        return !i.isNull && i.width * i.height >= 0.5 * r.width * r.height
-    }
-
     private func publish() {
-        let main = workspaces.filter { $0.display?.isMain ?? true }
-        var focus = active ?? main.first { $0.isFocused == true }?.number
+        var focus = RiskellWM.Omni.focus(workspaces, active: active)
         // a switch riskell just sent is the truth until OmniWM reports it (its reports of earlier switches lag ~0.3 s and would flick the rail back)
         if let it = intent {
             if focus == it.space || CACurrentMediaTime() > it.until { intent = nil } else { focus = it.space }
         }
-        let wins = windows.filter { !($0.isScratchpad ?? false) && ($0.display?.isMain ?? true) && $0.workspace?.number != nil }
+        let wins = RiskellWM.Omni.shownWindows(windows)
         opaque = Dictionary(wins.map { ($0.windowId, $0.id) }, uniquingKeysWith: { a, _ in a })
-        let screenH = NSScreen.screens.first?.frame.height ?? 0
+        let screen = NSScreen.screens.first?.frame.size ?? .zero
+        let screenH = screen.height
         var fr: [Int: WinFrame] = [:]
         for w in wins {
             guard let f = w.frame else { continue }
             let r = CGRect(x: f.x, y: screenH - f.y - f.height, width: f.width, height: f.height)      // OmniWM: bottom-left origin
             let ws = w.workspace?.number ?? 0
-            if w.hiddenReason == nil, Self.mostlyOnScreen(r) { seen[w.windowId] = r; seenOn[w.windowId] = ws }
+            if w.hiddenReason == nil, RiskellWM.Omni.mostlyOnScreen(r, screen: screen) { seen[w.windowId] = r; seenOn[w.windowId] = ws }
             // a remembered place holds only while the window is still on that workspace at that size (a drop or a split elsewhere
             // changes them while it is parked); otherwise the overview lays it out from its size
-            var known = seen[w.windowId].flatMap { Self.mostlyOnScreen($0) ? $0 : nil }      // never a parked (off-screen) place
+            var known = seen[w.windowId].flatMap { RiskellWM.Omni.mostlyOnScreen($0, screen: screen) ? $0 : nil }   // never a parked (off-screen) place
             // (a floating window keeps its own place across workspaces; only a tiled one is re-laid out by a move)
             if let k = known, (seenOn[w.windowId] != ws && w.mode != "floating") || abs(k.width - r.width) > 2 || abs(k.height - r.height) > 2 { known = nil }
             fr[w.windowId] = WinFrame(rect: known ?? r, placed: known != nil, floating: w.mode == "floating", rank: w.focusRank ?? 99)
         }
         seen = seen.filter { fr[$0.key] != nil }; seenOn = seenOn.filter { fr[$0.key] != nil }
         frames = fr
-        let info = wins.map { w in
-            WinInfo(id: w.windowId, pid: w.pid ?? 0, app: w.app?.name ?? "", title: w.title ?? "", space: w.workspace!.number!,
-                    focused: focusedWindow.map { $0 == w.windowId } ?? (w.isFocused ?? false))
-        }
-        var count: [Int: Int] = [:]
-        for w in info { count[w.space, default: 0] += 1 }
-        let shown = max(Omni.alwaysShown, count.keys.max() ?? 0, focus ?? 0)
-        let spaces = main.filter { $0.number <= shown }.sorted { $0.number < $1.number }.map {
-            SpaceInfo(id: $0.number, sid: 0, focused: $0.number == focus, visible: $0.number == focus, windows: count[$0.number] ?? 0, fullscreen: false)
-        }
+        let info = RiskellWM.Omni.windowInfos(wins, focused: focusedWindow)
+        let spaces = RiskellWM.Omni.rail(spaces: workspaces, windows: windows, focus: focus)
         store.set(windows: info)
         guard !spaces.isEmpty else { return }
         let old = store.focusedIndex
@@ -217,7 +176,7 @@ final class Omni: WindowManager {
             guard l.open(Omni.path) else { l.close(); print("omniwm: command connection failed"); return }
             l.onLine = { line in
                 // "ignored" is a no-op (e.g. switching to the focused workspace), not a failure
-                if let h = try? JSONDecoder().decode(Head.self, from: line), h.ok == false, h.status != "ignored" {
+                if case .failure(let status) = RiskellWM.Omni.parse(line: line), status != "ignored" {
                     print("omniwm: command failed: \(String(decoding: line.prefix(300), as: UTF8.self))")
                 }
             }

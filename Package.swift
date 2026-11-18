@@ -34,7 +34,8 @@ let package = Package(
     },
     targets: [
         .executableTarget(name: "riskell",
-                          dependencies: [.product(name: "RiskellKit", package: "riskell-kit"), .target(name: "RiskellTTY")] + locked.map { .product(name: $0.product, package: $0.package) },
+                          dependencies: [.product(name: "RiskellKit", package: "riskell-kit"), .target(name: "RiskellTTY"), .target(name: "RiskellWM")]
+                              + locked.map { .product(name: $0.product, package: $0.package) },
                           path: "Sources/riskell"),
         .executableTarget(name: "riskell-ext", dependencies: [.target(name: "RiskellTTY")], path: "Sources/riskell-ext"),
         .executableTarget(name: "riskell-setup", dependencies: [.target(name: "RiskellTTY")], path: "Sources/riskell-setup"),
@@ -45,6 +46,7 @@ let package = Package(
         // the window managers' wire formats, parsed without a window: Foundation only, so a payload recorded from a real install can be
         // replayed on CI. Parsers only; nothing here starts a process or reads a screen.
         .target(name: "RiskellWM", path: "Sources/RiskellWM"),
-        .testTarget(name: "RiskellWMTests", dependencies: ["RiskellWM"], path: "Tests/RiskellWMTests"),
+        // the fixtures are read by path (#filePath), not copied into a bundle, so they stay out of the target's sources
+        .testTarget(name: "RiskellWMTests", dependencies: ["RiskellWM"], path: "Tests/RiskellWMTests", exclude: ["fixtures"]),
     ]
 )

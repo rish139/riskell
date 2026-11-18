@@ -1,0 +1,6 @@
+[
+  { "window-id": 2001, "window-title": "Start Page", "app-name": "Safari", "app-pid": 501, "workspace": "1" },
+  { "window-id": 2002, "window-title": "zsh", "app-name": "Terminal", "app-pid": 502, "workspace": "1" },
+  { "window-id": 2003, "window-title": "Inbox", "app-name": "Mail", "app-pid": 503, "workspace": "3" },
+  { "window-id": 2004, "window-title": "scratch", "app-name": "Notes", "app-pid": 504, "workspace": "T" }
+]

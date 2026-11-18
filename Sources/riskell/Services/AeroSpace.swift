@@ -1,5 +1,6 @@
 import AppKit
 import RiskellKit
+import RiskellWM
 
 /// AeroSpace backend. EXPERIMENTAL and UNVERIFIED: written against AeroSpace's CLI and never run by the maintainer.
 /// AeroSpace has no subscription API riskell can rely on, so the user adds two callbacks to their aerospace.toml that write the word
@@ -20,14 +21,7 @@ final class AeroSpace: WindowManager {
     /// The word the aerospace.toml callbacks write to riskell's event socket.
     static let eventWord = "aerospace"
 
-    // MARK: wire types (only the fields riskell reads)
-    private struct AWorkspace: Decodable { let workspace: String }
-    private struct AWindow: Decodable {
-        let windowId: Int; let windowTitle: String?; let appName: String?; let appPid: Int?; let workspace: String
-        enum CodingKeys: String, CodingKey {
-            case windowId = "window-id", windowTitle = "window-title", appName = "app-name", appPid = "app-pid", workspace
-        }
-    }
+    // the wire types are RiskellWM's (AeroSpace.parse decodes one refresh without running the CLI)
 
     // MARK: state
     private let store: Store
@@ -74,39 +68,21 @@ final class AeroSpace: WindowManager {
     // MARK: queries (io), then the Store on main
     private func refresh() {
         guard let wsData = AeroSpace.run(["list-workspaces", "--all", "--json"]),
-              let allWS = try? JSONDecoder().decode([AWorkspace].self, from: wsData),
               let wd = AeroSpace.run(["list-windows", "--all", "--json"]),
-              let allWins = try? JSONDecoder().decode([AWindow].self, from: wd),
               let focusedWS = AeroSpace.lines(["list-workspaces", "--focused"]),
-              let visibleWS = AeroSpace.lines(["list-workspaces", "--visible"]) else {
+              let visibleWS = AeroSpace.lines(["list-workspaces", "--visible"]),
+              // the focused window is optional: AeroSpace may print nothing when no window has focus
+              let snapshot = RiskellWM.AeroSpace.parse(workspaces: wsData, windows: wd,
+                                                       focusedWindow: AeroSpace.run(["list-windows", "--focused", "--json"]),
+                                                       focusedWorkspace: focusedWS, visibleWorkspaces: visibleWS) else {
             print("aerospace: query failed (is AeroSpace running?)"); fflush(stdout); return
-        }
-        // the focused window is optional: AeroSpace may print nothing when no window has focus
-        let focusedWin = AeroSpace.run(["list-windows", "--focused", "--json"])
-            .flatMap { try? JSONDecoder().decode([AWindow].self, from: $0) }?.first?.windowId
-        let focusedName = focusedWS.first
-        let visible = Set(visibleWS)
-
-        // workspaces: only numeric names are rail entries (riskell's rail shows numbers); the number is the id
-        var count: [String: Int] = [:]
-        for w in allWins { count[w.workspace, default: 0] += 1 }
-        let numbered = allWS.compactMap { ws -> (name: String, n: Int)? in Int(ws.workspace).map { (ws.workspace, $0) } }
-            .sorted { $0.n < $1.n }
-        let rail = numbered.map {
-            SpaceInfo(id: $0.n, sid: 0, focused: $0.name == focusedName, visible: visible.contains($0.name) || $0.name == focusedName,
-                      windows: count[$0.name] ?? 0, fullscreen: false)
-        }
-        let info = allWins.compactMap { w -> WinInfo? in
-            guard let space = Int(w.workspace) else { return nil }
-            return WinInfo(id: w.windowId, pid: w.appPid ?? 0, app: w.appName ?? "", title: w.windowTitle ?? "", space: space,
-                           focused: w.windowId == focusedWin)
         }
         DispatchQueue.main.async { [weak self] in
             guard let self, self.started else { return }
-            self.store.set(windows: info)
-            guard !rail.isEmpty else { return }
+            self.store.set(windows: snapshot.windows)
+            guard !snapshot.spaces.isEmpty else { return }
             let old = self.store.focusedIndex
-            self.store.set(spaces: rail)
+            self.store.set(spaces: snapshot.spaces)
             if old != self.store.focusedIndex { Touch.shared?.spaceChanged(from: old, to: self.store.focusedIndex) }
         }
     }
@@ -173,8 +149,7 @@ final class AeroSpace: WindowManager {
 
     /// The non-empty lines of a plain-text call (`list-workspaces --focused` prints names, not JSON).
     static func lines(_ args: [String]) -> [String]? {
-        guard let d = run(args), let s = String(data: d, encoding: .utf8) else { return nil }
-        return s.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        run(args).flatMap { RiskellWM.AeroSpace.lines($0) }
     }
 }
 

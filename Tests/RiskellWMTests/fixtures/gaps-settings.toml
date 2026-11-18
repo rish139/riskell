@@ -1,0 +1,22 @@
+# OmniWM settings. Kept by hand: the comments say why a value is what it is.
+[general]
+defaultLayout = "tiling"
+workspaceSwipeEnabled = false
+scrollEnabled = false
+
+[gaps]
+smart = true
+
+[gaps.outer]
+# the room the bars take, in points
+top = 40.0      # the notch bar
+bottom = 32.0   # the bottom bar
+left = 36.0
+right = 36.0
+
+[gaps.inner]
+left = 6.0
+right = 6.0
+
+[focus]
+followMouse = false

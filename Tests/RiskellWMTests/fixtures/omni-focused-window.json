@@ -1,0 +1,1 @@
+{"kind":"event","result":{"kind":"focused-window","payload":{"window":{"id":"s-1","windowId":4212,"pid":501,"title":"Start Page","app":{"name":"Safari"},"workspace":{"number":2},"isFocused":true,"isScratchpad":false,"display":{"isMain":true},"frame":{"x":50.0,"y":32.0,"width":700.0,"height":900.0},"hiddenReason":null,"mode":"tiling","focusRank":0}}}}

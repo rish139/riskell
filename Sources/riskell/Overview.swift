@@ -4,10 +4,10 @@ import CoreImage
 import Combine
 import SwiftUI
 import RiskellKit
+import RiskellWM
 
-/// Where a window sits on its workspace, in screen points from the top-left. `placed` is false when the WM only knows its size (OmniWM
-/// parks an inactive workspace's windows off screen); the overview then lays it out itself.
-struct WinFrame: Equatable { var rect: CGRect; var placed: Bool; var floating: Bool; var rank = 99 }   // rank: 0 = most recently focused
+/// Where a window sits on its workspace, as the backends parse it (RiskellWM, so a recorded payload carries frames too).
+typealias WinFrame = RiskellWM.WinFrame
 
 /// A snapshot of one of riskell's own bars, drawn inside every workspace preview.
 struct BarShot: Identifiable { let id: Int; let image: NSImage; let rect: CGRect }

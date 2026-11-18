@@ -1,0 +1,44 @@
+[
+  {
+    "id": 4,
+    "uuid": "3F2C9A1B-0E4D-4E1A-9E63-6B1D1C7E5A21",
+    "index": 1,
+    "label": "",
+    "type": "bsp",
+    "display": 1,
+    "windows": [1005],
+    "first-window": 1005,
+    "last-window": 1005,
+    "has-focus": false,
+    "is-visible": true,
+    "is-native-fullscreen": false
+  },
+  {
+    "id": 5,
+    "uuid": "8B7E4C2D-5A3F-4B8E-8C1A-2F9D4E6B7C30",
+    "index": 2,
+    "label": "",
+    "type": "bsp",
+    "display": 2,
+    "windows": [1001, 1002],
+    "first-window": 1001,
+    "last-window": 1002,
+    "has-focus": true,
+    "is-visible": true,
+    "is-native-fullscreen": true
+  },
+  {
+    "id": 6,
+    "uuid": "6D5B3A1F-9E2C-4D7B-A5F8-1C3E5A7D9B42",
+    "index": 3,
+    "label": "",
+    "type": "bsp",
+    "display": 2,
+    "windows": [],
+    "first-window": 0,
+    "last-window": 0,
+    "has-focus": false,
+    "is-visible": false,
+    "is-native-fullscreen": false
+  }
+]

@@ -1,5 +1,6 @@
 import AppKit
 import RiskellKit
+import RiskellWM
 
 /// yabai backend. EXPERIMENTAL and UNVERIFIED: written against yabai's CLI and never run by the maintainer.
 /// Reads happen on events only (no polling): yabai signals write a word to riskell's own unix stream socket through `nc -U`, and a burst
@@ -16,24 +17,7 @@ final class Yabai: WindowManager {
                          "window_moved", "window_focused", "window_minimized", "window_deminimized", "application_front_switched"]
     static var socketPath: String { NSHomeDirectory() + "/.cache/riskell/yabai.sock" }
 
-    // MARK: wire types (only the fields riskell reads)
-    private struct YFrame: Decodable { let x: Double; let y: Double; let w: Double; let h: Double }
-    private struct YDisplay: Decodable { let index: Int; let frame: YFrame }
-    private struct YSpace: Decodable {
-        let index: Int; let display: Int
-        let hasFocus: Bool; let isVisible: Bool; let isNativeFullscreen: Bool
-        enum CodingKeys: String, CodingKey {
-            case index, display, hasFocus = "has-focus", isVisible = "is-visible", isNativeFullscreen = "is-native-fullscreen"
-        }
-    }
-    private struct YWindow: Decodable {
-        let id: Int; let pid: Int; let app: String?; let title: String?; let space: Int; let display: Int
-        let hasFocus: Bool; let isMinimized: Bool; let isFloating: Bool; let frame: YFrame
-        enum CodingKeys: String, CodingKey {
-            case id, pid, app, title, space, display, frame
-            case hasFocus = "has-focus", isMinimized = "is-minimized", isFloating = "is-floating"
-        }
-    }
+    // the wire types are RiskellWM's (Yabai.parse decodes the three streams without running yabai)
 
     // MARK: state
     private let store: Store
@@ -130,33 +114,19 @@ final class Yabai: WindowManager {
 
     // MARK: queries (io), then the Store on main
     private func query() {
-        guard let dd = Yabai.run(["-m", "query", "--displays"]), let displays = try? JSONDecoder().decode([YDisplay].self, from: dd),
-              let sd = Yabai.run(["-m", "query", "--spaces"]), let allSpaces = try? JSONDecoder().decode([YSpace].self, from: sd),
-              let wd = Yabai.run(["-m", "query", "--windows"]), let allWins = try? JSONDecoder().decode([YWindow].self, from: wd) else {
+        guard let dd = Yabai.run(["-m", "query", "--displays"]),
+              let sd = Yabai.run(["-m", "query", "--spaces"]),
+              let wd = Yabai.run(["-m", "query", "--windows"]),
+              let snapshot = RiskellWM.Yabai.parse(displays: dd, spaces: sd, windows: wd) else {
             print("yabai: query failed (is yabai running?)"); return
-        }
-        // the bars live on the main display: the one whose origin is the global origin (yabai's own numbering may put another first)
-        let main = displays.first { $0.frame.x == 0 && $0.frame.y == 0 }?.index ?? 1
-        let spaces = allSpaces.filter { $0.display == main }.sorted { $0.index < $1.index }
-        let wins = allWins.filter { $0.display == main && $0.space > 0 && !$0.isMinimized }
-        var count: [Int: Int] = [:]
-        for w in wins { count[w.space, default: 0] += 1 }
-        let rail = spaces.map {
-            SpaceInfo(id: $0.index, sid: 0, focused: $0.hasFocus, visible: $0.isVisible, windows: count[$0.index] ?? 0, fullscreen: $0.isNativeFullscreen)
-        }
-        let info = wins.map { WinInfo(id: $0.id, pid: $0.pid, app: $0.app ?? "", title: $0.title ?? "", space: $0.space, focused: $0.hasFocus) }
-        var fr: [Int: WinFrame] = [:]
-        for w in wins {
-            fr[w.id] = WinFrame(rect: CGRect(x: w.frame.x, y: w.frame.y, width: w.frame.w, height: w.frame.h), placed: true,
-                                floating: w.isFloating, rank: w.hasFocus ? 0 : 99)
         }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.frames = fr
-            self.store.set(windows: info)
-            guard !rail.isEmpty else { return }
+            self.frames = snapshot.frames
+            self.store.set(windows: snapshot.windows)
+            guard !snapshot.spaces.isEmpty else { return }
             let old = self.store.focusedIndex
-            self.store.set(spaces: rail)
+            self.store.set(spaces: snapshot.spaces)
             if old != self.store.focusedIndex { Touch.shared?.spaceChanged(from: old, to: self.store.focusedIndex) }
         }
     }

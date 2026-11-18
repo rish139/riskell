@@ -1,19 +1,15 @@
 import Foundation
+import RiskellWM
 
-struct SpaceInfo: Identifiable, Equatable {
-    let id: Int              // workspace number (OmniWM workspace number)
-    var sid: UInt64 = 0      // SkyLight space id (what the system reports as the active space)
-    var focused: Bool
-    var visible: Bool
-    var windows: Int
-    var fullscreen: Bool
-}
+/// A workspace and a window are what every backend parses into, so they live in RiskellWM where a recorded payload is replayed
+/// without a window manager (Tests/RiskellWMTests).
+typealias SpaceInfo = RiskellWM.SpaceInfo
 
 /// Everything the bars draw. Services write it on the main queue; each setter ignores an unchanged value so a redundant
 /// event never republishes (and never re-renders).
 struct MediaReading: Equatable { var bundle: String; var playing: Bool }
 /// One window on the bar's display (the workspaces atom and its card).
-struct WinInfo: Equatable, Identifiable { let id: Int; var pid: Int; var app: String; var title: String; var space: Int; var focused: Bool }
+typealias WinInfo = RiskellWM.WinInfo
 
 /// The rail's swipe state on its own: it changes every touch frame, and only the workspace rail draws it, so it must not republish the
 /// whole Store (which would redraw every atom on the bar at the trackpad's rate).

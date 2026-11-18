@@ -1,0 +1,6 @@
+# OmniWM settings without a [gaps.outer] section: riskell leaves the file alone.
+[general]
+defaultLayout = "tiling"
+
+[gaps.inner]
+left = 6.0
