@@ -110,6 +110,20 @@ func validateManifest(_ dir: String) -> [String: Any]? {
         var seen = Set<String>()
         for id in a where !matches(id, "^[A-Za-z0-9_-]+$") || !seen.insert(id).inserted { report("manifest.atoms", "riskell.json", nil, "atom id \"\(id)\" is not plain or is repeated", fix: "letters, digits, - and _, each once") }
     }
+    // A port says what it came from: the original project, the commit, its license and its authors. All four, or none.
+    if let df = j["derivedFrom"], !(df is [String: Any]) {
+        report("manifest.derived-from", "riskell.json", nil, "\"derivedFrom\" must be an object saying what the extension was ported from", fix: "write {\"repo\": \"https://github.com/author/project\", \"rev\": \"<40 or 64 hex>\", \"license\": \"MIT\", \"authors\": [\"their name\"]}")
+    } else if let d = j["derivedFrom"] as? [String: Any] {
+        if (d["repo"] as? String)?.isEmpty != false { report("manifest.derived-from", "riskell.json", nil, "\"derivedFrom\" has no \"repo\": a port must name the project it came from", fix: "add \"repo\": its https address, e.g. \"https://github.com/author/project\"") }
+        if let rev = d["rev"] as? String, !rev.isEmpty {
+            if !matches(rev, "^(?:[0-9a-f]{40}|[0-9a-f]{64})$") { report("manifest.derived-from", "riskell.json", nil, "derivedFrom.rev \"\(rev)\" is not a full commit hash", fix: "use the 40- or 64-character hex commit (`git rev-parse HEAD`), not a short one") }
+        } else { report("manifest.derived-from", "riskell.json", nil, "\"derivedFrom\" has no \"rev\": a port must say which commit it came from", fix: "add \"rev\": the full hash, `git rev-parse HEAD` in the original repository") }
+        if let l = d["license"] as? String, !l.isEmpty {
+            if !spdx.contains(l) { report("manifest.derived-from", "riskell.json", nil, "derivedFrom.license \"\(l)\" is not an SPDX identifier this tool knows", fix: "use the original project's SPDX id, e.g. MIT or Apache-2.0") }
+        } else { report("manifest.derived-from", "riskell.json", nil, "\"derivedFrom\" has no \"license\": a port must say what the original is licensed under", fix: "add \"license\": its SPDX id, e.g. MIT") }
+        if let a = d["authors"] as? [String], !a.isEmpty, a.allSatisfy({ !$0.isEmpty }) {} else { report("manifest.derived-from", "riskell.json", nil, "\"derivedFrom\" needs \"authors\": one or more non-empty names", fix: "add \"authors\": [\"who wrote the original\"]") }
+        if str("license")?.isEmpty != false { report("manifest.derived-from", "riskell.json", nil, "\"derivedFrom\" on a manifest with no \"license\" of its own: you cannot claim provenance while claiming nothing about yourself", fix: "add \"license\": yours, e.g. the original's if you kept it") }
+    }
     return j
 }
 

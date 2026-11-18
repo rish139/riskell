@@ -41,6 +41,18 @@
     "repository": { "type": "string", "format": "uri" },
     "homepage": { "type": "string", "format": "uri" },
     "authors": { "type": "array", "items": { "type": "string" } },
+    "derivedFrom": {
+      "type": "object",
+      "description": "What the extension was ported from, when it is not original work: the original project, the commit it was ported at, its license and its authors. `risk ext validate` refuses an incomplete claim and the storefront prints it as one line.",
+      "required": ["repo", "rev", "license", "authors"],
+      "additionalProperties": false,
+      "properties": {
+        "repo": { "type": "string", "format": "uri", "pattern": "^https://", "description": "The original project's https address." },
+        "rev": { "type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$", "description": "The commit it was ported at: the full 40- or 64-character hex hash, never a short one." },
+        "license": { "type": "string", "description": "The original project's SPDX license identifier (https://spdx.org/licenses)." },
+        "authors": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1, "description": "Who wrote the original, one or more non-empty names." }
+      }
+    },
     "keywords": { "type": "array", "items": { "type": "string" }, "maxItems": 10 },
     "preview": { "type": "string", "description": "A path to a PNG shown in the registry." }
   },

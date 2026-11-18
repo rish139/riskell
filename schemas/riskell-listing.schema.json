@@ -64,6 +64,39 @@
     },
     "homeNote": {
       "type": "string"
+    },
+    "derivedFrom": {
+      "type": "object",
+      "description": "What a ported extension came from. Present only when its riskell.json says so; `risk ext search` prints it as Ported from <repo> at <rev:7> (<license>).",
+      "required": [
+        "repo",
+        "rev",
+        "license",
+        "authors"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "repo": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "rev": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "license": {
+          "type": "string"
+        },
+        "authors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        }
+      }
     }
   }
 }

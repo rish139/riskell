@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../../schemas/riskell-extension.schema.json",
+  "id": "ported",
+  "kind": "pill",
+  "name": "Ported",
+  "version": "0.1.0",
+  "license": "MIT",
+  "summary": "A pill that says what it was ported from.",
+  "files": [
+    "pill.json"
+  ],
+  "derivedFrom": {
+    "repo": "https://github.com/example/plugin",
+    "rev": "0123456789abcdef0123456789abcdef01234567",
+    "license": "MIT"
+  }
+}

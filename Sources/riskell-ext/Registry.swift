@@ -25,6 +25,11 @@ struct Listing {
     var bundled: Bool { d["bundled"] as? Bool ?? false }
     var keywords: [String] { d["keywords"] as? [String] ?? [] }
     var atoms: [String] { d["atoms"] as? [String] ?? [] }
+    /// What a ported extension came from, when its manifest says `derivedFrom` (schemas/riskell-extension.schema.json).
+    var provenance: String? {
+        guard let p = d["derivedFrom"] as? [String: Any], let repo = p["repo"] as? String, let rev = p["rev"] as? String, !repo.isEmpty, !rev.isEmpty else { return nil }
+        return "Ported from \(repo) at \(rev.prefix(7)) (\(p["license"] as? String ?? ""))"
+    }
 }
 
 func configDir() -> String {
@@ -63,6 +68,7 @@ func installedIDs() -> Set<String> {
 func printListing(_ l: Listing, _ installed: Set<String>) {
     let tag = installed.contains(l.id) ? "  [installed]" : (l.bundled ? "  [ships with riskell]" : "")
     print("\(l.id)  \(l.kind)  v\(l.version)  \(l.summary)\(tag)")
+    if let p = l.provenance { print(p) }
 }
 
 func search(_ words: [String]) {
@@ -220,7 +226,7 @@ func publish(_ dirArg: String?) {
     if !sh(["git", "tag", "--points-at", rev], in: dir).1.split(separator: "\n").contains(Substring("v" + version)) { problems.append("HEAD has no tag v\(version) (`git tag v\(version) && git push --tags`)") }
     if !fm.fileExists(atPath: dir + "/LICENSE") { problems.append("no LICENSE file") }
     var listing: [String: Any] = ["id": id, "kind": kind, "name": name, "summary": summary, "repo": https, "rev": rev, "version": version, "license": license]
-    for k in ["kit", "atoms", "keywords", "authors", "homepage", "preview"] { if let v = j[k] { listing[k] = v } }
+    for k in ["kit", "atoms", "keywords", "authors", "homepage", "preview", "derivedFrom"] { if let v = j[k] { listing[k] = v } }
     if j["preview"] == nil { problems.append("no \"preview\" in riskell.json: a picture of the widget is what the storefront shows (a PNG, at least 600 px wide, up to 500 KB)") }
     let d = (try? JSONSerialization.data(withJSONObject: listing, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])) ?? Data()
     print(String(decoding: d, as: UTF8.self))
