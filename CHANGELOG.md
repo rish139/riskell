@@ -4,6 +4,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Fixed
+- A `[gaps.outer]` line in OmniWM's `settings.toml` that carries a trailing `# comment` is no longer rewritten on every apply: the old
+  comparison included the comment, so it never matched, and rewriting removed the comment and a CRLF line ending. The file is now left alone
+  when the gaps already match, and its backup is not recreated for a write that does not happen.
+
 ### Documentation
 - The roadmap now states the order. First `risk` as a product surface (`doctor`, `ctl`, `snap`, `bench`, `config`, `wm`, completions), then
   import and portability from other shells (BitBar/SwiftBar, Waybar, Omarchy themes and bar widgets, provenance, and a survey before any
