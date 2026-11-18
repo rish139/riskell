@@ -1,16 +1,13 @@
 #!/bin/zsh
 # riskell control: runs the release build from this checkout as a launchd agent (starts at login, restarts if it dies).
+#   risk help        every command, generated from the command table (this text is the fallback when the build fails)
 #   risk install     build, then start riskell now and at login
 #   risk uninstall   stop riskell and remove its launch agent
-#   risk dev         rebuild and restart the running agent (work on it live)
-#   risk restart   restart the agent (rebuilds first if the sources are newer than the running build)
-#   risk log [N]   follow the log, or print its last N lines
-#   risk status
-#   risk ext validate|new|add|remove|list   riskell extensions (add and remove rebuild and restart)
-#   risk tty [--format hex|json|ansi] [--theme ID]   the active theme's tokens (riskell --palette)
-#   risk wm status|omniwm|export|import   OmniWM helpers: start it if it is not running, save / restore each window's workspace number
+#   risk dev         rebuild and restart the running agent (risk restart is the same)
+#   risk log [N]     print the last N log lines, or follow it
 set -e
 root=${0:A:h:h}
+self=$0      # $0 is the script here; inside a function zsh makes it the function's name
 label=com.rish.riskell
 plist=$HOME/Library/LaunchAgents/$label.plist
 dom=gui/$(id -u)
@@ -63,7 +60,6 @@ IP
   codesign -f -s $id --identifier com.rish.riskell $app/Contents/MacOS/libnowplaying.dylib 2>/dev/null || true
   codesign -f -s $id --identifier com.rish.riskell $app 2>/dev/null || echo "unsigned (codesign failed)"
 }
-stale() { [[ -n $(find $root/Sources $root/Package.swift -newer $app/Contents/MacOS/riskell -print -quit 2>/dev/null) || ! -e $app/Contents/MacOS/riskell ]]; }
 build() { (cd $root && swift build -c release 2>&1 | grep -E "error|Build complete" && bundle) }
 
 # --- OmniWM helpers (OmniWM is the window manager; it keeps one macOS Space and its own virtual workspaces) ---
@@ -131,7 +127,29 @@ reload() {
   launchctl bootstrap $dom $plist      # one more try, so that the error is shown
 }
 
-case $1 in
+# The front door is generated: riskell-ext renders `risk help`, `risk completions` and docs/CLI.md from one table
+# (Sources/riskell-ext/CommandTable.swift). It is built on first use, the way `ext` does; when it cannot be built, the header above is the
+# fallback rather than nothing at all.
+ext_tool() {
+  local tool=$root/.build/release/riskell-ext
+  [[ -x $tool ]] || swift build -c release --product riskell-ext --package-path $root >/dev/null 2>&1 || return 1
+  print -r -- $tool
+}
+front_door() {
+  local tool
+  if tool=$(ext_tool); then RISKELL_ROOT=$root exec $tool help "$@"; fi
+  sed -n 2,7p $self
+}
+with_ext() {
+  local tool
+  tool=$(ext_tool) || { echo "risk: riskell-ext is not built"; exit 1; }
+  RISKELL_ROOT=$root exec $tool "$@"
+}
+
+case ${1:-} in
+  "")       front_door ;;
+  help)     front_door "${@:2}" ;;
+  completions) with_ext completions "${@:2}" ;;
   install)
     build; write_plist
     reload
@@ -140,12 +158,10 @@ case $1 in
     launchctl bootout $dom/$label 2>/dev/null || true
     rm -f $plist
     echo "riskell stopped" ;;
-  dev)      build
-            if ! grep -qF "$app/Contents/MacOS/riskell" $plist 2>/dev/null; then write_plist; reload; echo "moved the agent into the app bundle"
-            else launchctl kickstart -k $dom/$label; fi
-            echo restarted ;;
-  restart)  if stale; then echo "the sources are newer than the running build: rebuilding first"; exec $0 dev; fi
-            launchctl kickstart -k $dom/$label; echo restarted ;;
+  dev|restart|rebuild)  build      # restart and rebuild are older names for the same command
+            if ! launchctl print $dom/$label >/dev/null 2>&1; then write_plist; reload; echo "no agent was running: installed one"
+            elif ! grep -qF "$app/Contents/MacOS/riskell" $plist 2>/dev/null; then write_plist; reload; echo "moved the agent into the app bundle"
+            else launchctl kickstart -k $dom/$label; echo restarted; fi ;;
   log)      if [[ -n $2 ]]; then tail -n $2 $HOME/.cache/riskell/riskell.log; else tail -f $HOME/.cache/riskell/riskell.log; fi ;;
   ext)      tool=$root/.build/release/riskell-ext      # validate | new | add | remove | list | sync: see docs/WRITING-EXTENSIONS.md
             [[ -x $tool ]] || swift build -c release --product riskell-ext --package-path $root >/dev/null || exit 1
@@ -155,8 +171,8 @@ case $1 in
   tty)      tool=$root/.build/release/riskell      # the active theme's tokens: hex, json, or ansi for the terminal
             [[ -x $tool ]] || swift build -c release --product riskell --package-path $root >/dev/null || exit 1
             exec $tool --palette "${@:2}" ;;
-  status)   launchctl print $dom/$label 2>/dev/null | grep -E "state|pid|last exit" || echo "not loaded" ;;
-  wm)       [[ $2 == (omniwm|export|import) && ! -x ${JQ:-/nonexistent} ]] && { echo "risk: jq not found (brew install jq)"; exit 1; }
+  status|doctor)   launchctl print $dom/$label 2>/dev/null | grep -E "state|pid|last exit" || echo "not loaded" ;;
+  wm)       [[ $2 == omniwm || $2 == export || $2 == import ]] && ! -x ${JQ:-/nonexistent} && { echo "risk: jq not found (brew install jq)"; exit 1; }
             case $2 in
               omniwm) start_wm ;;
               export) export_omniwm; echo "saved $(grep -vc '^focus' $map) windows to $map" ;;
