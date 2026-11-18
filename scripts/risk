@@ -172,7 +172,12 @@ case ${1:-} in
   tty)      tool=$root/.build/release/riskell      # the active theme's tokens: hex, json, or ansi for the terminal
             [[ -x $tool ]] || swift build -c release --product riskell --package-path $root >/dev/null || exit 1
             exec $tool --palette "${@:2}" ;;
-  status|doctor)   launchctl print $dom/$label 2>/dev/null | grep -E "state|pid|last exit" || echo "not loaded" ;;
+  status|doctor)   if [[ $2 == --launchctl ]]; then        # the raw launchctl lines, as this used to print them
+                     launchctl print $dom/$label 2>/dev/null | grep -E "state|pid|last exit" || echo "not loaded"; exit 0
+                   fi
+                   tool=$root/.build/release/riskell-setup   # the report, its sections and --json live in the installer's binary
+                   [[ -x $tool ]] || swift build -c release --product riskell-setup --package-path $root >/dev/null || exit 1
+                   exec $tool --check "${@:2}" ;;
   wm)       [[ $2 == omniwm || $2 == export || $2 == import ]] && ! -x ${JQ:-/nonexistent} && { echo "risk: jq not found (brew install jq)"; exit 1; }
             case $2 in
               omniwm) start_wm ;;

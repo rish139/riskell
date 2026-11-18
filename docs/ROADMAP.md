@@ -12,8 +12,8 @@ non-interactive off a TTY, `--yes` for destructive work, idempotent, and nothing
 
 | Command | What it does |
 |---|---|
-| `risk doctor [--json] [--bundle]` | binary and signature, launch agent, font, socket, window-manager connection and protocol, gap drift, gesture conflicts, macOS and WM versions against the verified record, permissions; `--bundle` writes one redacted report |
-| `risk ctl <settings\|overview\|bar-right-on\|workspace-3\|…>` | the socket words as commands, so scripting does not start with `printf \| nc -U` |
+| `risk status [--json] [--bundle]` (`doctor` is an alias) | binary and signature, launch agent, font, socket, window-manager connection and protocol, gap drift, gesture conflicts, macOS and WM versions against the verified record, permissions; the rows only the running app knows come from the app; `--bundle` writes one redacted report |
+| `risk log [N] [--follow] [--json]` · `risk ctl <settings\|overview\|bar-right-on\|workspace-3\|…>` · `risk completions` | the log, the socket words and the shell completions as commands, so scripting does not start with `tail` or `printf \| nc -U` |
 | `risk snap` | the picture flags (`--snap`, `--theme all`, `--bar`, `--scale`, `-o`) as one command |
 | `risk bench [--json]` | reproduce the numbers in [`EFFICIENCY.md`](EFFICIENCY.md) on this machine |
 | `risk config get\|set\|path\|edit` · `risk wm status\|doctor\|backends` | settings and the window manager without hand-edited JSON |
@@ -48,8 +48,11 @@ run against payloads recorded from a real install, on a CI runner, without the m
 ## Later
 
 - **The notch** beyond its media wings (a shelf, a quick-action dock, timers, an expanded media panel): parked until it has been designed.
-- **CI that renders every listing** across displays, bars and themes, with the images attached to the pull request. It depends on the snapshot
-  harness running headless on a runner.
+- **CI that renders every listing** across displays, bars and themes, with the images attached to the pull request. It is not possible on a
+  runner as the code stands, and this is measured rather than assumed: the pictures are rasterised from real panels that must be in ordered
+  windows, which needs a logged-in Aqua session, and the overview's screen capture additionally needs the Screen Recording permission
+  ([`ARCHITECTURE.md`](ARCHITECTURE.md), `main.swift` and `Services/Capture.swift`). Images are rendered by the maintainer, so no listing
+  claims to be rendered on CI.
 - An in-app browse card in riskell preferences.
 - Draw the clock drain and the CPU deck with Core Animation layers (about 0.8 % of a core). Open cards are the biggest cost now
   ([`EFFICIENCY.md`](EFFICIENCY.md)).
