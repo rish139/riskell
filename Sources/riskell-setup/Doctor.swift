@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import RiskellTTY
 
 /// One row of the health report. `id` is the contract (`build.binary` in the JSON, stable across versions); `label` is what a person reads.
 struct ReportCheck {
@@ -370,7 +371,7 @@ enum Doctor {
         switch ConfigIO.readObject(layout) {
         case .success(let obj?):
             checks.append(ReportCheck(id: "files.layout", label: "layout.json", severity: .ok,
-                                      detail: "\(c.short(layout)): \(obj.keys.sorted().joined(separator: ", "))", source: .file))
+                                      detail: "\(c.short(layout)): \(obj.count) key\(obj.count == 1 ? "" : "s") set", source: .file))
         case .success(nil):
             checks.append(ReportCheck(id: "files.layout", label: "layout.json", severity: .info,
                                       detail: "no \(c.short(layout)): the built-in layout is used", source: .file))
@@ -432,25 +433,27 @@ enum Doctor {
                                       detail: "no socket: riskell is not running", source: .file))
         }
         let origin: ReportCheck.Origin = c.app == nil ? .launchd : .app
+        // one row for the process, its version and whether that version is the checkout's: they are the same question
+        let checkout = checkoutVersion(c.repo)
         if let pid = c.pid {
-            checks.append(ReportCheck(id: "running.process", label: "process", severity: .ok,
-                                      detail: "pid \(pid), riskell \(c.version ?? "?")", source: origin))
+            var severity = ReportCheck.Severity.ok
+            var detail = "pid \(pid)"
+            var fix: String?
+            if let version = c.version {
+                if let checkout, checkout != version {
+                    severity = .warn
+                    detail += " runs \(version); the checkout is \(checkout)"
+                    fix = "risk dev"
+                } else {
+                    detail += ", riskell \(version)" + (checkout == nil ? "" : ", the checkout's version")
+                }
+            } else {
+                severity = .info
+                detail += "; the bar did not report its version"
+            }
+            checks.append(ReportCheck(id: "running.process", label: "process", severity: severity, detail: detail, fix: fix, source: origin))
         } else {
             checks.append(noAnswer(c, "running.process", "process"))
-        }
-        if let version = c.version, let checkout = checkoutVersion(c.repo) {
-            let same = version == checkout
-            checks.append(ReportCheck(id: "running.version", label: "running version", severity: same ? .ok : .warn,
-                                      detail: same ? "riskell \(version) is the checkout's version" : "the bar runs \(version), the checkout is \(checkout)",
-                                      fix: same ? nil : "risk dev", source: origin))
-        } else if let version = c.version {
-            checks.append(ReportCheck(id: "running.version", label: "running version", severity: .info,
-                                      detail: "riskell \(version) is running: there is no checkout to compare it with", source: origin))
-        } else if c.pid != nil {
-            checks.append(ReportCheck(id: "running.version", label: "running version", severity: .info,
-                                      detail: "the bar did not report its version", source: origin))
-        } else {
-            checks.append(noAnswer(c, "running.version", "running version"))
         }
         if let app = c.app {
             let services = strings(app, "services")
@@ -459,7 +462,7 @@ enum Doctor {
                                       source: .app))
             let bars = strings(app, "bars"), atoms = int(app, "atoms") ?? 0
             checks.append(ReportCheck(id: "running.atoms", label: "atoms", severity: .ok,
-                                      detail: "\(atoms) atom(s) on \(bars.isEmpty ? "no bar" : bars.joined(separator: ", "))", source: .app))
+                                      detail: "\(plural(atoms, "atom")) on \(bars.isEmpty ? "no bar" : bars.joined(separator: ", "))", source: .app))
         } else {
             checks.append(noAnswer(c, "running.services", "services"))
             checks.append(noAnswer(c, "running.atoms", "atoms"))
@@ -646,7 +649,7 @@ enum Doctor {
                                       detail: "not needed: the gestures are macOS's own", source: .app))
         } else if tap {
             checks.append(ReportCheck(id: "gestures.scrollguard", label: "scroll guard", severity: .ok,
-                                      detail: "tap installed, \(dropped) scroll(s) dropped", source: .app))
+                                      detail: "tap installed, \(plural(dropped, "scroll")) dropped", source: .app))
         } else if !trusted {
             checks.append(ReportCheck(id: "gestures.scrollguard", label: "scroll guard", severity: .info,
                                       detail: "waiting for Accessibility (see permissions): three fingers scroll the window meanwhile", source: .app))
@@ -670,12 +673,12 @@ enum Doctor {
         if errors.isEmpty {
             return ReportSection(id: "log", title: "log", checks: [
                 ReportCheck(id: "log.errors", label: "errors", severity: .ok,
-                            detail: "no error in the last \(lines.count) line(s); \(bytes(size)), written \(when) ago", source: .file),
+                            detail: "no error in the last \(plural(lines.count, "line")); \(bytes(size)), written \(when) ago", source: .file),
             ])
         }
         return ReportSection(id: "log", title: "log", checks: [
             ReportCheck(id: "log.errors", label: "errors", severity: .fail,
-                        detail: "\(errors.count) error line(s) in the last \(lines.count): \(errors.suffix(1).first ?? "")",
+                        detail: "\(plural(errors.count, "error line")) in the last \(lines.count): \(errors.suffix(1).first ?? "")",
                         fix: "risk log 30", source: .file),
         ])
     }
@@ -686,31 +689,116 @@ enum Doctor {
         guard let first = fails.first else {
             return ReportSection(id: "verdict", title: "verdict", checks: [
                 ReportCheck(id: "verdict", label: "verdict", severity: .ok,
-                            detail: warns.isEmpty ? "all \(all.count) checks passed" : "no failure among \(all.count) checks, \(warns.count) warning(s)",
+                            detail: warns.isEmpty ? "all \(all.count) checks passed" : "no failure among \(all.count) checks, \(plural(warns.count, "warning"))",
                             source: .cli),
             ])
         }
         return ReportSection(id: "verdict", title: "verdict", checks: [
             ReportCheck(id: "verdict", label: "verdict", severity: .fail,
-                        detail: "\(fails.count) problem(s) and \(warns.count) warning(s); first is \(first.id): \(first.detail)",
+                        detail: "\(plural(fails.count, "problem")) and \(plural(warns.count, "warning")); first is \(first.id): \(first.detail)",
                         fix: first.fix, source: .cli),
         ])
+    }
+
+    /// "1 warning", "2 warnings": the report is read by people.
+    private static func plural(_ n: Int, _ one: String) -> String {
+        n == 1 ? "1 \(one)" : "\(n) \(one)s"
     }
 
     // MARK: text
 
     private static func render(_ sections: [ReportSection], _ c: Context) -> String {
-        let macos = c.facts.macos ?? "?", pid = c.pid.map { ", pid \($0)" } ?? ""
-        var out = "riskell doctor: macOS \(macos), \(c.facts.arch)\(pid) · \(stamp(c.generated))\n"
-        for s in sections {
-            out += "\n\(s.title)\n"
-            let width = min(22, max(10, s.checks.map(\.label.count).max() ?? 10))
-            for row in s.checks {
-                out += "  \(mark(row.severity))  \(padded(row.label, width))\(row.detail)\n"
-                if let fix = row.fix, row.severity != .ok { out += "      fix: \(fix)\n" }
+        let width = terminalWidth()
+        let body = sections.filter { $0.id != "verdict" }
+        // one label column for the whole report, so the eye scans a straight edge from the first row to the last
+        let label = min(18, max(8, body.flatMap(\.checks).map(\.label.count).max() ?? 8))
+        let hangs = String(repeating: " ", count: 6 + label)      // two for the gutter, two for the mark, two for the gap
+        var out = header(c) + "\n"
+        for section in body {
+            out += "\n" + paint(section.title, Ink.accent) + "\n"
+            for row in section.checks {
+                let room = max(24, width - hangs.count)
+                let lines = wrap(tidy(row.detail), room)
+                out += "  \(paint(mark(row.severity), ink(row.severity)))  \(padded(row.label, label))  \(lines[0])\n"
+                for extra in lines.dropFirst() { out += hangs + extra + "\n" }
+                if let fix = row.fix, row.severity != .ok, row.severity != .info { out += hangs + paint("→ \(fix)", Ink.accentText) + "\n" }
+            }
+        }
+        return out + verdictLine(sections, width: width)
+    }
+
+    /// The identity line, not a log line: what is running, and on what.
+    private static func header(_ c: Context) -> String {
+        var parts = ["riskell \(c.version ?? "?")", "macOS \(c.facts.macos ?? "?") (\(c.facts.arch))"]
+        if let pid = c.pid { parts.append("pid \(pid)") }
+        return "  " + paint(parts.joined(separator: "  ·  "), Ink.dim)
+    }
+
+    /// The verdict as the line you read last, not a row labelled "verdict": a count, and the one thing to do next.
+    private static func verdictLine(_ sections: [ReportSection], width: Int) -> String {
+        let all = sections.filter { $0.id != "verdict" }.flatMap(\.checks)
+        let fails = all.filter { $0.severity == .fail }, warns = all.filter { $0.severity == .warn }
+        let room = max(24, width - 6)
+        var out: String
+        if fails.isEmpty && warns.isEmpty {
+            out = "  \(paint("✓", ink(.ok)))  " + paint("\(all.count) checks, nothing to fix", Ink.dim) + "\n"
+        } else {
+            var counts: [String] = []
+            if !fails.isEmpty { counts.append(plural(fails.count, "problem")) }
+            if !warns.isEmpty { counts.append(plural(warns.count, "warning")) }
+            let tally = counts.joined(separator: "  ·  ")
+            let markText = paint(fails.isEmpty ? "!" : "✗", ink(fails.isEmpty ? .warn : .fail))
+            out = "  " + markText + "  " + tally + "  ·  " + "\(all.count) checks" + "\n"
+            if let first = fails.first ?? warns.first, let fix = first.fix {
+                out += "     " + paint(wrap("→ \(fix)", room).joined(separator: "\n     "), Ink.accentText) + "\n"
             }
         }
         return out
+    }
+
+    /// The report is wide when the terminal is: COLUMNS, else 100, never narrower than 60 or wider than 160.
+    private static func terminalWidth() -> Int {
+        let columns = Int(ProcessInfo.processInfo.environment["COLUMNS"] ?? "") ?? 100
+        return min(160, max(60, columns))
+    }
+
+    /// A detail is a sentence with paths in it: a path longer than 48 characters loses its middle, so it stops taking a line of its own.
+    private static func tidy(_ detail: String) -> String {
+        detail.split(separator: " ", omittingEmptySubsequences: false).map { word -> String in
+            let w = String(word)
+            guard w.count > 48, w.hasPrefix("~") || w.hasPrefix("/") else { return w }
+            let parts = w.split(separator: "/").map(String.init)
+            guard parts.count >= 4 else { return w }
+            return parts[0] + "/…/" + parts.suffix(3).joined(separator: "/")
+        }.joined(separator: " ")
+    }
+
+    /// Break on spaces, never in the middle of a word, and never produce an empty line.
+    private static func wrap(_ text: String, _ width: Int) -> [String] {
+        var lines: [String] = []
+        var line = ""
+        for word in text.split(separator: " ") {
+            if line.isEmpty { line = String(word) }
+            else if line.count + 1 + word.count <= width { line += " " + word }
+            else { lines.append(line); line = String(word) }
+        }
+        if !line.isEmpty { lines.append(line) }
+        return lines.isEmpty ? [""] : lines
+    }
+
+    /// Colour only when the terminal takes it: RiskellTTY's mode decides, and a pipe gets plain text.
+    private static func paint(_ text: String, _ style: RiskellTTY.Style) -> String {
+        guard Ink.mode != .none, style != RiskellTTY.Style.plain else { return text }
+        return style.sgr + text + RiskellTTY.Style.reset
+    }
+
+    private static func ink(_ s: ReportCheck.Severity) -> RiskellTTY.Style {
+        switch s {
+        case .ok: return Ink.ok
+        case .warn: return Ink.accent
+        case .fail: return Ink.bad
+        case .info: return Ink.dim
+        }
     }
 
     private static func mark(_ s: ReportCheck.Severity) -> String {
@@ -722,8 +810,9 @@ enum Doctor {
         }
     }
 
+    /// A label and the spaces that carry it to the one column width; the gap after it is added by the caller.
     private static func padded(_ s: String, _ n: Int) -> String {
-        s.count >= n ? s + "  " : s + String(repeating: " ", count: n - s.count)
+        s.count >= n ? s : s + String(repeating: " ", count: n - s.count)
     }
 
     // MARK: JSON
