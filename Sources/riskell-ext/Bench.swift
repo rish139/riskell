@@ -131,7 +131,8 @@ enum Bench {
         return .reproduced
     }
 
-    /// What a run needs from outside the table: the built app, the two files it reads, and the scratch folder everything it writes goes in.
+    /// What a run needs from outside the table: the built app, the two files it reads and the scratch folder both of them and everything
+    /// the instance writes live in.
     struct Setup {
         let binary: String
         let layout: String
@@ -139,37 +140,74 @@ enum Bench {
         let scratch: String
     }
 
+    /// The layout every run is measured against: the classic preset, which is also riskell's built-in default (`Sources/riskell/Layout.swift`'s
+    /// `Config.defaults`, the setup app's Classic in `Sources/riskell-setup/Presets.swift`). It places every built-in atom, which is the layout
+    /// docs/EFFICIENCY.md's rows describe, so a figure here belongs to this table and not to whatever the owner has placed. A change to that
+    /// default belongs here too.
+    static let scratchLayout = """
+    {
+      "top": {"start": [{"atoms": ["compat"], "id": "compat"}], "center": [],
+              "end": [{"atoms": ["ext:bat", "ext:clock"], "id": "status"}]},
+      "bottom": {"start": [], "center": [{"atoms": ["ext:cpu"], "id": "cpu"}],
+                 "end": [{"atoms": ["ext:net", "ext:vol"], "id": "link"}, {"atoms": ["ext:weather"], "id": "sky"}]},
+      "left": {"start": [{"atoms": ["ext:workspaces", "ext:appicon"], "id": "workspaces"}], "center": [],
+               "end": [{"atoms": ["ext:usage", "ext:fan"], "id": "system"}]},
+      "right": {"start": [], "center": [], "end": []},
+      "hugTop": false, "hugBottom": false, "hugLeft": true, "hugRight": true,
+      "gap": 8,
+      "on": {"top": true, "bottom": true, "left": true, "right": false},
+      "spill": {"top": "fill", "bottom": "fill", "left": "fill", "right": "fill"}
+    }
+    """
+
+    /// The config a run is measured against: valid JSON with no keys, so every setting is riskell's default and the owner's drop-in pills are
+    /// not read (`AppConfig.pillsDirectory` is the `pills` folder next to the config file).
+    static let scratchConfig = "{}"
+
     /// The machine, the OS, the build and the files a number belongs to. Without them a number says nothing: the same layout on another
-    /// machine, or the same machine on another build, is another figure.
+    /// machine, or the same machine on another build, is another figure. The two file fields carry the word `scratch` and what the file holds
+    /// beside the path, because bench writes both: a reader of a number can see it is not the owner's layout.
     struct Fingerprint {
         let machine: String         // hw.model
         let os: String              // macOS version and build
         let revision: String        // git rev-parse --short HEAD, or "unknown" outside a git checkout
         let binary: String
-        let layout: String
-        let config: String
+        let layout: String          // this run's layout.json, written by bench in its scratch folder
+        let config: String          // and its config.json
         let cores: Int
     }
 
-    /// The defaults are the two scripts' own: the owner's layout, read and never written, and an empty config. Everything else the instance
-    /// writes goes into this run's scratch folder.
+    /// The built app and a scratch folder of this run's own: the layout and the config are written into it (`scratchLayout`, `scratchConfig`)
+    /// and the instance writes everything else there too, so a run never reads the owner's layout, never writes into ~/.config/riskell and
+    /// leaves nothing behind.
     private static func setup() -> Setup {
         guard let root = checkout() else { fail("run it inside the riskell checkout (no extensions.lock.json above here)") }
         let binary = root + "/.build/release/riskell"
         guard fm.isExecutableFile(atPath: binary) else { fail("build first (swift build -c release)") }
-        let home = ProcessInfo.processInfo.environment["HOME"] ?? NSHomeDirectory()
-        let layout = home + "/.config/riskell/layout.json"
-        return Setup(binary: binary, layout: fm.fileExists(atPath: layout) ? layout : "the built-in layout", config: "/dev/null",
-                     scratch: "/tmp/risk-bench-\(getpid())")
+        let scratch = "/tmp/risk-bench-\(getpid())"
+        let layout = scratch + "/layout.json", config = scratch + "/config.json"
+        try? fm.removeItem(atPath: scratch)          // a folder a killed run of this pid left is not a fixture to trust
+        do {
+            try fm.createDirectory(atPath: scratch + "/cache", withIntermediateDirectories: true)
+            try scratchLayout.write(toFile: layout, atomically: true, encoding: .utf8)
+            try scratchConfig.write(toFile: config, atomically: true, encoding: .utf8)
+        } catch {
+            try? fm.removeItem(atPath: scratch)
+            fail("could not write the scratch layout and config in \(scratch): \(error)")
+        }
+        return Setup(binary: binary, layout: layout, config: config, scratch: scratch)
     }
 
+    /// The machine, the OS, the build and the two files this run wrote, each named with the word `scratch`, so a number can never be read as
+    /// the owner's layout.
     private static func fingerprint(_ setup: Setup) -> Fingerprint {
         let root = checkout() ?? ""
         let revision = sh(["git", "rev-parse", "--short", "HEAD"], in: root.isEmpty ? nil : root)
         let os = sh(["sw_vers", "-productVersion"]).1 + " (" + sh(["sw_vers", "-buildVersion"]).1 + ")"
         return Fingerprint(machine: sh(["sysctl", "-n", "hw.model"]).1, os: "macOS " + os,
                            revision: revision.0 == 0 ? revision.1 : "unknown", binary: setup.binary,
-                           layout: setup.layout, config: setup.config, cores: Int(sh(["sysctl", "-n", "hw.ncpu"]).1) ?? 0)
+                           layout: setup.layout + " (scratch: the classic preset)",
+                           config: setup.config + " (scratch: an empty config)", cores: Int(sh(["sysctl", "-n", "hw.ncpu"]).1) ?? 0)
     }
 
     // MARK: - the command
@@ -258,7 +296,7 @@ enum Bench {
         }
         lines.append("")
         lines.append("  " + tty.dim("published: the \"after\" column of docs/EFFICIENCY.md, measured on \(publishedMachine)"))
-        lines.append("  " + tty.dim("risk bench idle | card <atom> | all [--runs N] [--json] — each run is a scratch instance, killed afterwards"))
+        lines.append("  " + tty.dim("risk bench idle | card <atom> | all [--runs N] [--json] — each run is a scratch instance with bench's own layout, killed afterwards"))
         return lines.joined(separator: "\n")
     }
 
@@ -390,7 +428,6 @@ enum Bench {
         let setup = setup()
         scratch = setup.scratch
         watchSignals()
-        try? fm.createDirectory(atPath: setup.scratch + "/cache", withIntermediateDirectories: true)
         defer { stopEverything() }
         let mark = fingerprint(setup)
         var results: [Result] = []
@@ -466,6 +503,7 @@ enum Bench {
                 lines.append("  " + tty.mark(.warn, "cannot compare: the page's figure is from another machine"))
                 lines.append("    " + tty.dim("published " + published.text + "; here " + here))
                 lines.append("    " + tty.dim("the page names \"\(publishedMachine)\", this run is a \(mark.machine)"))
+                lines.append("    " + tty.dim("a figure can also differ for a second reason: another layout"))
             case .reproduced:
                 lines.append("  " + tty.mark(.ok, "reproduced: " + here + " is inside the published range"))
                 lines.append("    " + tty.dim("published " + published.text))
