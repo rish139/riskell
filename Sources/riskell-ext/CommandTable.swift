@@ -2,7 +2,6 @@
 // Copyright 2026 Rishabh Tiwari
 
 import Foundation
-import RiskellTTY
 
 // The one command table: every command a user may type, what it is for, and which spellings it takes over. `risk help` (the front door
 // and per-command help), `risk completions` and `docs/CLI.md` are rendered from it, so the three cannot disagree. Internal `riskell --`
@@ -11,9 +10,6 @@ import RiskellTTY
 /// Whether a name and its flags are settled. An experimental command may change or go; a stable one is removed only with a note in CHANGELOG.
 enum Tier: String, CaseIterable {
     case stable, experimental
-
-    /// The mark the screens print for this tier: a check for stable, a warning for experimental.
-    var mark: Mark { self == .stable ? .ok : .warn }
 }
 
 /// One subcommand of a pass-through (`ext`); a group (`wm`, `gestures`, `config`, `theme`) takes its own from the rows below.
@@ -62,6 +58,23 @@ struct Command {
 
     /// The group this row belongs to: "config" for `config show`, nil for a command without a subcommand.
     var group: String? { subcommand == nil ? nil : name }
+
+    /// The `replaces` entries worth printing: everything except a spelling of this command itself (`risk status` under `risk status`,
+    /// `risk restart` under `risk dev`, `risk log [N]` under `risk log [N] [--follow] [--json]`), which would only repeat the heading.
+    var otherReplaces: [String] { replaces.filter { !namesSelf($0) } }
+
+    /// Whether an entry is only this command again: `risk` followed by the command's name or an alias, and nothing that is not already
+    /// in its own synopsis. A genuinely different spelling (`riskell-setup --check`, `risk ext (exit 10)`) answers false.
+    private func namesSelf(_ source: String) -> Bool {
+        var words = source.split(separator: " ").map(String.init)
+        guard words.first == "risk" else { return false }
+        words.removeFirst()
+        let usage = usage.split(separator: " ").map(String.init)
+        return ([name] + aliases).contains { spelling in
+            let own = spelling.split(separator: " ").map(String.init)
+            return words.starts(with: own) && words.dropFirst(own.count).allSatisfy(usage.contains)
+        }
+    }
 }
 
 // Stable commands first, in the order a user meets them; experimental ones after.

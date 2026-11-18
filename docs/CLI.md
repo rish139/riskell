@@ -38,7 +38,7 @@ rebuild and restart the running agent
 
 - alias: `risk restart`, `risk rebuild`
 - example: `risk dev`
-- replaces: `risk dev`, `risk restart`, `risk ext (exit 10)`
+- replaces: `risk ext (exit 10)`
 
 ### `risk status [--json] [--check]`
 
@@ -46,14 +46,14 @@ check health and name the first failing check
 
 - alias: `risk doctor`
 - example: `risk status --json`
-- replaces: `risk status`, `riskell-setup --check`, `riskell --dump`
+- replaces: `riskell-setup --check`, `riskell --dump`
 
 ### `risk log [N] [--follow] [--json]`
 
 print the last few log lines, or follow them
 
 - example: `risk log 50 --json`
-- replaces: `risk log [N]`, `tail ~/.cache/riskell/riskell.log`
+- replaces: `tail ~/.cache/riskell/riskell.log`
 
 ### `risk setup [--yes] [--dry-run]`
 
@@ -116,21 +116,18 @@ put the saved key values back
 show which window manager is driving the rail
 
 - example: `risk wm status --json`
-- replaces: `risk wm`
 
 ### `risk wm export [--json]`
 
 save each window's workspace number
 
 - example: `risk wm export`
-- replaces: `risk wm export`
 
 ### `risk wm import [--dry-run]`
 
 put each saved window back on its number
 
 - example: `risk wm import --dry-run`
-- replaces: `risk wm import`
 
 ### `risk ext <subcommand>`
 

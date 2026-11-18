@@ -25,7 +25,7 @@ enum Docs {
                 out += ["", "### `risk \(row.usage)`", "", row.summary, ""]
                 if !row.aliases.isEmpty { out.append("- alias: " + row.aliases.map { "`risk \($0)`" }.joined(separator: ", ")) }
                 out.append("- example: `\(row.example)`")
-                if !row.replaces.isEmpty { out.append("- replaces: " + row.replaces.map { "`\($0)`" }.joined(separator: ", ")) }
+                if !row.otherReplaces.isEmpty { out.append("- replaces: " + row.otherReplaces.map { "`\($0)`" }.joined(separator: ", ")) }
                 if !row.children.isEmpty {
                     out.append("- subcommands:")
                     for child in row.children { out.append("  - `\(child.name)`: \(child.summary)") }
