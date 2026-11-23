@@ -4,6 +4,26 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-23
+
+Fixes from a week of daily use, and full-screen apps in the overview.
+
+### Added
+- The overview lists apps in native full-screen Spaces (a game, a full-screen browser) as small window tiles in a row below the find
+  field, with the window's picture when it can be captured and the app's icon when not. A click goes to that app's Space.
+- A four-finger swipe up opens Mission Control, and a four-finger swipe down closes the one the gesture opened. A fourth finger landing in
+  a three-finger swipe now cancels that swipe instead of committing it.
+
+### Fixed
+- Live window streams could keep running after the overview closed (a close that arrived while the streams were still starting left the
+  late ones capturing the screen, with the recording indicator on and about 8 % CPU). A stop now stops every stream of its start.
+- The overview takes the first click again after a workspace change, and keeps keyboard focus; each press is logged with what it hit.
+- The Claude usage figure keeps the last real percentages, dimmed, when the limits request fails, instead of falling back to tokens. A
+  null five-hour or seven-day window no longer rejects the whole response.
+- A floating strip no longer takes the pointer over the gaps between its islands, so the Dock and the apps below are reachable there.
+- When the auto-hidden menu bar is out, the top bar sits under it and comes back only after the pointer leaves the menu bar's stripe;
+  the widgets at the top of the side strips step down clear of it.
+
 ## [0.3.0] - 2026-11-23
 
 `risk` is now a command line you can use and script: thirteen commands, one terminal style, JSON where a program reads it.
