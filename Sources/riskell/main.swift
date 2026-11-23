@@ -276,7 +276,7 @@ func menuEdge(_ e: NSEvent?) {
     let y = NSEvent.mouseLocation.y, d = Display.current, stripe = max(d.menuBar, d.notchH)
     if y >= f.maxY - 1.5 {
         menuHold?.cancel(); menuHold = nil
-        if !menuOut { menuOut = true; Config.shared.menuDrop = max(0, d.menuBar / Real.k - G.sideMargin + 6) }
+        if !menuOut { menuOut = true; Config.shared.menuDrop = max(0, stripe / Real.k - G.sideMargin + 10) }
     } else if menuOut, y < f.maxY - stripe, menuHold == nil {
         let w = DispatchWorkItem { menuHold = nil; menuOut = false; Config.shared.menuDrop = 0; menuEdge(nil) }
         menuHold = w
