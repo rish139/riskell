@@ -4,54 +4,66 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-23
+
+`risk` is now a command line you can use and script: thirteen commands, one terminal style, JSON where a program reads it.
+
+### Added
+- `risk status` is a health report: the binary and signature, the launch agent, the font, the socket, the window manager and its protocol,
+  gap drift, gesture conflicts, versions against the verified record and permissions. The rows only the running app knows come from the
+  app. `--json` is for programs, `--check` is the installer's checklist, and `--bundle` writes one redacted report to attach to an issue.
+- `risk log` and `risk ctl` print the log and send a word to the running bar, so scripting does not start with `tail` or `nc -U`.
+  `risk config` reads and changes settings without hand-edited JSON (`path`, `show`, `get`, `set`, `edit`).
+- `risk help`, the shell completions and `docs/CLI.md` are all generated from one command table. The JSON the commands print has schemas
+  under `schemas/`, with documented exit codes (`10` rebuild needed, `2` usage, `1` failure).
+- `risk ext validate` checks `derivedFrom`, the manifest block that says where a ported extension came from (repository, revision, licence
+  and authors), and refuses one that is incomplete. The rule runs in CI.
+- A test target for the window-manager parsers, with payloads recorded from real installs, and a contract test for the command line whose
+  screens are recorded, so a change to one is a diff.
+- Developer commands that are not listed in `risk help`: `risk snap` (renders the picture set), `risk bench` (measures the efficiency
+  table), `risk theme`, `risk fit` and `risk self-test`. `risk gallery` draws every screen from fixed data.
+
 ### Changed
-- The user CLI is now thirteen commands: `install`, `uninstall`, `dev`, `status`, `log`, `ctl`, `setup`, `config`, `gestures fix`, `gestures
-  restore`, `ext`, `completions` and `help`. `theme`, `snap`, `bench`, `fit`, `self-test`, `version` and the `wm` and `gestures status`
-  commands are developer commands: they still run, but `risk help`, `risk completions` and `docs/CLI.md` no longer list them, and `risk
-  status` shows the gestures and window-manager state instead. The experimental tier is gone.
-- Every command is drawn in one terminal style, from the theme in force: a masthead with the riskell mark and the agent's state, section
-  rules, one row shape for a check, a hint line under anything that needs a command, a health bar, a `next` line, and one form for errors
-  (what is wrong, why, what to try). It has an ASCII form for terminals without UTF-8 (`RISKELL_ASCII=1`), wraps instead of cutting, and
-  prints no colour, spinner or carriage return when the output is not a terminal. `risk help` groups commands as run, look, change and
-  extend; `status`, `log`, `ctl`, `config`, `ext`, `gestures`, `install`, `dev`, `uninstall` and the guided installer all use it.
+- The user CLI is thirteen commands: `install`, `uninstall`, `dev`, `status`, `log`, `ctl`, `setup`, `config`, `gestures fix`, `gestures
+  restore`, `ext`, `completions` and `help`. `theme`, `snap`, `bench`, `fit`, `self-test`, `version`, the `wm` commands and `gestures
+  status` still run but are no longer listed, and `risk status` shows the gestures and window-manager state.
+- Every command is drawn in one terminal style, in the theme in force: a masthead with the riskell mark and the agent's state, section
+  rules, one row shape for a check, a hint under anything that needs a command, a health bar, a `next` line, and one form for errors that
+  says what is wrong, the command's synopsis and what to try. It has an ASCII form for terminals without UTF-8 (`RISKELL_ASCII=1`), wraps
+  instead of cutting, and prints no colour, spinner or carriage return when the output is not a terminal. The guided installer, the app's
+  own flag reports and the self-tests use it too.
 - `risk status` is one screen: a line per section with each check's name coloured by its state, detail and a fix only for what needs
-  attention, then the summary. The full list of every check is `risk status --all`.
-- `risk ctl --list` is one line per group of words (numbered runs folded); `--list --all` is the long list with what each word does.
-  `risk ext list` and `search` show each description in full under its name, `risk config path` marks which files exist, and `risk log`
-  leaves out the time column for lines the log wrote without one. Every list starts with the riskell mark and the command's name.
-- A mistyped command or flag, an unknown subcommand and every failure print one error block (what is wrong, the command's synopsis, what to
-  try) instead of a bare `usage:` line, and a bare `risk config`, `risk ext` or `risk ctl` opens its help page. The same holds for the
-  developer commands, `riskell-setup` and the app's own flag reports. `riskell --check-themes --rows` is the fixed-width form `risk theme
-  check` reads.
-  `risk self-test usage` and `weather` are drawn the same way, as a table with PASS or FAIL per case.
-- `risk install`, `dev` and `uninstall` show their steps (with a spinner on a terminal) and, when a step fails, its last lines in an error
-  block. `uninstall` asks first on a terminal and refuses without `--yes` when it cannot ask.
+  attention, then the summary. `risk status --all` lists every check.
+- `risk help` groups commands as run, look, change and extend. A bare `risk config`, `risk ext` or `risk ctl` opens its help page, and a
+  mistyped command or flag prints the error form instead of a bare `usage:` line.
+- `risk install`, `dev` and `uninstall` show their steps, with a spinner on a terminal and, when one fails, its last lines in an error
+  block. `uninstall` asks first on a terminal and refuses without `--yes` when it cannot ask. It no longer lists `--all` and
+  `--keep-config`, which it never honoured.
+- `risk ctl --list` is a line per group of words (`--list --all` has what each word does), `risk ext list` and `search` show each
+  description in full, `risk config path` marks which files exist, and `risk log` leaves out the time column for lines the log wrote
+  without one.
 - Output meant for a person starts one blank line below the prompt. Nothing is added when stdout is not a terminal or the command was
   given `--json`.
 - `risk version --json` and `risk gestures status --json` print JSON; before, they printed text.
-- `risk uninstall` no longer lists `--all` and `--keep-config`: it never honoured them.
-- `risk ext validate` keeps its `file:line: rule <id>: <what>. Fix: <how>.` lines unchanged; a clean folder now prints `valid` and no
-  warning count.
+- `risk ext validate` keeps its `file:line: rule <id>: <what>. Fix: <how>.` lines unchanged; a clean folder now prints `valid`.
 
 ### Fixed
-- The documented commands `config`, `setup`, `gestures status|fix|restore`, `version`, `theme`, `snap`, `bench`, `fit` and `self-test`
-  fell through `risk` to its header text and did nothing. Every command now reaches its implementation, and an unknown command is an error
-  with exit 2.
-- `risk` commands read and wrote under the account's home even when `HOME` named another folder, so a test with a scratch `HOME` could
-  change the real `~/.config/riskell`. They now use `HOME` when the shell names one; in a normal shell nothing moves.
+- The documented commands `config`, `setup`, `gestures`, `version`, `theme`, `snap`, `bench`, `fit` and `self-test` fell through `risk` to
+  its header text and did nothing. Every command now reaches its implementation, and an unknown command is an error with exit 2.
 - `risk install --dry-run` and `risk uninstall --dry-run` changed things: the wrapper ignored the flag. Both, and `dev`, now print what they
   would do and change nothing.
+- `risk` commands read and wrote under the account's home even when `HOME` named another folder, so a test with a scratch `HOME` could
+  change the real `~/.config/riskell`. They now use `HOME` when the shell names one; in a normal shell nothing moves.
 - `risk` rebuilt `riskell-ext` and `riskell-setup` only when they were missing, so after an update it could run a tool older than the
-  checkout. It now rebuilds them when their sources are newer.
+  checkout. In a git checkout it now rebuilds them when their sources are newer; an installed copy never rebuilds itself.
 - A `[gaps.outer]` line in OmniWM's `settings.toml` that carries a trailing `# comment` is no longer rewritten on every apply: the old
   comparison included the comment, so it never matched, and rewriting removed the comment and a CRLF line ending. The file is now left alone
   when the gaps already match, and its backup is not recreated for a write that does not happen.
 
 ### Documentation
-- The roadmap now states the order. First `risk` as a product surface (`doctor`, `ctl`, `snap`, `bench`, `config`, `wm`, completions), then
-  import and portability from other shells (BitBar/SwiftBar, Waybar, Omarchy themes and bar widgets, provenance, and a survey before any
-  emitter). The constraints it works under are written down with it: no second runtime, no `.dmg`, no closed edition, no bulk ports, no
-  auto-import, no telemetry.
+- The roadmap says the command line is done and that bringing other setups here starts with Omarchy widgets and themes, then BitBar and
+  SwiftBar, one simple port command and presets as a file. The constraints it works under are written down with it: no second runtime, no
+  `.dmg`, no closed edition, no bulk ports, no auto-import, no telemetry.
 
 ## [0.2.1] - 2026-11-18
 
