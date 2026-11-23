@@ -266,6 +266,7 @@ def main():
             check("config.json: theme is the default scheme", data.get("theme") == "gruvbox-dark-medium", str(data.get("theme")))
             check("config.json: gestures are system", data.get("gestures") == "system", str(data.get("gestures")))
             check("config.json: skip writes no location", "location" not in data)
+            check("config.json: the default writes no aerospace key", "aerospace" not in data)
             check("config.json: no usage when both are off", "usage" not in data)
             check("config.json: scale absent means automatic", "scale" not in data)
         if layout.exists():
@@ -282,6 +283,11 @@ def main():
         os.waitpid(dry[0], 0)
         check("--yes --dry-run prints the plan", "plan (nothing is written)" in text)
         check("--yes --dry-run prints the JSON that would be written", re.search(r'"wm"\s*:\s*"auto"', text) is not None)
+        aero = spawn([str(binary), "--yes", "--dry-run", "--wm", "aerospace", "--no-build", "--no-launch", "--repo", str(repo)], env)
+        atext = visible(drain(aero[1], 2.0)).decode("utf-8", "replace")
+        os.waitpid(aero[0], 0)
+        check("--wm aerospace writes wm and the default gaps choice",
+              re.search(r'"wm"\s*:\s*"aerospace"', atext) is not None and re.search(r'"gaps"\s*:\s*"riskell"', atext) is not None)
         check("--yes --dry-run writes nothing", (config.read_bytes() if config.exists() else b"") == before)
         backups = list((home / ".config/riskell").glob("config.json.bak-*"))
         check("the first run made no backup (there was no file)", len(backups) == 0)

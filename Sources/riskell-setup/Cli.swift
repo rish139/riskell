@@ -20,6 +20,7 @@ struct Options: Equatable {
     var cards: String?
     var city: String?
     var gestures: String?
+    var aerospaceGaps: String?
     var claude = false
     var claudeLimits = false
     var opencodeWorkspace: String?
@@ -79,6 +80,7 @@ struct Options: Equatable {
             case "--cards": o.cards = value(a)
             case "--city": o.city = value(a)
             case "--gestures": o.gestures = value(a)
+            case "--aerospace-gaps": o.aerospaceGaps = value(a)
             case "--scale": o.scale = value(a)
             case "--snapshot":
                 o.mode = .snapshot
@@ -128,6 +130,7 @@ struct Options: Equatable {
                 ("--bars", "minimal, classic or full: the layout to write"),
                 ("--cards", "flush or chat: how a card sits against the bar"),
                 ("--city", "\"Name\": the place the weather card shows, looked up once; the first match is used"),
+                ("--aerospace-gaps", "riskell or manual: with AeroSpace, who sets its outer gaps in aerospace.toml (default riskell)"),
                 ("--gestures", "riskell or system: who owns the three and four-finger gestures"),
                 ("--claude", "Claude Code usage on, from its local logs: no credentials, no network"),
                 ("--claude-limits", "also the real plan limits: reads the keychain login token and asks Anthropic (unofficial, may breach its terms); implies --claude, and this flag is the consent"),

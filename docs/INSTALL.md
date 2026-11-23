@@ -21,7 +21,7 @@ The installer is part of the same Swift package as riskell (`Sources/riskell-set
 | Step | Question | Writes |
 |---|---|---|
 | Welcome | macOS 14 or newer, Swift (Command Line Tools), an existing config, the launch agent, window managers found | nothing |
-| 1 Window manager | Auto, OmniWM, yabai, AeroSpace, custom commands, none | `wm` |
+| 1 Window manager | Auto, OmniWM, yabai, AeroSpace, custom commands, none. With AeroSpace, a second choice: riskell sets its outer gaps in `aerospace.toml` (default), or only tells you the values | `wm`, and with AeroSpace `aerospace.gaps` |
 | 2 Bars | Minimal, Classic (recommended), Full; cards Flush or Chat; bars Floating, Hug or as the preset | `layout.json` (see below) |
 | 3 Theme | one of the 11 schemes, with a live preview | `theme` |
 | 4 Weather | a city (one lookup to open-meteo.com, after you stop typing), coordinates by hand, or Skip | `location` |
@@ -41,7 +41,7 @@ other key leaves it off. The review screen then lists what is on, with "reads th
 Paths are derived from `$HOME`.
 
 - **`~/.config/riskell/config.json`**: the installer owns the keys `wm`, `theme`, `location`, `usage`, `gestures` and `scale`. It sets
-  or removes those and keeps every other key (`pills`, `spacing`, ...) as it was. Inside `usage` it owns only `claude`, `claudeLimits` and
+  or removes those and keeps every other key (`pills`, `spacing`, ...) as it was. With AeroSpace it also sets `aerospace.gaps` and keeps any other key under `aerospace`. Inside `usage` it owns only `claude`, `claudeLimits` and
   `opencode`; the token limits and any other key there are kept. When the file existed, a copy is kept as
   `config.json.bak-YYYYMMDD-HHMMSS` first. The file is written through a temporary file and a rename.
 - **`~/.config/riskell/layout.json`**: written only when there is no layout yet, or when you choose "Replace my layout" on the review
@@ -80,6 +80,7 @@ safe: every step is idempotent (the config is merged, a link is replaced, the ag
 | `--uninstall` | Stops riskell, removes its launch agent and the `risk` link. Asks first; `--yes` skips the question. Keeps `~/.config/riskell` unless `--remove-config`. `--restore-gestures` also restores the trackpad. |
 | `--version`, `--help` | |
 | `--wm auto\|omniwm\|yabai\|aerospace\|command\|none` | Window manager (with `--yes`). |
+| `--aerospace-gaps riskell\|manual` | With AeroSpace: riskell sets the outer gaps in `aerospace.toml` itself (default, one backup, no other line touched), or only tells you the values. |
 | `--theme ID` | A scheme id from `installer/themes.json`, for example `nord`. |
 | `--bars minimal\|classic\|full` | Preset. |
 | `--cards flush\|chat` | Card style. |

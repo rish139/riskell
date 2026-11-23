@@ -6,6 +6,7 @@ import RiskellTTY
 extension App {
     func wmSummary() -> String {
         if c.wmID == "auto", let d = facts.detectedWM { return "auto (\(d))" }
+        if c.isAerospace { return "AeroSpace, gaps \(c.aerospaceGaps == "manual" ? "by you" : "by riskell")" }
         return Choices.wmLabels[c.wm]
     }
 
@@ -30,7 +31,7 @@ extension App {
 
     func reviewLines(_ tty: Tty, height: Int) -> [String] {
         var out = section(tty, "review")
-        let answers: [(Tone, String, String, (cmd: String, note: String?)?)] = [
+        var answers: [(Tone, String, String, (cmd: String, note: String?)?)] = [
             (.ok, "window", wmSummary(), nil),
             (.ok, "bars", barsSummary(), nil),
             (.ok, "theme", c.themeData.name, nil),
@@ -39,6 +40,7 @@ extension App {
             (.ok, "gestures", c.gesturesRiskell ? (c.gesturesFix ? "riskell, conflicts off" : "riskell") : "system", nil),
             (.ok, "scale", c.scale.map { String(format: "%.2f", $0) } ?? "auto", nil),
         ]
+        if c.isAerospace { answers.insert((.ok, "aerospace", Choices.aerospaceGapsNote(c.aerospaceGaps), nil), at: 1) }
         out += tty.checks(answers)
         out += section(tty, "what will happen")
         var planLines = tty.plan(reviewPlanRows(), note: "")

@@ -22,6 +22,9 @@ enum Modes {
             default: problems.append("--cards wants flush or chat")
             }
         }
+        if let g = o.aerospaceGaps {
+            if g == "riskell" || g == "manual" { app.c.aerospaceGaps = g } else { problems.append("--aerospace-gaps wants riskell or manual") }
+        }
         if let g = o.gestures {
             switch g {
             case "riskell": app.c.gesturesRiskell = true

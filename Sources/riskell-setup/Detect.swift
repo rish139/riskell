@@ -119,7 +119,7 @@ enum Detect {
         f.wms = [
             wmFact("OmniWM", installed: FileManager.default.fileExists(atPath: "/Applications/OmniWM.app"), process: "OmniWM"),
             wmFact("yabai", installed: anyExists(["/opt/homebrew/bin/yabai", "/usr/local/bin/yabai"]), process: "yabai"),
-            wmFact("AeroSpace", installed: anyExists(["/opt/homebrew/bin/aerospace", "/usr/local/bin/aerospace"]), process: "AeroSpace"),
+            wmFact("AeroSpace", installed: anyExists(["/Applications/AeroSpace.app", "/opt/homebrew/bin/aerospace", "/usr/local/bin/aerospace"]), process: "AeroSpace"),
         ]
         return f
     }

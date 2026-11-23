@@ -38,6 +38,8 @@ struct Choices {
     var gesturesFix = false
     var scale: Double?
     var replaceLayout = false
+    /// AeroSpace only: "riskell" writes the outer gaps into aerospace.toml, "manual" only tells the values.
+    var aerospaceGaps = "riskell"
 
     static let wmIDs = ["auto", "omniwm", "yabai", "aerospace", "command", "none"]
     static let wmLabels = ["Auto", "OmniWM", "yabai", "AeroSpace", "Custom commands", "None"]
@@ -45,7 +47,7 @@ struct Choices {
         "follows what is running",
         "rail and gap reservation",
         "experimental, tiles with yabai",
-        "experimental, unverified",
+        "experimental, tiles with AeroSpace",
         "your own scripts, see docs/WM-COMMAND.md",
         "no workspaces; bars float over windows",
     ]
@@ -65,6 +67,7 @@ struct Choices {
         }
         if let s = e["scale"] as? Double { c.scale = s }
         c.gesturesRiskell = (e["gestures"] as? String) == "riskell"
+        if let a = e["aerospace"] as? [String: Any], (a["gaps"] as? String) == "manual" { c.aerospaceGaps = "manual" }
         if let loc = e["location"] as? [String: Any], let lat = loc["lat"] as? Double, let lon = loc["lon"] as? Double {
             c.weather = Place(name: (loc["name"] as? String) ?? "\(lat), \(lon)", region: "", lat: lat, lon: lon)
         }
@@ -81,6 +84,13 @@ struct Choices {
         return c
     }
 
+    /// What the AeroSpace gaps choice does, in one sentence.
+    static func aerospaceGapsNote(_ gaps: String) -> String {
+        gaps == "manual"
+            ? "riskell does not touch aerospace.toml; it only tells you the outer gap values to set."
+            : "riskell sets AeroSpace's outer gaps itself in aerospace.toml, keeping a one-time backup and never touching anything else in that file."
+    }
+
     static let defaultProfiles = "~/Library/Application Support/zen/Profiles"
 
     /// The shape of an OpenCode workspace id: `wrk_` then 6 to 64 letters or digits.
@@ -91,6 +101,7 @@ struct Choices {
     }
 
     var wmID: String { Choices.wmIDs[wm] }
+    var isAerospace: Bool { wmID == "aerospace" }
     var themeData: SchemeData { schemeData[theme] }
 }
 
@@ -279,6 +290,12 @@ final class App {
         let repoURL = repo ?? URL(fileURLWithPath: ".")
         var owned: [(String, Any?)] = []
         owned.append(("wm", c.wmID))
+        // The installer owns aerospace.gaps only; any other key under aerospace stays as it was.
+        if c.isAerospace {
+            var aero = (facts.existing?["aerospace"] as? [String: Any]) ?? [:]
+            aero["gaps"] = c.aerospaceGaps
+            owned.append(("aerospace", aero))
+        }
         owned.append(("theme", c.themeData.id))
         if let w = c.weather {
             let r = { (x: Double) in (x * 10000).rounded() / 10000 }
@@ -373,6 +390,8 @@ final class App {
             return
         }
         switch k {
+        case .left, .right, .char(" "):
+            if stage == .wm, c.isAerospace { c.aerospaceGaps = c.aerospaceGaps == "riskell" ? "manual" : "riskell" }
         case .enter:
             if stage == .wm { c.wm = cursor }
             if stage == .theme { c.theme = cursor }

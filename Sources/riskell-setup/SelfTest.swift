@@ -35,6 +35,7 @@ enum SelfTest {
         detection()
         arguments()
         usage()
+        aerospace()
         themes()
         doctor()
         statusScreen(repo: repo)
@@ -246,6 +247,35 @@ enum SelfTest {
               && usage?["opencode"] == nil && (usage?["fiveHourTokens"] as? Double) == 5000000)
         let merged = ConfigIO.merge(f.existing, owned: kept.plan().owned)
         check("the merged file keeps the token limit and drops the opt-ins", (merged["usage"] as? [String: Any])?.keys.sorted() == ["fiveHourTokens"])
+    }
+
+    /// AeroSpace: detected from its app or binary, gaps default to riskell, the nested key merges, and only AeroSpace writes it.
+    static func aerospace() {
+        let home = Paths(home: "/tmp/riskell-setup-aerospace-selftest")
+        var f = Facts.fixture
+        f.wms = [WMFact(name: "AeroSpace", installed: true, running: false)]
+        check("AeroSpace installed but not running is reported", Detect.checks(f).contains { $0.label == "window manager" && $0.detail == "AeroSpace installed, not running" })
+        check("AeroSpace is a choice", Choices.wmIDs.contains("aerospace"))
+        let plain = App(facts: Facts.fixture, paths: home, repo: nil)
+        check("the default window manager is still auto, with no aerospace key", plain.c.wmID == "auto" && !plain.plan().owned.contains { $0.0 == "aerospace" })
+        f.existing = ["aerospace": ["gaps": "manual", "other": 1] as [String: Any], "pills": [["id": "x"]]]
+        let again = App(facts: f, paths: home, repo: nil)
+        check("an existing manual gaps choice is kept", again.c.aerospaceGaps == "manual")
+        let fresh = App(facts: Facts.fixture, paths: home, repo: nil)
+        let problems = Modes.applyAnswers(Options.parse(["--yes", "--wm", "aerospace"]), to: fresh)
+        check("gaps default to riskell", problems.isEmpty && fresh.c.isAerospace && fresh.c.aerospaceGaps == "riskell")
+        check("--wm aerospace writes wm", fresh.plan().owned.contains { $0.0 == "wm" && ($0.1 as? String) == "aerospace" })
+        check("--aerospace-gaps manual is read", Modes.applyAnswers(Options.parse(["--yes", "--wm", "aerospace", "--aerospace-gaps", "manual"]), to: fresh).isEmpty && fresh.c.aerospaceGaps == "manual")
+        check("a bad --aerospace-gaps is reported", !Modes.applyAnswers(Options.parse(["--yes", "--aerospace-gaps", "x"]), to: fresh).isEmpty)
+        let kept = App(facts: f, paths: home, repo: nil)
+        kept.c.wm = Choices.wmIDs.firstIndex(of: "aerospace")!
+        kept.c.aerospaceGaps = "riskell"
+        let merged = ConfigIO.merge(f.existing, owned: kept.plan().owned)
+        let aero = merged["aerospace"] as? [String: Any]
+        check("the merge sets gaps and keeps the other aerospace keys and the rest of the file",
+              aero?["gaps"] as? String == "riskell" && aero?["other"] as? Int == 1 && merged["pills"] != nil)
+        check("the review explains the gaps in one sentence", Choices.aerospaceGapsNote("riskell").contains("aerospace.toml")
+              && Choices.aerospaceGapsNote("riskell").contains("backup") && Choices.aerospaceGapsNote("manual").contains("does not touch"))
     }
 
     static func themes() {

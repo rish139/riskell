@@ -26,6 +26,12 @@ extension App {
         }
         out.append("")
         out += tty.paragraph(can)
+        if c.isAerospace {
+            out += section(tty, "aerospace gaps")
+            out += tty.option("riskell", detail: "riskell sets them", selected: c.aerospaceGaps == "riskell", focused: cursor == c.wm, tag: "default")
+            out += tty.option("Manual", detail: "riskell only tells you the values", selected: c.aerospaceGaps == "manual", focused: cursor == c.wm)
+            out += tty.paragraph(Choices.aerospaceGapsNote(c.aerospaceGaps) + " Left or right changes it.")
+        }
         return out
     }
 
