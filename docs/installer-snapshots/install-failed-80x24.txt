@@ -1,24 +1,24 @@
-   riskell setup
-   ──────────────────────────────────────────────────────────────────────────
 
-   Install stopped
-   Backups first. Running setup again is safe.
+  install stopped ──────────────────────────────────────────────────────
+  ✓  Build riskell           built in 41 s
+  ✓  Write config.json       merged 6 owned keys, your other keys are k…
+  ✓  Write layout.json       kept your layout.json
+  ·  Trackpad gestures       left as they are
+  ✓  Link risk               ~/.local/bin/risk
+  ✗  Start the launch agent  scripts/risk install failed
+  ·  Health check
 
-   ✓ Build riskell            built in 41 s
-   ✓ Write config.json        merged 6 owned keys, your other keys are kept
-   ✓ Write layout.json        kept your layout.json
-   ○ Trackpad gestures        left as they are
-   ✓ Link risk                ~/.local/bin/risk
-   ✗ Start the launch agent   scripts/risk install failed
-   ○ Health check
+  ✗  scripts/risk install failed
 
-   █████▆▁▁   5 of 7 steps
+     try   enter    try again; finished steps are not repeated
+           esc      back to the review
+  Bootstrap failed: 5: Input/output error
+  launchctl could not load com.rish.riskell
+  run: risk log 30
 
-   ✗ scripts/risk install failed
-     Bootstrap failed: 5: Input/output error
-     launchctl could not load com.rish.riskell
 
-   Fix the cause, then press ⏎ to try again.
-   Finished steps are not repeated.
 
-   ⏎ retry   esc review   q quit
+
+
+
+  enter retry   ·   esc review   ·   q quit

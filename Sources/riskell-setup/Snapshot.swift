@@ -24,10 +24,7 @@ enum Snapshots {
             facts.configFound = true
         }
         let app = App(facts: facts, paths: Paths(home: "/Users/example"), repo: nil)
-        app.tickCount = 0
-        app.slideLeft = 0
         app.c.weather = Place(name: "Hamburg", region: "Hamburg, Germany", lat: 53.55, lon: 10.00)
-        app.checksShown = 99
         let stage: [String: Stage] = [
             "wm": .wm, "bars": .bars, "theme": .theme, "weather": .weather, "weather-results": .weather,
             "weather-offline": .weather, "usage": .usage, "usage-consent": .usage, "gestures": .gestures, "scale": .scale,
@@ -111,7 +108,6 @@ enum Snapshots {
                 j.failTail = ["Bootstrap failed: 5: Input/output error", "launchctl could not load com.rish.riskell", "run: risk log 30"]
             }
             app.job = j
-            app.progressShown = j.progress
         case "finish":
             var j = JobView()
             j.status = Array(repeating: .done, count: 7)
@@ -120,27 +116,29 @@ enum Snapshots {
             j.finished = true
             j.summary = j.details
             app.job = j
-            app.linesShown = 99
         default:
             break
         }
         return app
     }
 
-    static func render(_ name: String, w: Int, h: Int) -> Grid {
-        app(name).render(w: w, h: h)
+    static func lines(_ name: String, w: Int, h: Int, ansi: Bool) -> [String] {
+        let tty = App.makeTty(width: w, mode: ansi ? .truecolor : .none, interactive: false)
+        return app(name).screen(tty, height: h)
+    }
+
+    static func text(_ name: String, w: Int, h: Int, ansi: Bool) -> String {
+        lines(name, w: w, h: h, ansi: ansi).joined(separator: "\n") + "\n"
     }
 
     /// Writes every screen at every size: `<name>-<w>x<h>.txt` (plain) and `.ansi` (with colour).
     static func writeAll(to dir: String) throws {
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        Ink.mode = .truecolor
         for name in names {
             for (w, h) in sizes {
-                let g = render(name, w: w, h: h)
                 let base = "\(dir)/\(name)-\(w)x\(h)"
-                try g.plainText().write(toFile: base + ".txt", atomically: true, encoding: .utf8)
-                try g.ansi().write(toFile: base + ".ansi", atomically: true, encoding: .utf8)
+                try text(name, w: w, h: h, ansi: false).write(toFile: base + ".txt", atomically: true, encoding: .utf8)
+                try text(name, w: w, h: h, ansi: true).write(toFile: base + ".ansi", atomically: true, encoding: .utf8)
             }
         }
     }

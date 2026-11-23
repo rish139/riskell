@@ -1,20 +1,20 @@
-   riskell setup                  1 / 8   ◉ ○ ○ ○ ○ ○ ○ ○
-   ──────────────────────────────────────────────────────
 
-   Window manager
-   Bars go around the windows your window manager tiles.
+  window manager ─────────────────────────────────────────
+  ›  ● Auto  recommended
+       detected: OmniWM
+     ○ OmniWM
+       rail and gap reservation
+     ○ yabai  experimental
+       tiles with yabai
+     ○ AeroSpace  experimental
+       tiles with AeroSpace
+     ○ Custom commands
+       your own scripts, see docs/WM-COMMAND.md
+     ○ None
+       no workspaces; bars float over windows
 
-   ● Auto  recommended                   detected: OmniWM
-   ○ OmniWM                      rail and gap reservation
-   ○ yabai  experimental                 tiles with yabai
-   ○ AeroSpace  experimental         tiles with AeroSpace
-   ○ Custom commands  your own scripts, see docs/WM-COMM…
-   ○ None          no workspaces; bars float over windows
-
-   can: workspace rail, and the bars keep the screen edge
+  can: workspace rail, and the bars keep the screen edges
+  clear of windows
 
 
-
-
-
-   ↑↓ move   ⏎ continue   esc back   q quit
+  up/down move   ·   enter continue   ·   esc back   ·   q quit

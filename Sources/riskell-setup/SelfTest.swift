@@ -6,16 +6,28 @@ import RiskellTTY
 enum SelfTest {
     private static var failures = 0
 
+    /// The terminal the run is drawn on: the kit's, in the theme in force.
+    private static let tty = Tty.themed()
+
+    /// One check. The word stays first and the name after it because these lines are read by other tests (`^PASS ...`); the tone is what
+    /// the kit adds, so a terminal shows PASS in the ok colour and FAIL in the critical one, and a pipe shows the same plain text.
     private static func check(_ name: String, _ ok: Bool, _ detail: String = "") {
         if ok {
-            print("PASS \(name)")
+            print(tty.tone("PASS", .ok) + " " + tty.tone(name, .text1))
         } else {
             failures += 1
-            print("FAIL \(name)\(detail.isEmpty ? "" : ": " + detail)")
+            print(tty.tone("FAIL", .crit) + " " + tty.tone(name, .text1) + (detail.isEmpty ? "" : ": " + tty.tone(detail, .text3)))
         }
     }
 
+    /// A check that did not run, in the warning colour: what was skipped and what would have run it.
+    private static func skip(_ text: String) {
+        print(tty.tone("SKIP", .warn) + " " + tty.tone(text, .text3))
+    }
+
     static func run(repo: URL?) -> Int32 {
+        print(tty.header("setup --self-test", detail: "the installer's checks, one line each"))
+        print("")
         configMerge()
         presets(repo: repo)
         geocode()
@@ -25,8 +37,11 @@ enum SelfTest {
         usage()
         themes()
         doctor()
+        statusScreen(repo: repo)
         bundle()
-        print(failures == 0 ? "all checks passed" : "\(failures) check(s) failed")
+        print("")
+        print(tty.check(failures == 0 ? .ok : .crit, "result", failures == 0 ? "all checks passed" : "\(failures) check(s) failed",
+                        keyWidth: 7).joined(separator: "\n"))
         return failures == 0 ? 0 : 1
     }
 
@@ -99,12 +114,12 @@ enum SelfTest {
         let classic = Presets.layout(.classic, mode: .preset, cards: .flush)
         check("classic bottom centre holds cpu", ((classic["bottom"] as? [String: Any])?["center"] as? [[String: Any]])?.first?["id"] as? String == "cpu")
         guard let repo = repo else {
-            print("SKIP riskell --dump checks: no checkout found (pass --repo)")
+            skip("riskell --dump checks: no checkout found (pass --repo)")
             return
         }
         let binary = repo.appendingPathComponent(".build/release/riskell")
         guard FileManager.default.isExecutableFile(atPath: binary.path) else {
-            print("SKIP riskell --dump checks: build riskell first (swift build -c release)")
+            skip("riskell --dump checks: build riskell first (swift build -c release)")
             return
         }
         let dir = tempDir("dump")
@@ -367,6 +382,122 @@ enum SelfTest {
         check("--bundle takes a folder and --doctor is a mode", doctor.mode == .doctor && doctor.bundle == "/tmp/report" && doctor.errors.isEmpty)
         check("--json alone is refused", !Options.parse(["--json"]).errors.isEmpty)
         check("--bundle without a value is refused", !Options.parse(["--check", "--bundle"]).errors.isEmpty)
+        // --all asks for the full status list; with --json the report is already every row, so it changes nothing and breaks nothing
+        let full = Options.parse(["--doctor", "--all", "--json"])
+        check("--all is a flag of the report", full.mode == .doctor && full.all && full.errors.isEmpty && !Options.parse(["--doctor"]).all)
+    }
+
+    /// The status screen drawn from fixed reports: all four tones, hints, and a value long enough to wrap, compared with the recordings
+    /// in Tests/cli/golden. The default screen is the compact one and `--all` is the full list, both recorded. The reports are data and the
+    /// Tty is forced plain, so nothing about this machine reaches them.
+    static func statusScreen(repo: URL?) {
+        let report = Report(
+            version: "0.2.1", macOS: "27.2", chip: "Apple silicon", windowManager: "OmniWM",
+            state: .running("running · pid 67123 · up 3d 4h"),
+            sections: [
+                ScreenSection(title: "build", rows: [
+                    ScreenRow(tone: .ok, key: "binary", value: "built · 0.2.1 · current"),
+                    ScreenRow(tone: .note, key: "checkout", value: "no riskell checkout found: pass --repo PATH to check the build"),
+                    ScreenRow(tone: .warn, key: "freshness", value: "a source file is newer than the binary",
+                              hint: (cmd: "risk dev", note: "rebuild and restart")),
+                ]),
+                ScreenSection(title: "running app", rows: [
+                    ScreenRow(tone: .crit, key: "socket", value: "~/.cache/riskell/ev.sock does not answer",
+                              hint: (cmd: "risk dev", note: "start it from this checkout")),
+                    ScreenRow(tone: .ok, key: "atoms", value: "11 on top, bottom, left · none need a service"),
+                    ScreenRow(tone: .ok, key: "window manager",
+                              value: "OmniWM · subscribed, state reaches the bars live, and this value is long enough to wrap"),
+                ]),
+            ])
+        let healthy = Report(
+            version: "0.2.1", macOS: "27.2", chip: "Apple silicon", windowManager: "OmniWM",
+            state: .running("running · pid 67123 · up 3d 4h"),
+            sections: [
+                ScreenSection(title: "build", rows: [
+                    ScreenRow(tone: .ok, key: "binary", value: "built · 0.2.1 · current"),
+                    ScreenRow(tone: .ok, key: "app bundle", value: "up to date with the release binary"),
+                    ScreenRow(tone: .ok, key: "freshness", value: "the binary is newer than every source file"),
+                    ScreenRow(tone: .ok, key: "version", value: "0.2.1, the binary is current"),
+                ]),
+                ScreenSection(title: "system", rows: [
+                    ScreenRow(tone: .ok, key: "macOS", value: "27.2"),
+                    ScreenRow(tone: .ok, key: "chip", value: "Apple silicon"),
+                    ScreenRow(tone: .ok, key: "swift", value: "Swift 6.1.2, Command Line Tools"),
+                    ScreenRow(tone: .ok, key: "Spaces", value: "one Space on the main display"),
+                    ScreenRow(tone: .ok, key: "signing", value: "the riskell-dev identity is present"),
+                    ScreenRow(tone: .ok, key: "verified", value: "macOS 27.2 is the version riskell was verified against"),
+                ]),
+                ScreenSection(title: "install", rows: [
+                    ScreenRow(tone: .ok, key: "launch agent", value: "com.rish.riskell is loaded"),
+                    ScreenRow(tone: .ok, key: "agent plist", value: "runs ~/.local/bin/risk"),
+                    ScreenRow(tone: .ok, key: "risk link", value: "~/.local/bin/risk"),
+                    ScreenRow(tone: .ok, key: "PATH", value: "the PATH block is in ~/.zshrc"),
+                    ScreenRow(tone: .ok, key: "homebrew", value: "no Homebrew plist left over"),
+                ]),
+                ScreenSection(title: "files", rows: [
+                    ScreenRow(tone: .ok, key: "config.json", value: "~/.config/riskell/config.json is there"),
+                    ScreenRow(tone: .note, key: "layout.json", value: "no ~/.config/riskell/layout.json: the built-in layout is used"),
+                    ScreenRow(tone: .ok, key: "instance lock", value: "held by the running riskell"),
+                ]),
+                ScreenSection(title: "running app", rows: [
+                    ScreenRow(tone: .ok, key: "socket", value: "~/.cache/riskell/ev.sock answers"),
+                    ScreenRow(tone: .ok, key: "process", value: "pid 67123, riskell 0.2.1"),
+                    ScreenRow(tone: .ok, key: "services", value: "none: no atom on a showing bar needs one"),
+                    ScreenRow(tone: .ok, key: "atoms", value: "5 atoms on top, bottom"),
+                ]),
+                ScreenSection(title: "window manager", rows: [
+                    ScreenRow(tone: .ok, key: "manager", value: "OmniWM running"),
+                    ScreenRow(tone: .ok, key: "subscription", value: "OmniWM is subscribed"),
+                    ScreenRow(tone: .ok, key: "protocol", value: "OmniWM 0.4.2, protocol 3, is the verified version"),
+                    ScreenRow(tone: .ok, key: "settings", value: "every setting riskell needs is as verified (6)"),
+                    ScreenRow(tone: .ok, key: "gaps", value: "left, right, bottom and top are the values riskell wrote"),
+                ]),
+                ScreenSection(title: "permissions", rows: [
+                    ScreenRow(tone: .ok, key: "accessibility", value: "granted"),
+                    ScreenRow(tone: .ok, key: "location", value: "granted: Wi-Fi names can be shown"),
+                ]),
+                ScreenSection(title: "gestures", rows: [
+                    ScreenRow(tone: .ok, key: "conflicts", value: "no macOS or window-manager gesture competes"),
+                    ScreenRow(tone: .ok, key: "trackpad", value: "attached after the last wake, 412 frames read"),
+                    ScreenRow(tone: .ok, key: "scroll guard", value: "tap installed, 3 scrolls dropped"),
+                ]),
+                ScreenSection(title: "log", rows: [
+                    ScreenRow(tone: .ok, key: "errors", value: "no error in the last 40 lines"),
+                ]),
+            ])
+        guard let repo else {
+            skip("the status screen: no checkout found (pass --repo)")
+            return
+        }
+        let dir = repo.appendingPathComponent("Tests/cli/golden")
+        func rendered(_ report: Report, _ glyphs: Glyphs, width: Int = 80, all: Bool = false) -> String {
+            let tty = Tty(mode: .none, width: width, palette: DoctorScreen.palette(), glyphs: glyphs, isInteractive: false)
+            return DoctorScreen.render(report: report, tty: tty, all: all).joined(separator: "\n") + "\n"
+        }
+        func recorded(_ name: String, _ what: String, _ got: String) {
+            let file = dir.appendingPathComponent(name)
+            guard let want = try? String(contentsOf: file, encoding: .utf8) else {
+                check(what, false, "no Tests/cli/golden/\(name): record it")
+                return
+            }
+            check(what, want == got, want == got ? "" : "Tests/cli/golden/\(name) differs from the screen")
+        }
+        recorded("status-screen.txt", "the status screen is as recorded", rendered(report, .unicode, all: true))
+        recorded("status-screen-ascii.txt", "the status screen in plain ASCII is as recorded", rendered(report, .ascii, all: true))
+        recorded("status-compact.txt", "the compact status screen is as recorded", rendered(healthy, .unicode))
+        recorded("status-compact-ascii.txt", "the compact status screen in plain ASCII is as recorded", rendered(healthy, .ascii))
+        recorded("status-compact-problems.txt", "the compact status screen with a warning and a failure is as recorded",
+                 rendered(report, .unicode))
+
+        // the compact screen is one glance: a healthy machine fits 24 lines at a normal width, and at 44 columns a section's keys wrap
+        // onto the next line instead of being cut, so the keys never reach past the terminal
+        let wide = rendered(healthy, .unicode).split(separator: "\n", omittingEmptySubsequences: false).count - 1
+        check("the compact status screen fits a 24-line terminal", wide <= 24, "\(wide) lines at 72 columns")
+        let narrow = rendered(healthy, .unicode, width: 44).components(separatedBy: "\n")
+        let keys = narrow.drop { !$0.isEmpty }.dropFirst().prefix { !$0.isEmpty }
+        check("the compact status screen wraps its keys at 44 columns and cuts none",
+              keys.count > healthy.sections.count && keys.allSatisfy { $0.count <= 44 },
+              "\(keys.count) lines, \(keys.map(\.count).max() ?? 0) columns")
     }
 
     /// `--bundle`: the archive carries the report and the last 200 log lines, and the redaction its header lists is applied to both, so a

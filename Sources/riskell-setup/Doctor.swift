@@ -123,13 +123,22 @@ enum Doctor {
         let failed = sections.contains { $0.firstFailure != nil }
         let text = json(sections, c)
 
-        if o.json { print(text) } else { print(render(sections, c), terminator: "") }
+        if o.json {
+            print(text)
+        } else {
+            let tty = Tty.themed()      // the theme in force, asked of the built riskell: the doctor draws in the user's colours
+            print(DoctorScreen.render(report: report(sections, c), tty: tty, all: o.all).joined(separator: "\n"))
+        }
         if let dir = o.bundle {
             do {
                 let url = try writeBundle(dir, json: text, log: c.log, home: c.paths.home.path, generated: c.generated)
-                FileHandle.standardError.write(Data("wrote \(url.path)\n".utf8))
+                let tty = Tty.themed()
+                let wrote = tty.checks([(.ok, "bundle", "wrote \(shorten(url.path, home: c.paths.home.path))", nil)])
+                FileHandle.standardError.write(Data((wrote.joined(separator: "\n") + "\n").utf8))
             } catch {
-                FileHandle.standardError.write(Data("riskell-setup: could not write the bundle: \(error)\n".utf8))
+                let lines = Tty.themed().errorBlock(title: "could not write the bundle", detail: "\(error)",
+                                                   tries: [("risk status --bundle DIR", "try another folder")])
+                FileHandle.standardError.write(Data((lines.joined(separator: "\n") + "\n").utf8))
                 return 1
             }
         }
@@ -320,7 +329,7 @@ enum Doctor {
         } else {
             checks.append(ReportCheck(id: "install.link", label: "risk link", severity: .warn,
                                       detail: "no risk command is linked",
-                                      fix: c.repo.map { "\(c.short($0.appendingPathComponent("scripts/risk"))) install" } ?? "scripts/risk install",
+                                      fix: "risk install",
                                       source: .file))
         }
         let blocks = ShellPath.files(c.paths).filter { ShellPath.present(in: $0) }.map { c.short($0) }
@@ -617,7 +626,7 @@ enum Doctor {
         } else {
             checks.append(ReportCheck(id: "gestures.conflicts", label: "conflicts", severity: .fail,
                                       detail: conflicts.joined(separator: ", "),
-                                      fix: "\(binary(c.repo, c)) --gestures-fix --yes", source: source))
+                                      fix: "risk gestures fix --yes", source: source))
         }
         guard let app = c.app else {
             checks.append(noAnswer(c, "gestures.touch", "trackpad"))
@@ -705,114 +714,59 @@ enum Doctor {
         n == 1 ? "1 \(one)" : "\(n) \(one)s"
     }
 
-    // MARK: text
+    // MARK: the screen
 
-    private static func render(_ sections: [ReportSection], _ c: Context) -> String {
-        let width = terminalWidth()
-        let body = sections.filter { $0.id != "verdict" }
-        // one label column for the whole report, so the eye scans a straight edge from the first row to the last
-        let label = min(18, max(8, body.flatMap(\.checks).map(\.label.count).max() ?? 8))
-        let hangs = String(repeating: " ", count: 6 + label)      // two for the gutter, two for the mark, two for the gap
-        var out = header(c) + "\n"
-        for section in body {
-            out += "\n" + paint(section.title, Ink.accent) + "\n"
-            for row in section.checks {
-                let room = max(24, width - hangs.count)
-                let lines = wrap(tidy(row.detail), room)
-                out += "  \(paint(mark(row.severity), ink(row.severity)))  \(padded(row.label, label))  \(lines[0])\n"
-                for extra in lines.dropFirst() { out += hangs + extra + "\n" }
-                if let fix = row.fix, row.severity != .ok, row.severity != .info { out += hangs + paint("→ \(fix)", Ink.accentText) + "\n" }
-            }
+    /// The same report as the data the screen draws: the identity line, the agent's state, and every section but the verdict, whose row
+    /// repeats the counts and the first problem the summary below the sections already shows.
+    private static func report(_ sections: [ReportSection], _ c: Context) -> Report {
+        let wms = c.facts.wms.filter { $0.installed || $0.running }
+        let manager = (wms.first { $0.running } ?? wms.first)?.name
+        let chip = c.facts.arch == "arm64" ? "Apple silicon" : c.facts.arch
+        return Report(version: c.version ?? "?", macOS: c.facts.macos, chip: chip, windowManager: manager,
+                      state: state(c), sections: sections.filter { $0.id != "verdict" }.map { section in
+            ScreenSection(title: section.title, rows: section.checks.map(screenRow))
+        })
+    }
+
+    /// One row, its mark turned into a tone and its fix into the hint a warn or crit row shows underneath.
+    private static func screenRow(_ check: ReportCheck) -> ScreenRow {
+        let tone: Tone
+        switch check.severity {
+        case .ok: tone = .ok
+        case .warn: tone = .warn
+        case .fail: tone = .crit
+        case .info: tone = .note
         }
-        return out + verdictLine(sections, width: width)
+        let hint: (cmd: String, note: String?)? = (tone == .warn || tone == .crit) ? check.fix.map { ($0, nil) } : nil
+        return ScreenRow(tone: tone, key: check.label, value: DoctorScreen.tighten(check.detail), hint: hint)
     }
 
-    /// The identity line, not a log line: what is running, and on what.
-    private static func header(_ c: Context) -> String {
-        var parts = ["riskell \(c.version ?? "?")", "macOS \(c.facts.macos ?? "?") (\(c.facts.arch))"]
-        if let pid = c.pid { parts.append("pid \(pid)") }
-        return "  " + paint(parts.joined(separator: "  ·  "), Ink.dim)
-    }
-
-    /// The verdict as the line you read last, not a row labelled "verdict": a count, and the one thing to do next.
-    private static func verdictLine(_ sections: [ReportSection], width: Int) -> String {
-        let all = sections.filter { $0.id != "verdict" }.flatMap(\.checks)
-        let fails = all.filter { $0.severity == .fail }, warns = all.filter { $0.severity == .warn }
-        let room = max(24, width - 6)
-        var out: String
-        if fails.isEmpty && warns.isEmpty {
-            out = "  \(paint("✓", ink(.ok)))  " + paint("\(all.count) checks, nothing to fix", Ink.dim) + "\n"
-        } else {
-            var counts: [String] = []
-            if !fails.isEmpty { counts.append(plural(fails.count, "problem")) }
-            if !warns.isEmpty { counts.append(plural(warns.count, "warning")) }
-            let tally = counts.joined(separator: "  ·  ")
-            let markText = paint(fails.isEmpty ? "!" : "✗", ink(fails.isEmpty ? .warn : .fail))
-            out = "  " + markText + "  " + tally + "  ·  " + "\(all.count) checks" + "\n"
-            if let first = fails.first ?? warns.first, let fix = first.fix {
-                out += "     " + paint(wrap("→ \(fix)", room).joined(separator: "\n     "), Ink.accentText) + "\n"
-            }
+    /// What the masthead says the agent is doing: running with its pid and how long it has been up, stopped, or no answer at all.
+    private static func state(_ c: Context) -> State {
+        if let pid = c.pid {
+            let up = uptime(pid).map { " · up \($0)" } ?? ""
+            return .running("running · pid \(pid)\(up)")
         }
-        return out
-    }
-
-    /// The report is wide when the terminal is: COLUMNS, else 100, never narrower than 60 or wider than 160.
-    private static func terminalWidth() -> Int {
-        let columns = Int(ProcessInfo.processInfo.environment["COLUMNS"] ?? "") ?? 100
-        return min(160, max(60, columns))
-    }
-
-    /// A detail is a sentence with paths in it: a path longer than 48 characters loses its middle, so it stops taking a line of its own.
-    private static func tidy(_ detail: String) -> String {
-        detail.split(separator: " ", omittingEmptySubsequences: false).map { word -> String in
-            let w = String(word)
-            guard w.count > 48, w.hasPrefix("~") || w.hasPrefix("/") else { return w }
-            let parts = w.split(separator: "/").map(String.init)
-            guard parts.count >= 4 else { return w }
-            return parts[0] + "/…/" + parts.suffix(3).joined(separator: "/")
-        }.joined(separator: " ")
-    }
-
-    /// Break on spaces, never in the middle of a word, and never produce an empty line.
-    private static func wrap(_ text: String, _ width: Int) -> [String] {
-        var lines: [String] = []
-        var line = ""
-        for word in text.split(separator: " ") {
-            if line.isEmpty { line = String(word) }
-            else if line.count + 1 + word.count <= width { line += " " + word }
-            else { lines.append(line); line = String(word) }
-        }
-        if !line.isEmpty { lines.append(line) }
-        return lines.isEmpty ? [""] : lines
-    }
-
-    /// Colour only when the terminal takes it: RiskellTTY's mode decides, and a pipe gets plain text.
-    private static func paint(_ text: String, _ style: RiskellTTY.Style) -> String {
-        guard Ink.mode != .none, style != RiskellTTY.Style.plain else { return text }
-        return style.sgr + text + RiskellTTY.Style.reset
-    }
-
-    private static func ink(_ s: ReportCheck.Severity) -> RiskellTTY.Style {
-        switch s {
-        case .ok: return Ink.ok
-        case .warn: return Ink.accent
-        case .fail: return Ink.bad
-        case .info: return Ink.dim
+        switch c.socket {
+        case .missing: return .stopped("stopped")
+        case .answered, .silent, .refused: return .unknown("state unknown")
         }
     }
 
-    private static func mark(_ s: ReportCheck.Severity) -> String {
-        switch s {
-        case .ok: return "✓"
-        case .warn: return "!"
-        case .fail: return "✗"
-        case .info: return "·"
-        }
-    }
-
-    /// A label and the spaces that carry it to the one column width; the gap after it is added by the caller.
-    private static func padded(_ s: String, _ n: Int) -> String {
-        s.count >= n ? s : s + String(repeating: " ", count: n - s.count)
+    /// How long the process has been up, from `ps`'s elapsed time: "3d 4h", "4h 12m" or "12m".
+    private static func uptime(_ pid: Int) -> String? {
+        guard let out = Detect.run("/bin/ps", ["-o", "etime=", "-p", "\(pid)"], quiet: true)?
+            .trimmingCharacters(in: .whitespacesAndNewlines), !out.isEmpty else { return nil }
+        let pieces = out.split(separator: "-", maxSplits: 1).map(String.init)
+        let days = pieces.count == 2 ? Int(pieces[0]) ?? 0 : 0
+        let clock = pieces.count == 2 ? pieces[1] : pieces[0]
+        let fields = clock.split(separator: ":").compactMap { Int($0) }
+        guard !fields.isEmpty else { return nil }
+        let minutes = fields.count >= 2 ? fields[fields.count - 2] : 0
+        let hours = fields.count >= 3 ? fields[fields.count - 3] : 0
+        if days > 0 { return "\(days)d \(hours)h" }
+        if hours > 0 { return "\(hours)h \(minutes)m" }
+        return "\(minutes)m"
     }
 
     // MARK: JSON
@@ -1149,13 +1103,6 @@ enum Doctor {
     /// Whether riskell owns the trackpad gestures: the app's setting when it answers, else the one in config.json.
     private static func gesturesAreRiskells(_ c: Context) -> Bool {
         (str(c.app, "gestures") ?? (c.facts.existing?["gestures"] as? String) ?? "system") == "riskell"
-    }
-
-    /// The binary a fix runs: the checkout's when there is one, else whatever `riskell` resolves to.
-    private static func binary(_ repo: URL?, _ c: Context) -> String {
-        guard let repo else { return "riskell" }
-        let path = repo.appendingPathComponent(".build/release/riskell").path
-        return FileManager.default.isExecutableFile(atPath: path) ? c.short(path) : "riskell"
     }
 
     private static func startCommand(_ wm: String) -> String {

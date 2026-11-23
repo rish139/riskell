@@ -1,24 +1,24 @@
-   riskell setup                                      8 / 8   ● ● ● ● ● ● ● ◉
-   ──────────────────────────────────────────────────────────────────────────
 
-   Review
-   Nothing is written until you choose Install.
+  review ───────────────────────────────────────────────────────────────
+  ✓  window    auto (OmniWM)
+  ✓  bars      Classic, preset, flush
+  ✓  theme     Gruvbox dark, medium
+  ✓  weather   Hamburg
+  ✓  usage     off
+  ✓  gestures  system
+  ✓  scale     auto
 
-   Window mgr                           Bars
-   auto (OmniWM)                        Classic, preset, flush
-   Theme                                Weather
-   Gruvbox dark, medium                 Hamburg
-   Usage                                Gestures
-   off                                  system
-   Scale
-   auto
+  what will happen ─────────────────────────────────────────────────────
+  would write merge config.json, backup first
+  has   kept  layout.json as it is
+  would start start the launch agent com.rish.riskell
 
-   config.json   merged, backup first
-   launch agent  com.rish.riskell
+     ○ Replace my layout  keep yours
+  ›  ● install
+     ○ show what would change
+     ○ back
 
-   ○ Replace my layout                                         keep yours
-   ● Install                                                            ⏎
-   ○ Show what would change
-   ○ Back
 
-   ↑↓ move   space toggle   ⏎ choose   esc back
+
+
+  up/down move   ·   space toggle   ·   enter choose   ·   esc back

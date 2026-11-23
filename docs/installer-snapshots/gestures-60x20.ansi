@@ -1,20 +1,20 @@
-   [0;1;38;2;250;189;47mriskell[0m [0;2;38;2;132;122;110msetup[0m                  [0;2;38;2;132;122;110m6 / 8[0m   [0;2;38;2;132;122;110m●[0m [0;2;38;2;132;122;110m●[0m [0;2;38;2;132;122;110m●[0m [0;2;38;2;132;122;110m●[0m [0;2;38;2;132;122;110m●[0m [0;38;2;250;189;47m◉[0m [0;2;38;2;132;122;110m○[0m [0;2;38;2;132;122;110m○[0m   [0m
-   [0;2;38;2;132;122;110m──────────────────────────────────────────────────────[0m   [0m
-                                                            [0m
-   [0;1mThree-finger gestures[0m                                    [0m
-   [0;2;38;2;132;122;110mWho handles swipes between spaces and the overview.[0m      [0m
-                                                            [0m
-   [0;2;38;2;132;122;110m○[0m [0;2;38;2;132;122;110mSystem[0m  [0;2;38;2;132;122;110mdefault[0m           [0;2;38;2;132;122;110mmacOS handles the gestures[0m   [0m
-   [0;38;2;250;189;47m●[0m [0;1mriskell[0m             [0;2;38;2;132;122;110mriskell's own swipe and overview[0m   [0m
-                                                            [0m
-   [0;2;38;2;132;122;110mConflicts with macOS settings[0m                            [0m
-   [0;38;2;250;189;47m![0m three-finger swipe between spaces                      [0m
-   [0;38;2;250;189;47m![0m Mission Control gesture                                [0m
-                                                            [0m
-   [0;2;38;2;132;122;110m○[0m [0;2;38;2;132;122;110mTurn them off for me[0m                                   [0m
-       [0;2;38;2;132;122;110msaves your originals; undo with riskell --gestures[0m   [0m
-                                                            [0m
-                                                            [0m
-                                                            [0m
-                                                            [0m
-   [0;2;38;2;132;122;110m↑↓ move   space toggle   ⏎ continue   esc back[0m           [0m
+
+  [0;38;2;213;196;161mthree-finger gestures[0m [0;38;2;146;131;116m──────────────────────────────────[0m
+     [0;38;2;146;131;116m○[0m [0;38;2;235;219;178mSystem[0m  [0;38;2;146;131;116mdefault[0m
+       [0;38;2;189;174;147mmacOS handles the gestures[0m
+  [0;1;38;2;250;189;47m›[0m  [0;38;2;184;187;38m●[0m [0;1;38;2;235;219;178mriskell[0m
+       [0;38;2;189;174;147mriskell's own swipe and overview[0m
+
+  [0;38;2;213;196;161mconflicts with macOS settings[0m [0;38;2;146;131;116m──────────────────────────[0m
+  [0;38;2;254;128;25m![0m  [0;38;2;189;174;147mconflicts [0m [0;38;2;235;219;178mthree-finger swipe between spaces[0m
+  [0;38;2;254;128;25m![0m  [0;38;2;189;174;147mconflicts [0m [0;38;2;235;219;178mMission Control gesture[0m
+     [0;38;2;146;131;116m○[0m [0;38;2;235;219;178mTurn them off for me[0m
+       [0;38;2;189;174;147msaves your originals; undo with riskell[0m
+       [0;38;2;189;174;147m--gestures-restore[0m
+
+
+
+
+
+
+  [0;38;2;250;189;47mup/down[0m [0;38;2;146;131;116mmove[0m   [0;38;2;146;131;116m·[0m   [0;38;2;250;189;47mspace[0m [0;38;2;146;131;116mtoggle[0m   [0;38;2;146;131;116m·[0m   [0;38;2;250;189;47menter[0m [0;38;2;146;131;116mcontinue[0m   [0;38;2;146;131;116m·[0m   [0;38;2;250;189;47mesc[0m [0;38;2;146;131;116mback[0m

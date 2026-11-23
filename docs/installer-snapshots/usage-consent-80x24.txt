@@ -1,16 +1,12 @@
-   riskell setup                                      5 / 8   ● ● ● ● ◉ ○ ○ ○
-   ──────────────────────────────────────────────────────────────────────────
 
-   Claude plan limits
-   Read this before you turn it on.
+  Claude plan limits ───────────────────────────────────────────────────
+  riskell reads the Claude Code login token from your login keychain and
+  sends it to Anthropic's usage endpoint, to ask for your plan's limits.
+  Nothing else is read or sent. This is unofficial: Anthropic's terms do
+  not allow using that token in other tools, so your account could be
+  restricted.
 
-   riskell reads the Claude Code login token from your login keychain and
-   sends it to Anthropic's usage endpoint, to ask for your plan's limits.
-   Nothing else is read or sent. This is unofficial: Anthropic's terms do not
-   allow using that token in other tools, so your account could be
-   restricted.
-
-   Press y to turn it on. Any other key leaves it off.
+  Press y to turn it on. Any other key leaves it off.
 
 
 
@@ -21,4 +17,8 @@
 
 
 
-   y turn it on   any other key leaves it off
+
+
+
+
+  y turn it on   ·   any other key leaves it off

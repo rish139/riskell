@@ -2,34 +2,23 @@ import Foundation
 import RiskellTTY
 
 extension App {
-    /// The brand moment (a miniature bar mock in accent, top right), a short line, and the preflight checklist.
-    /// The marks appear one by one, about 60 ms apart.
-    func drawWelcome(_ g: Grid, _ b: Body) {
-        var y = b.y
-        g.put(b.x, y, "riskell", Ink.accent)
-        g.put(b.x + 8, y, "v\(riskellVersion)", Ink.dim)
-        y += 2
-        g.put(b.x, y, "A bar that fits your Mac.", Ink.bold, max: b.w)
-        g.put(b.x, y + 1, "Nothing is written until you confirm.", Ink.dim, max: b.w)
-        y += 3
-        // the bar mock in the default theme, left aligned under the tagline, when there is room for the checklist too
-        if b.h >= 16 {
-            Chrome.mockBar(g, b.x + 1, y + 1, scheme: schemeData[schemeData.firstIndex(where: { $0.isDefault }) ?? 0], pills: b.w >= 60 ? 3 : 2)
-            y += 5
+    /// The kit's masthead, one paragraph that says what the next eight questions do, and nothing else.
+    func welcomeLines(_ tty: Tty) -> [String] {
+        let identity = [
+            facts.macos.map { "macOS \($0)" } ?? "macOS unknown",
+            facts.arch == "arm64" ? "Apple silicon" : facts.arch,
+            facts.detectedWM ?? "no window manager",
+        ].joined(separator: " · ")
+        let state: State = facts.agentLoaded ? .running("running") : .unknown("not installed")
+        var out = tty.masthead(version: "setup \(riskellVersion)", lines: [identity], state: state)
+        out.append("")
+        out += tty.paragraph("The guided installer asks eight short questions: your window manager, the bars, a theme, a weather "
+            + "place, the optional usage sources, the trackpad gestures and the scale. Nothing is written until you confirm.")
+        if facts.blocked {
+            out.append("")
+            out += tty.errorBlock(title: "Swift is needed to build riskell", detail: nil,
+                                  tries: [(cmd: "xcode-select --install", note: "then start setup again")])
         }
-        let checks = Detect.checks(facts)
-        for (i, c) in checks.enumerated() where i < checksShown {
-            let (mark, style): (String, Style) = {
-                switch c.mark {
-                case .ok: return ("✓", Ink.ok)
-                case .fail: return ("✗", Ink.bad)
-                case .warn: return ("!", Ink.accentText)
-                }
-            }()
-            g.put(b.x, y, mark, style)
-            g.put(b.x + 2, y, c.label, Ink.text, max: 16)
-            g.put(b.x + 18, y, c.detail, c.mark == .fail ? Ink.bad : Ink.dim, max: b.w - 18)
-            y += 1
-        }
+        return out
     }
 }

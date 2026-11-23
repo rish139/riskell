@@ -1,4 +1,5 @@
 import Foundation
+import RiskellTTY
 
 enum Mode: Equatable {
     case tui, yes, check, doctor, uninstall, version, help, selfTest, snapshot, snapshotDir
@@ -28,6 +29,7 @@ struct Options: Equatable {
     var removeConfig = false
     var restoreGestures = false
     var json = false
+    var all = false
     var bundle: String?
     var snapshotName: String?
     var snapshotDirPath: String?
@@ -56,6 +58,7 @@ struct Options: Equatable {
             case "--check": o.mode = .check
             case "--doctor": o.mode = .doctor
             case "--json": o.json = true
+            case "--all": o.all = true
             case "--bundle": o.bundle = value(a)
             case "--uninstall": o.mode = .uninstall
             case "--no-build": o.noBuild = true
@@ -100,49 +103,53 @@ struct Options: Equatable {
         return o
     }
 
-    static let usage = """
-    riskell-setup: the guided installer for riskell.
-
-    usage: riskell-setup [options]
-
-      (no options)            the guided terminal flow (needs a terminal)
-      --yes                   no questions: detected defaults, plus the flags below.
-                              The usage sources stay off unless a usage flag turns one on.
-      --dry-run               print the plan and the JSON that would be written; write nothing
-      --check                 the installer's checklist: the preflight plus agent, socket and log (unchanged since 0.1: the install
-                              flow's last step depends on it)
-      --doctor                the health report: build, system, install, files, running app, window manager, permissions, gestures,
-                              log, verdict, each row with the command to run next (risk status runs this)
-      --json                  with --check or --doctor: one JSON object on stdout and nothing else
-      --bundle DIR            with --check or --doctor: also write a redacted report (the JSON and the last 200 log lines) to DIR
-                              as one tar.gz; nothing else is written
-      --no-path               do not add the folder of the risk link to PATH in your shell start-up files
-      --uninstall             stop riskell and remove its agent, its risk link and its PATH block (asks, or --yes)
-      --version, --help
-
-    answers (with --yes):
-      --wm auto|omniwm|yabai|aerospace|command|none
-      --theme ID               a scheme id from installer/themes.json
-      --bars minimal|classic|full
-      --cards flush|chat
-      --city "Name"            looked up once; the first match is used
-      --gestures riskell|system
-      --claude                 Claude Code usage on, from its local logs (no credentials, no network)
-      --claude-limits          also the real plan limits: reads the keychain login token and asks
-                               Anthropic (unofficial, may breach its terms). Implies --claude; this flag is the consent.
-      --opencode-workspace wrk_...
-                               OpenCode Go usage: reads an opencode.ai browser cookie. This flag is the consent.
-      --opencode-profiles DIR  the browser profiles folder for OpenCode (default: Zen's)
-      --scale N|auto           a number from 0.5 to 2.0, or automatic
-      --replace-layout         replace an existing layout.json
-
-    other:
-      --repo PATH              the riskell checkout (found automatically when omitted)
-      --no-build               do not build riskell
-      --no-launch              do not start the launch agent or link risk
-      --remove-config          with --uninstall: also remove ~/.config/riskell
-      --restore-gestures       with --uninstall: restore the trackpad gestures too
-
-    Nothing is written before the final confirm. Docs: docs/INSTALL.md
-    """
+    /// `--help`: the guided flow in one line, then every flag in the group a reader meets it in, drawn with the kit. Nothing here is a
+    /// setting of its own: the groups are the questions `--yes` would have asked, and the reports are read-only.
+    static func help(_ tty: Tty) -> [String] {
+        var out = [tty.header("setup", detail: "the guided installer for riskell"), ""]
+        out += tty.detail(usage: "riskell-setup [options]", summary: "With no options it opens the guided terminal flow, which needs a terminal; each option below answers one of its questions.",
+                          fields: [], children: [])
+        out += [""]
+        out += tty.stackedList([
+            (title: "without questions", rows: [
+                ("--yes", "take the detected defaults and install: no questions, and every usage source stays off unless a flag below turns it on"),
+                ("--dry-run", "print the plan and the JSON that would be written; write nothing"),
+            ]),
+            (title: "reports", rows: [
+                ("--check", "the installer's checklist: the preflight, then the agent, the socket and the log"),
+                ("--doctor", "the health report: build, system, install, files, running app, window manager, permissions, gestures, log, verdict"),
+                ("--all", "with --doctor: every row with its detail, instead of one line per section"),
+                ("--json", "with --check or --doctor: one JSON object on stdout and nothing else"),
+                ("--bundle", "DIR: with --check or --doctor, also write a redacted report (the JSON and the last 200 log lines) to DIR as one tar.gz"),
+            ]),
+            (title: "answers (with --yes)", rows: [
+                ("--wm", "auto, omniwm, yabai, aerospace, command or none: the window manager to set up"),
+                ("--theme", "ID: a scheme id from installer/themes.json"),
+                ("--bars", "minimal, classic or full: the layout to write"),
+                ("--cards", "flush or chat: how a card sits against the bar"),
+                ("--city", "\"Name\": the place the weather card shows, looked up once; the first match is used"),
+                ("--gestures", "riskell or system: who owns the three and four-finger gestures"),
+                ("--claude", "Claude Code usage on, from its local logs: no credentials, no network"),
+                ("--claude-limits", "also the real plan limits: reads the keychain login token and asks Anthropic (unofficial, may breach its terms); implies --claude, and this flag is the consent"),
+                ("--opencode-workspace", "wrk_...: OpenCode Go usage, which reads an opencode.ai browser cookie; this flag is the consent"),
+                ("--opencode-profiles", "DIR: the browser profiles folder for OpenCode (default: Zen's)"),
+                ("--scale", "N or auto: a number from 0.5 to 2.0"),
+                ("--replace-layout", "replace an existing layout.json"),
+            ]),
+            (title: "other", rows: [
+                ("--repo", "PATH: the riskell checkout (found automatically when omitted)"),
+                ("--no-build", "do not build riskell"),
+                ("--no-launch", "do not start the launch agent or link risk"),
+                ("--no-path", "do not add the folder of the risk link to PATH in your shell start-up files"),
+                ("--uninstall", "stop riskell and remove its agent, its risk link and its PATH block (asks, or --yes)"),
+                ("--remove-config", "with --uninstall: also remove ~/.config/riskell"),
+                ("--restore-gestures", "with --uninstall: restore the trackpad gestures too"),
+                ("--version", "print the installer's version"),
+                ("--help", "this page"),
+            ]),
+        ])
+        out.append("")
+        out += tty.paragraph("Nothing is written before the final confirm. Docs: docs/INSTALL.md")
+        return out
+    }
 }

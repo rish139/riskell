@@ -1,20 +1,20 @@
-   riskell setup                  7 / 8   ● ● ● ● ● ● ◉ ○
-   ──────────────────────────────────────────────────────
 
-   Scale
-   Auto fits the bars to each screen's notch or menu bar.
+  scale ──────────────────────────────────────────────────
+     ○ Auto  recommended
+       matches your screen
+  ›  ● Custom
+       0.5 to 2.0, steps of 0.05
+  scale      › 1.20▏
 
-   ○ Auto  recommended                matches your screen
-   ● Custom                     0.5 to 2.0, steps of 0.05
-
-       1.20    ███████████▁▁▁▁▁▁▁▁▁▁▁▁▁
-               0.50                2.00
-
-   Fine-tune spacing later with ctrl-alt-, in riskell pre
+  Fine-tune spacing later with ctrl-alt-, in riskell
+  preferences.
 
 
 
 
 
 
-   ↑↓ move   ←→ adjust   ⏎ continue   esc back
+
+
+
+  up/down move   ·   left/right adjust   ·   enter continue   ·   esc back

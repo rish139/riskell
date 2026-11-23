@@ -1,7 +1,8 @@
 import Foundation
 import RiskellTTY
 
-/// The review: a calm summary, what will be written, and the three actions. The diff shows the same plan line by line.
+/// The review: the answers as checks, what will be written as a plan, and the actions as option rows. The diff shows the same
+/// plan line by line.
 extension App {
     func wmSummary() -> String {
         if c.wmID == "auto", let d = facts.detectedWM { return "auto (\(d))" }
@@ -27,59 +28,50 @@ extension App {
         return parts.isEmpty ? "off" : parts.joined(separator: "; ")
     }
 
-    func drawReview(_ g: Grid, _ b: Body) {
-        Chrome.title(g, b, "Review", "Nothing is written until you choose Install.")
-        let pairs: [(String, String)] = [
-            ("Window mgr", wmSummary()), ("Bars", barsSummary()),
-            ("Theme", c.themeData.name), ("Weather", c.weather?.name ?? "off"),
-            ("Usage", usageSummary()), ("Gestures", c.gesturesRiskell ? (c.gesturesFix ? "riskell, conflicts off" : "riskell") : "system"),
-            ("Scale", c.scale.map { String(format: "%.2f", $0) } ?? "auto"),
+    func reviewLines(_ tty: Tty, height: Int) -> [String] {
+        var out = section(tty, "review")
+        let answers: [(Tone, String, String, (cmd: String, note: String?)?)] = [
+            (.ok, "window", wmSummary(), nil),
+            (.ok, "bars", barsSummary(), nil),
+            (.ok, "theme", c.themeData.name, nil),
+            (.ok, "weather", c.weather?.name ?? "off", nil),
+            (.ok, "usage", usageSummary(), nil),
+            (.ok, "gestures", c.gesturesRiskell ? (c.gesturesFix ? "riskell, conflicts off" : "riskell") : "system", nil),
+            (.ok, "scale", c.scale.map { String(format: "%.2f", $0) } ?? "auto", nil),
         ]
-        let colW = b.w / 2
-        var y = b.y + 3
-        let actionsTop = b.y + b.h - 3
-        // Wide: label and value side by side. Narrow: the label sits above its value, so nothing is cut.
-        let stacked = b.w < 80
-        for i in stride(from: 0, to: pairs.count, by: 2) where y < actionsTop - 1 {
-            for (j, p) in pairs[i..<min(i + 2, pairs.count)].enumerated() {
-                let x = b.x + j * colW
-                if stacked {
-                    g.put(x, y, p.0, Ink.dim, max: colW - 1)
-                    g.put(x, y + 1, p.1, Ink.text, max: colW - 1)
-                } else {
-                    g.put(x, y, p.0, Ink.dim, max: 11)
-                    g.put(x + 12, y, p.1, Ink.text, max: colW - 13)
-                }
-            }
-            y += stacked ? 2 : 1
-        }
-        y += 1
-        let cfg = facts.configFound ? "merged, backup first" : "new file"
-        var files: [(String, String)] = [
-            ("config.json", cfg),
-            ("launch agent", facts.agentLabel),
-            ("risk link", Detect.linkDir(paths).dir.appendingPathComponent("risk").path.replacingOccurrences(of: paths.home.path, with: "~")),
-        ]
-        if plan().addPath { files.append(("PATH", "added in ~/.zshrc")) }
-        for f in files where y < actionsTop - 1 {
-            g.put(b.x, y, f.0, Ink.dim, max: 14)
-            g.put(b.x + 14, y, f.1, Ink.text, max: b.w - 14)
-            y += 1
-        }
-        // Actions, anchored to the bottom of the body.
-        var ay = actionsTop
+        out += tty.checks(answers)
+        out += section(tty, "what will happen")
+        var planLines = tty.plan(reviewPlanRows(), note: "")
+        while planLines.last?.trimmingCharacters(in: .whitespaces).isEmpty == true { planLines.removeLast() }
+        out += planLines
+        if out.count < height - 4 { out.append("") }
+        // Actions, in the order Review's cursor moves over them.
         var row = 0
         if facts.layoutFound {
-            Chrome.option(g, b.x, ay, width: min(b.w, 70), label: "Replace my layout", selected: c.replaceLayout, focused: cursor == 0,
-                          note: c.replaceLayout ? "replaced with \(c.preset.label)" : "keep yours")
-            ay += 1
+            out += tty.option("Replace my layout", selected: c.replaceLayout, focused: cursor == 0,
+                              tag: c.replaceLayout ? "replaced with \(c.preset.label)" : "keep yours")
             row = 1
         }
-        let actions = ["Install", "Show what would change", "Back"]
-        for (i, a) in actions.enumerated() {
-            Chrome.option(g, b.x, ay + i, width: min(b.w, 70), label: a, selected: cursor == row + i,
-                          focused: cursor == row + i, note: i == 0 ? "⏎" : nil)
+        let actions = ["install", "show what would change", "back"]
+        for (i, action) in actions.enumerated() {
+            out += tty.option(action, selected: cursor == row + i, focused: cursor == row + i)
         }
+        return out
+    }
+
+    /// The three things Install will do, in the plan's own shape. The diff screen has every key.
+    func reviewPlanRows() -> [(verb: String, text: String, satisfied: Bool)] {
+        let p = plan()
+        let config = facts.configFound ? "merge config.json, backup first" : "write a new config.json"
+        let layout = p.layoutText == nil ? "layout.json as it is" : "the \(c.preset.label) layout.json"
+        var launch = p.noLaunch ? "keep the launch agent (--no-launch)" : "start the launch agent \(facts.agentLabel)"
+        if p.addPath { launch += ", add \(Detect.linkDir(paths).dir.path.replacingOccurrences(of: paths.home.path, with: "~")) to PATH" }
+        if p.gesturesFix { launch += ", turn off the conflicting gestures" }
+        return [
+            (verb: "write", text: config, satisfied: false),
+            (verb: p.layoutText == nil ? "kept" : "write", text: layout, satisfied: p.layoutText == nil),
+            (verb: p.noLaunch ? "kept" : "start", text: launch, satisfied: p.noLaunch),
+        ]
     }
 
     /// Plain lines of what Install would change: + added, ~ changed, - removed, = kept.
@@ -109,16 +101,21 @@ extension App {
         return out
     }
 
-    func drawDiff(_ g: Grid, _ b: Body) {
-        var y = Chrome.title(g, b, "What would change", "This is the plan. Nothing is written from this screen.")
-        for (k, v) in changeLines() where y < b.y + b.h {
-            let st: Style = k.hasPrefix("+") ? Ink.text : (k.hasPrefix("-") ? Ink.bad : Ink.dim)
-            g.put(b.x, y, k, st, max: 18)
-            g.put(b.x + 18, y, v, Ink.text, max: b.w - 18)
-            y += 1
+    /// The diff's rows in the plan's shape: a symbol becomes a verb, and a kept row says so.
+    func changePlanRows() -> [(verb: String, text: String, satisfied: Bool)] {
+        changeLines().map { key, value in
+            let name = String(key.dropFirst(2))
+            if key.hasPrefix("=") { return (verb: "kept", text: "\(name): \(value)", satisfied: true) }
+            let verb: String
+            if key.hasPrefix("+") { verb = "add" } else if key.hasPrefix("-") { verb = "remove" } else { verb = "change" }
+            return (verb: verb, text: "\(name): \(value)", satisfied: false)
         }
-        y += 1
-        if y < b.y + b.h { g.put(b.x, y, "⏎ or esc goes back to the review", Ink.dim) }
+    }
+
+    func diffLines(_ tty: Tty) -> [String] {
+        var out = section(tty, "what would change")
+        out += tty.plan(changePlanRows(), note: "Nothing is written from this screen; enter or esc goes back to the review.")
+        return out
     }
 
     /// A JSON fragment for a value, for the plan lines.

@@ -1,20 +1,20 @@
-   riskell setup                  5 / 8   ● ● ● ● ◉ ○ ○ ○
-   ──────────────────────────────────────────────────────
 
-   Usage
-   Off by default: each source is your choice.
-
-   ● Claude Code usage, from its local logs            on
-       no credentials, no network
-   ○ Claude plan limits                               off
+  usage ──────────────────────────────────────────────────
+     ● Claude Code usage  on
+       from its local logs; no credentials, no network
+     ○ Claude plan limits  off
        reads the keychain token; unofficial, asks first
-   ● OpenCode Go usage                                 on
+  ›  ● OpenCode Go usage  on
        reads an opencode.ai browser cookie; asks first
-     workspace   › wrk_•••••••••••••••••••
-     profiles    › ~/Library/Application Support/zen/Profi…
+  workspace  › wrk_...................
+  profiles   › ~/Library/Application Support/zen/Profiles
 
 
 
 
 
-   ↑↓ move   space toggle   ⏎ continue   esc back
+
+
+
+
+  up/down move   ·   space toggle   ·   enter continue   ·   esc back

@@ -1,20 +1,20 @@
-   [0;1;38;2;250;189;47mriskell[0m [0;2;38;2;132;122;110msetup[0m                  [0;2;38;2;132;122;110m8 / 8[0m   [0;2;38;2;132;122;110m●[0m [0;2;38;2;132;122;110m●[0m [0;2;38;2;132;122;110m●[0m [0;2;38;2;132;122;110m●[0m [0;2;38;2;132;122;110m●[0m [0;2;38;2;132;122;110m●[0m [0;2;38;2;132;122;110m●[0m [0;38;2;250;189;47m◉[0m   [0m
-   [0;2;38;2;132;122;110m──────────────────────────────────────────────────────[0m   [0m
-                                                            [0m
-   [0;1mWhat would change[0m                                        [0m
-   [0;2;38;2;132;122;110mThis is the plan. Nothing is written from this screen.[0m   [0m
-                                                            [0m
-   + wm              "auto"                                 [0m
-   + theme           "gruvbox-dark-medium"                  [0m
-   + location        {"lat":53.549999999999997,"lon":10,"   [0m
-   + gestures        "system"                               [0m
-   [0;2;38;2;132;122;110m= layout.json[0m     kept, your layout is unchanged         [0m
-   + launch agent    com.rish.riskell, written and starte   [0m
-   + risk            a link to scripts/risk                 [0m
-                                                            [0m
-   [0;2;38;2;132;122;110m⏎ or esc goes back to the review[0m                         [0m
-                                                            [0m
-                                                            [0m
-                                                            [0m
-                                                            [0m
-   [0;2;38;2;132;122;110m⏎ or esc back[0m                                            [0m
+
+  [0;38;2;213;196;161mwhat would change[0m [0;38;2;146;131;116m──────────────────────────────────────[0m
+  [0;38;2;146;131;116mwould[0m [0;38;2;250;189;47madd [0m [0;38;2;235;219;178mwm: "auto"[0m
+  [0;38;2;146;131;116mwould[0m [0;38;2;250;189;47madd [0m [0;38;2;235;219;178mtheme: "gruvbox-dark-medium"[0m
+  [0;38;2;146;131;116mwould[0m [0;38;2;250;189;47madd [0m [0;38;2;235;219;178mlocation:[0m
+             [0;38;2;235;219;178m{"lat":53.549999999999997,"lon":10,"name":"H…[0m
+  [0;38;2;146;131;116mwould[0m [0;38;2;250;189;47madd [0m [0;38;2;235;219;178mgestures: "system"[0m
+  [0;38;2;146;131;116mhas  [0m [0;38;2;146;131;116mkept[0m [0;38;2;146;131;116mlayout.json: kept, your layout is unchanged[0m
+  [0;38;2;146;131;116mwould[0m [0;38;2;250;189;47madd [0m [0;38;2;235;219;178mlaunch agent: com.rish.riskell, written and[0m
+             [0;38;2;235;219;178mstarted[0m
+  [0;38;2;146;131;116mwould[0m [0;38;2;250;189;47madd [0m [0;38;2;235;219;178mrisk: a link to scripts/risk[0m
+
+  [0;38;2;146;131;116mNothing is written from this screen; enter or esc goes[0m
+  [0;38;2;146;131;116mback to the review.[0m
+
+
+
+
+
+  [0;38;2;250;189;47menter[0m [0;38;2;146;131;116mback[0m   [0;38;2;146;131;116m·[0m   [0;38;2;250;189;47mesc[0m [0;38;2;146;131;116mback[0m

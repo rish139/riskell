@@ -1,92 +1,94 @@
 import Foundation
+import RiskellTTY
 
 let riskellVersion = "1.0"
-let spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-let progressCells: [String] = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
 
+/// The screens as the kit's lines. Nothing here draws a glyph, a rule or a colour: a screen is built from the kit's
+/// masthead, sections, checks, plan, next line and hints, and `screen` only adds the air above the footer.
 extension App {
-    /// Builds the frame for the current state. Pure: the same state always gives the same grid (snapshots rely on it).
-    func render(w: Int, h: Int) -> Grid {
-        let g = Grid(w: w, h: h)
-        Ease.marker = markerFrames > 0
-        if w < Chrome.minW || h < Chrome.minH {
-            g.put(0, 0, "riskell setup needs a terminal of at least \(Chrome.minW)x\(Chrome.minH); this one is \(w)x\(h). Make it bigger.", Ink.dim, max: w)
-            return g
-        }
-        Chrome.drawHeader(g, stage: stage)
-        let b = Chrome.body(g)
-        // A slide between steps: the body is drawn at an offset that eases to zero over three frames.
-        var status = statusLine()
-        if let n = notice { status = (n, noticeIsError) }
-        let hints = footerHints()
-        let slideOffset = slideLeft > 0 ? slideDir * (slideLeft * b.w / 4) : 0
-        if slideOffset != 0 {
-            let inner = Grid(w: b.w, h: b.h)
-            drawBody(inner, Body(x: 0, y: 0, w: b.w, h: b.h))
-            for y in 0..<b.h {
-                for x in 0..<b.w {
-                    let sx = x - slideOffset
-                    guard sx >= 0, sx < b.w else { continue }
-                    g.set(b.x + x, b.y + y, inner[sx, y])
-                }
-            }
-        } else {
-            drawBody(g, b)
-        }
-        Chrome.drawFooter(g, hints: hints, status: status)
-        return g
+    /// The installer's terminal: the palette of riskell's default scheme, the width of the window it is in.
+    static func makeTty(width: Int, mode: RiskellTTY.Mode, interactive: Bool) -> Tty {
+        Tty(mode: mode, width: width, palette: DoctorScreen.palette(), glyphs: Glyphs.detect(), isInteractive: interactive)
     }
 
-    /// The bottom status line: a notice, else the build's progress while it runs.
-    func statusLine() -> (String, Bool)? {
-        switch build {
-        case .running(let last):
-            let spin = spinnerFrames[tickCount % spinnerFrames.count]
-            let tail = last.isEmpty ? "starting" : last
-            return ("\(spin)  building riskell   \(tail)", false)
-        case .done(let s): return ("✓  riskell built in \(Int(s)) s", false)
-        case .skipped(let why): return stage == .welcome ? nil : ("build \(why)", false)
-        case .failed: return ("build failed: the last lines are in the install step", true)
-        case .idle: return nil
-        }
+    static func liveTty(width: Int) -> Tty {
+        makeTty(width: width, mode: RiskellTTY.Mode.detect(env: ProcessInfo.processInfo.environment), interactive: true)
     }
 
-    func footerHints() -> String {
+    /// A section with the blank line the screens keep above it.
+    func section(_ tty: Tty, _ title: String) -> [String] {
+        ["", "  " + tty.section(title)]
+    }
+
+    /// The body of the current screen, without the footer.
+    func bodyLines(_ tty: Tty, height: Int) -> [String] {
         switch stage {
-        case .welcome: return "⏎ start   q quit"
-        case .wm, .theme: return "↑↓ move   ⏎ continue   esc back   q quit"
-        case .bars: return "↑↓ move   ←→ change   ⏎ continue   esc back   q quit"
+        case .welcome: return welcomeLines(tty)
+        case .wm: return wmLines(tty)
+        case .bars: return barsLines(tty)
+        case .theme: return themeLines(tty, height: height)
+        case .weather: return weatherLines(tty)
+        case .usage: return usageLines(tty)
+        case .gestures: return gesturesLines(tty)
+        case .scale: return scaleLines(tty)
+        case .review: return reviewLines(tty, height: height)
+        case .diff: return diffLines(tty)
+        case .install: return installLines(tty)
+        case .finish: return finishLines(tty)
+        }
+    }
+
+    /// The whole frame: the body, a notice or a build line above the footer, the footer at the bottom edge of `height`.
+    func screen(_ tty: Tty, height: Int) -> [String] {
+        var foot: [String] = []
+        if let n = notice { foot.append("  " + tty.tone(n, noticeIsError ? .crit : .text3)) }
+        if case .running(let last) = build {
+            foot.append("  " + tty.tone(last.isEmpty ? "building riskell" : "building riskell · \(last)", .text4))
+        }
+        foot.append(hintLine(tty))
+        let room = max(1, height - foot.count)
+        var body = bodyLines(tty, height: room)
+        if body.count > room {
+            let dropped = body.count - (room - 1)
+            body = Array(body.prefix(max(0, room - 1)))
+            if room > 0 { body.append("  " + tty.tone("… \(dropped) more lines", .text4)) }
+        }
+        let pad = Array(repeating: "", count: max(0, height - foot.count - body.count))
+        return body + pad + foot
+    }
+
+    /// The keys that work on this screen, in the kit's hint shape (`enter continue · esc quit`).
+    func hintLine(_ tty: Tty) -> String {
+        func hint(_ parts: [(String, String)]) -> String {
+            tty.footerHint(parts.map { (cmd: $0.0, text: $0.1) })
+        }
+        switch stage {
+        case .welcome:
+            return hint([("enter", "continue"), ("esc", "quit")])
+        case .wm, .theme:
+            return hint([("up/down", "move"), ("enter", "continue"), ("esc", "back"), ("q", "quit")])
+        case .bars:
+            return hint([("up/down", "move"), ("left/right", "change"), ("enter", "continue"), ("esc", "back")])
         case .weather:
-            if manual { return "type lat, lon   ⏎ use it   esc back" }
-            return "type a city   ↑↓ choose   ⏎ continue   esc back"
+            if manual { return hint([("enter", "use it"), ("esc", "back")]) }
+            return hint([("type", "a city"), ("up/down", "choose"), ("enter", "continue"), ("esc", "back")])
         case .usage:
-            if consent != nil { return "y turn it on   any other key leaves it off" }
-            return "↑↓ move   space toggle   ⏎ continue   esc back"
-        case .gestures: return "↑↓ move   space toggle   ⏎ continue   esc back   q quit"
-        case .scale: return "↑↓ move   ←→ adjust   ⏎ continue   esc back"
-        case .review: return "↑↓ move   space toggle   ⏎ choose   esc back"
-        case .diff: return "⏎ or esc back"
+            if consent != nil { return hint([("y", "turn it on"), ("any other key", "leaves it off")]) }
+            return hint([("up/down", "move"), ("space", "toggle"), ("enter", "continue"), ("esc", "back")])
+        case .gestures:
+            return hint([("up/down", "move"), ("space", "toggle"), ("enter", "continue"), ("esc", "back")])
+        case .scale:
+            return hint([("up/down", "move"), ("left/right", "adjust"), ("enter", "continue"), ("esc", "back")])
+        case .review:
+            return hint([("up/down", "move"), ("space", "toggle"), ("enter", "choose"), ("esc", "back")])
+        case .diff:
+            return hint([("enter", "back"), ("esc", "back")])
         case .install:
-            if let j = job, j.failMessage != nil { return "⏎ retry   esc review   q quit" }
-            return (job?.finished ?? false) ? "⏎ continue" : "working..."
-        case .finish: return "⏎ done   q quit"
-        }
-    }
-
-    private func drawBody(_ g: Grid, _ b: Body) {
-        switch stage {
-        case .welcome: drawWelcome(g, b)
-        case .wm: drawWM(g, b)
-        case .bars: drawBars(g, b)
-        case .theme: drawTheme(g, b)
-        case .weather: drawWeather(g, b)
-        case .usage: drawUsage(g, b)
-        case .gestures: drawGestures(g, b)
-        case .scale: drawScale(g, b)
-        case .review: drawReview(g, b)
-        case .diff: drawDiff(g, b)
-        case .install: drawInstall(g, b)
-        case .finish: drawFinish(g, b)
+            if job?.failMessage != nil { return hint([("enter", "retry"), ("esc", "review"), ("q", "quit")]) }
+            if job?.finished == true { return hint([("enter", "continue")]) }
+            return hint([("working", "the installer is writing the plan")])
+        case .finish:
+            return hint([("enter", "done"), ("q", "quit")])
         }
     }
 }

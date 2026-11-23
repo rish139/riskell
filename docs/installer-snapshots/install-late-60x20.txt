@@ -1,20 +1,20 @@
-   riskell setup
-   ──────────────────────────────────────────────────────
 
-   Installing
-   Backups first. Running setup again is safe.
-
-   ✓ Build riskell            built in 41 s
-   ✓ Write config.json        merged 6 owned keys, your o
-   ✓ Write layout.json        kept your layout.json
-   ○ Trackpad gestures        left as they are
-   ✓ Link risk                ~/.local/bin/risk
-   ✓ Start the launch agent   running, socket up
-   ⠋ Health check
-
-   ███████▄   6 of 7 steps
+  installing ─────────────────────────────────────────────
+  ✓  Build riskell           built in 41 s
+  ✓  Write config.json       merged 6 owned keys, your ot…
+  ✓  Write layout.json       kept your layout.json
+  ·  Trackpad gestures       left as they are
+  ✓  Link risk               ~/.local/bin/risk
+  ✓  Start the launch agent  running, socket up
+  !  Health check            working…
 
 
 
 
-   working...
+
+
+
+
+
+
+  working the installer is writing the plan

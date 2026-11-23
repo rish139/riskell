@@ -175,15 +175,8 @@ final class App {
     // usage: the consent panel that is showing, if any
     var consent: UsageConsent?
 
-    // motion: all of it advances on tick(), which the loop calls only while something is animating
+    // motion: the spinner's frame, advanced on tick(), which the loop calls only while something is moving
     var tickCount = 0
-    var checksShown = 0
-    var linesShown = 0
-    var progressShown = 0.0
-    var slideDir = 0
-    var slideLeft = 0
-    /// Frames left in which the newly chosen row shows its half-filled marker.
-    var markerFrames = 0
     var conflicts: [String]?
 
     init(facts: Facts, paths: Paths, repo: URL?) {
@@ -229,13 +222,9 @@ final class App {
         stage = next
         cursor = startCursor(next)
         notice = nil
-        slideDir = dir
-        slideLeft = 3
         if next == .gestures, c.gesturesRiskell, conflicts == nil {
             conflicts = Detect.gestureConflicts()
         }
-        if next == .finish { linesShown = 0 }
-        if next == .welcome { checksShown = 0 }
     }
 
     private func startCursor(_ s: Stage) -> Int {
@@ -356,8 +345,8 @@ final class App {
 
     private func moveCursor(_ k: Key) -> Bool {
         switch k {
-        case .up: cursor = max(0, cursor - 1); markerFrames = 2; return true
-        case .down: cursor = min(rowCount - 1, cursor + 1); markerFrames = 2; return true
+        case .up: cursor = max(0, cursor - 1); return true
+        case .down: cursor = min(rowCount - 1, cursor + 1); return true
         default: return false
         }
     }
@@ -630,35 +619,18 @@ final class App {
 
     /// Something is moving: the loop wakes every 40 ms (reveals) or 100 ms (spinner, progress), otherwise it blocks.
     var timeoutMs: Int32? {
-        if revealing { return stage == .welcome ? 60 : 40 }
-        if isBusy { return 100 }
-        return nil
-    }
-
-    var revealing: Bool {
-        (stage == .welcome && checksShown < Detect.checks(facts).count)
-            || (stage == .finish && linesShown < (job?.summary.count ?? 0) + 2)
+        isBusy ? 100 : nil
     }
 
     var isBusy: Bool {
         if case .running = build { return true }
         if geoPending != nil || geoSearching { return true }
         if let j = job, !j.finished, j.failMessage == nil { return true }
-        if slideLeft > 0 || markerFrames > 0 { return true }
-        if let j = job, abs(j.progress - progressShown) > 0.001 { return true }
         return false
     }
 
     func tick() {
         tickCount += 1
-        if stage == .welcome, checksShown < Detect.checks(facts).count { checksShown += 1 }
-        if stage == .finish, let j = job, linesShown < j.summary.count + 2 { linesShown += 1 }
-        if slideLeft > 0 { slideLeft -= 1 }
-        if markerFrames > 0 { markerFrames -= 1 }
-        if let j = job {
-            progressShown += (j.progress - progressShown) * 0.4
-            if abs(j.progress - progressShown) < 0.01 { progressShown = j.progress }
-        }
         if let due = geoPending, Date() >= due {
             geoPending = nil
             if !query.trimmingCharacters(in: .whitespaces).isEmpty {

@@ -1,24 +1,14 @@
+  ▐▌ ▄▄▄▄▄▄▄▄▄▄   riskell setup 1.0
+  ▐▌              macOS 15.2 · x86_64 · OmniWM
+  ▐▌ ▀▀▀▀▀▀▀▀▀▀   ● not installed
 
+  The guided installer asks eight short questions: your window manager,
+  the bars, a theme, a weather place, the optional usage sources, the
+  trackpad gestures and the scale. Nothing is written until you confirm.
 
-   riskell setup
-   ──────────────────────────────────────────────────────────────────────────────────────────────
+  ✗  Swift is needed to build riskell
 
-   riskell v1.0
-
-   A bar that fits your Mac.
-   Nothing is written until you confirm.
-
-
-    ╭───────────────╮ ╭──────────╮ ╭───╮
-    │ 100% ▮▮▮▮▯    │ │ 02:41 PM │ │ ● │
-    ╰───────────────╯ ╰──────────╯ ╰───╯
-
-   ✓ macOS           15.2
-   ! chip            x86_64: not verified on Intel
-   ✗ swift           missing: run xcode-select --install
-   ✓ settings        new install, no config.json yet
-   ! launch agent    not loaded yet, starts on install
-   ✓ window manager  OmniWM running
+     try   xcode-select --install    then start setup again
 
 
 
@@ -29,4 +19,14 @@
 
 
 
-   ⏎ start   q quit
+
+
+
+
+
+
+
+
+
+
+  enter continue   ·   esc quit

@@ -1,20 +1,20 @@
-   riskell setup
-   ──────────────────────────────────────────────────────
 
-   ✓ riskell is running
-   Settings live in ~/.config/riskell.
+  installed ──────────────────────────────────────────────
+  ✓  Build riskell           built in 41 s
+  ✓  Write config.json       merged 6 owned keys, your ot…
+  ✓  Write layout.json       Classic layout written
+  ·  Trackpad gestures       left as they are
+  ✓  Link risk               ~/.local/bin/risk
+  ✓  Start the launch agent  written and started
+  ✓  Health check            running, socket up, no error…
 
-   ✓ Build riskell            built in 41 s
-   ✓ Write config.json        merged 6 owned keys, your o
-   ✓ Write layout.json        Classic layout written
-   ○ Trackpad gestures        left as they are
-   ✓ Link risk                ~/.local/bin/risk
-   ✓ Start the launch agent   written and started
-   ✓ Health check             running, socket up, no erro
-
-   ctrl-alt-,    open riskell preferences
-   risk status   check it
-   risk log 30   the recent log
+  riskell is running. Settings live in ~/.config/riskell.
+  next  ctrl-alt-,  open riskell preferences
 
 
-   ⏎ done   q quit
+
+
+
+
+
+  enter done   ·   q quit

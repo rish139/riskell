@@ -1,16 +1,11 @@
 
+  weather location ─────────────────────────────────────────────────────
+  city       › Dres▏
 
-   riskell setup                                                          4 / 8   ● ● ● ◉ ○ ○ ○ ○
-   ──────────────────────────────────────────────────────────────────────────────────────────────
+  looking up...
 
-   Weather location
-   Only the city you type is sent, to open-meteo.com.
-
-   › Dres▏
-
-   ⠋ looking up
-
-   ○ Skip                                            no weather
+  ›  ○ Skip
+       no weather
 
 
 
@@ -29,4 +24,9 @@
 
 
 
-   type a city   ↑↓ choose   ⏎ continue   esc back
+
+
+
+
+
+  type a city   ·   up/down choose   ·   enter continue   ·   esc back

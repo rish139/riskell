@@ -1,20 +1,20 @@
-   [0;1;38;2;250;189;47mriskell[0m [0;2;38;2;132;122;110msetup[0m                                            [0m
-   [0;2;38;2;132;122;110m──────────────────────────────────────────────────────[0m   [0m
-                                                            [0m
-   [0;1mInstall stopped[0m                                          [0m
-   [0;2;38;2;132;122;110mBackups first. Running setup again is safe.[0m              [0m
-                                                            [0m
-   [0;1;38;2;184;187;38m✓[0m Build riskell            [0;2;38;2;132;122;110mbuilt in 41 s[0m                 [0m
-   [0;1;38;2;184;187;38m✓[0m Write config.json        [0;2;38;2;132;122;110mmerged 6 owned keys, your o[0m   [0m
-   [0;1;38;2;184;187;38m✓[0m Write layout.json        [0;2;38;2;132;122;110mkept your layout.json[0m         [0m
-   [0;2;38;2;132;122;110m○[0m Trackpad gestures        [0;2;38;2;132;122;110mleft as they are[0m              [0m
-   [0;1;38;2;184;187;38m✓[0m Link risk                [0;2;38;2;132;122;110m~/.local/bin/risk[0m             [0m
-   [0;1;38;2;251;73;52m✗[0m Start the launch agent   [0;1;38;2;251;73;52mscripts/risk install failed[0m   [0m
-   [0;2;38;2;132;122;110m○[0m [0;2;38;2;132;122;110mHealth check[0m                                           [0m
-                                                            [0m
-   [0;38;2;250;189;47m█████▆[0;2;38;2;132;122;110m▁▁[0m   [0;2;38;2;132;122;110m5 of 7 steps[0m                                  [0m
-                                                            [0m
-   [0;1;38;2;251;73;52m✗[0m [0;1;38;2;251;73;52mscripts/risk install failed[0m                            [0m
-                                                            [0m
-   [0;2;38;2;132;122;110mFix the cause, then press ⏎ to try again.[0m                [0m
-   [0;2;38;2;132;122;110m⏎ retry   esc review   q quited.[0m                         [0m
+
+  [0;38;2;213;196;161minstall stopped[0m [0;38;2;146;131;116m────────────────────────────────────────[0m
+  [0;38;2;184;187;38m✓[0m  [0;38;2;189;174;147mBuild riskell          [0m [0;38;2;235;219;178mbuilt in 41 s[0m
+  [0;38;2;184;187;38m✓[0m  [0;38;2;189;174;147mWrite config.json      [0m [0;38;2;235;219;178mmerged 6 owned keys, your ot…[0m
+  [0;38;2;184;187;38m✓[0m  [0;38;2;189;174;147mWrite layout.json      [0m [0;38;2;235;219;178mkept your layout.json[0m
+  [0;38;2;146;131;116m·[0m  [0;38;2;189;174;147mTrackpad gestures      [0m [0;38;2;235;219;178mleft as they are[0m
+  [0;38;2;184;187;38m✓[0m  [0;38;2;189;174;147mLink risk              [0m [0;38;2;235;219;178m~/.local/bin/risk[0m
+  [0;38;2;251;73;52m✗[0m  [0;38;2;189;174;147mStart the launch agent [0m [0;38;2;235;219;178mscripts/risk install failed[0m
+  [0;38;2;146;131;116m·[0m  [0;38;2;189;174;147mHealth check[0m
+
+  [0;38;2;251;73;52m✗[0m  [0;1;38;2;235;219;178mscripts/risk install failed[0m
+
+     [0;38;2;146;131;116mtry[0m   [0;38;2;250;189;47menter[0m    [0;38;2;189;174;147mtry again; finished steps are not repeated[0m
+           [0;38;2;250;189;47mesc  [0m    [0;38;2;189;174;147mback to the review[0m
+  [0;38;2;189;174;147mBootstrap failed: 5: Input/output error[0m
+  [0;38;2;189;174;147mlaunchctl could not load com.rish.riskell[0m
+  [0;38;2;189;174;147mrun: risk log 30[0m
+
+
+  [0;38;2;250;189;47menter[0m [0;38;2;146;131;116mretry[0m   [0;38;2;146;131;116m·[0m   [0;38;2;250;189;47mesc[0m [0;38;2;146;131;116mreview[0m   [0;38;2;146;131;116m·[0m   [0;38;2;250;189;47mq[0m [0;38;2;146;131;116mquit[0m

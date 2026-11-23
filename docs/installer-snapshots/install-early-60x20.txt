@@ -1,20 +1,20 @@
-   riskell setup
-   ──────────────────────────────────────────────────────
 
-   Installing
-   Backups first. Running setup again is safe.
-
-   ⠋ Build riskell
-   ○ Write config.json
-   ○ Write layout.json
-   ○ Trackpad gestures
-   ○ Link risk
-   ○ Start the launch agent
-   ○ Health check
-
-   ▅▁▁▁▁▁▁▁   0 of 7 steps
-
-   compiling riskell Overlay.swift…
+  installing ─────────────────────────────────────────────
+  !  Build riskell           compiling riskell Overlay.sw…
+  ·  Write config.json
+  ·  Write layout.json
+  ·  Trackpad gestures
+  ·  Link risk
+  ·  Start the launch agent
+  ·  Health check
 
 
-   working...
+
+
+
+
+
+
+
+
+  working the installer is writing the plan

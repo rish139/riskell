@@ -1,20 +1,20 @@
-   riskell setup                  3 / 8   ● ● ◉ ○ ○ ○ ○ ○
-   ──────────────────────────────────────────────────────
 
-   Theme
-   The preview uses each scheme's real colours.
-
-   ○ Gruvbox dark, medium  recommended               dark
-   ○ Catppuccin Mocha                                dark
-   ○ Rosé Pine                                       dark
-   ○ Nord                                            dark
-   ○ Tokyo Night Dark                                dark
-   ○ Kanagawa                                        dark
-   ○ Everforest Dark Medium                          dark
-   ○ Dracula                                         dark
-   ○ Github Dark High Contrast                       dark
-   ○ Gruvbox light, medium                          light
-   ● Catppuccin Latte                               light
+  theme ──────────────────────────────────────────────────
+     ○ Gruvbox dark, medium  recommended
+     ○ Catppuccin Mocha  dark
+     ○ Rosé Pine  dark
+     ○ Nord  dark
+     ○ Tokyo Night Dark  dark
+     ○ Kanagawa  dark
+     ○ Everforest Dark Medium  dark
+     ○ Dracula  dark
+     ○ Github Dark High Contrast  dark
+     ○ Gruvbox light, medium  light
+  ›  ● Catppuccin Latte  light
 
 
-   ↑↓ move   ⏎ continue   esc back   q quit
+
+
+
+
+  up/down move   ·   enter continue   ·   esc back   ·   q quit

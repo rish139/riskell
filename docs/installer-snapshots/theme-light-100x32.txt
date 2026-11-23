@@ -1,32 +1,32 @@
 
-
-   riskell setup                                                          3 / 8   ● ● ◉ ○ ○ ○ ○ ○
-   ──────────────────────────────────────────────────────────────────────────────────────────────
-
-   Theme
-   The preview uses each scheme's real colours.
-
-   ○ Gruvbox dark, medium  recommended     ╭──────────────────────────────────╮
-   ○ Catppuccin Mocha              dark    │                                  │
-   ○ Rosé Pine                     dark    │ ╭───────────────╮ ╭──────────╮   │
-   ○ Nord                          dark    │ │ 100% ▮▮▮▮▯    │ │ 02:41 PM │   │
-   ○ Tokyo Night Dark              dark    │ ╰───────────────╯ ╰──────────╯   │
-   ○ Kanagawa                      dark    │                                  │
-   ○ Everforest Dark Medium        dark    │ ░░   ██   ██   ██   ██   ██      │
-   ○ Dracula                       dark    │ bg   tile t1   t2   t3   t4      │
-   ○ Github Dark High Contrast     dark    │ ██   ██   ██   ██   ██           │
-   ○ Gruvbox light, medium        light    │ acc  ok   warn crit info         │
-   ● Catppuccin Latte             light    │                                  │
-                                           │ Headline in text1                │
-                                           │ Body copy in text2               │
-                                           │ Hint in text4                    │
-                                           │ accent  ok  warn  crit           │
-                                           │                                  │
-                                           ╰──────────────────────────────────╯
+  theme ────────────────────────────────────────────────────────────────
+     ○ Gruvbox dark, medium  recommended
+     ○ Catppuccin Mocha  dark
+     ○ Rosé Pine  dark
+     ○ Nord  dark
+     ○ Tokyo Night Dark  dark
+     ○ Kanagawa  dark
+     ○ Everforest Dark Medium  dark
+     ○ Dracula  dark
+     ○ Github Dark High Contrast  dark
+     ○ Gruvbox light, medium  light
+  ›  ● Catppuccin Latte  light
 
 
 
 
 
 
-   ↑↓ move   ⏎ continue   esc back   q quit
+
+
+
+
+
+
+
+
+
+
+
+
+  up/down move   ·   enter continue   ·   esc back   ·   q quit

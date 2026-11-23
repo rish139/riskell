@@ -1,24 +1,22 @@
 
+  bars ─────────────────────────────────────────────────────────────────
+  ›  ● Minimal  top bar only
+     ○ Classic  recommended, top, bottom and left
+     ○ Full  all four bars
 
-   riskell setup                                                          2 / 8   ● ◉ ○ ○ ○ ○ ○ ○
-   ──────────────────────────────────────────────────────────────────────────────────────────────
+  cards ────────────────────────────────────────────────────────────────
+     ● Flush
+       cards hang from the bar
+     ○ Chat
+       rounded cards joined to their pill
 
-   Bars
-   The preset picks the bars and what sits on them.
-
-   ● Minimal                       top bar only    ╭────────────────────────╮
-   ○ Classic  recommended  top, bottom and left    │  ▄▄▄▄▄▄ ▀▀▀▀ ▄▄▄▄▄▄    │
-   ○ Full                         all four bars    │              ┌────┐    │
-                                                   │              │    │    │
-   Cards    ● Flush   ○ Chat                       │              └────┘    │
-   Bars     ○ Floating   ○ Hug   ● as preset       │                        │
-                                                   │                        │
-   Flush: cards hang from the bar.                 │                        │
-                                                   │                        │
-                                                   ╰────────────────────────╯
-
-                                                   Minimal · bars as preset
-                                                   flush cards
+  bar style ────────────────────────────────────────────────────────────
+     ○ Floating
+       separate pills
+     ○ Hug
+       one band on each edge
+     ● As preset
+       riskell's own mix
 
 
 
@@ -29,4 +27,6 @@
 
 
 
-   ↑↓ move   ←→ change   ⏎ continue   esc back   q quit
+
+
+  up/down move   ·   left/right change   ·   enter continue   ·   esc back

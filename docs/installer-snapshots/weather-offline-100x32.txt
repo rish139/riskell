@@ -1,18 +1,13 @@
 
+  weather location ─────────────────────────────────────────────────────
+  city       › Hamburg▏
 
-   riskell setup                                                          4 / 8   ● ● ● ◉ ○ ○ ○ ○
-   ──────────────────────────────────────────────────────────────────────────────────────────────
+  !  lookup  could not reach open-meteo.com. Enter coordinates by hand,
+             or skip.
 
-   Weather location
-   Only the city you type is sent, to open-meteo.com.
-
-   › Hamburg▏
-
-   ! could not reach open-meteo.com. Enter coordinates by hand, or skip.
-
-
-   ○ Enter coordinates by hand
-   ○ Skip                                            no weather
+     ○ Enter coordinates by hand
+  ›  ○ Skip
+       no weather
 
 
 
@@ -29,4 +24,9 @@
 
 
 
-   type a city   ↑↓ choose   ⏎ continue   esc back
+
+
+
+
+
+  type a city   ·   up/down choose   ·   enter continue   ·   esc back

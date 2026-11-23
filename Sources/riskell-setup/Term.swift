@@ -93,6 +93,12 @@ enum Term {
         FileHandle.standardOutput.write(s.data(using: .utf8) ?? Data())
     }
 
+    /// Put the installer's SIGINT/SIGTERM/SIGHUP handlers back after a kit helper installed its own (Progress does, so it can
+    /// restore the cursor on an interrupt). The terminal is still restored on every exit path.
+    static func restoreSignals() {
+        installSignals()
+    }
+
     /// Columns and rows of stdout; a sane default when it is not a terminal.
     static func size() -> (w: Int, h: Int) {
         var ws = winsize()
