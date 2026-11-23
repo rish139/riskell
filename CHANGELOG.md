@@ -13,9 +13,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   writes the outer gaps: `"riskell"` (the default) rewrites them in `aerospace.toml` and reloads AeroSpace, `"manual"` only reports drift.
 - `risk wm use <omniwm|aerospace|none>` switches the window manager without touching either manager's own settings. It prints the plan
   unless `--yes` is given.
+- `behaviour` packages (kit 0.7.0): an installed package's behaviours run in the background while riskell runs the window manager they name,
+  and one that conforms to `ManagerHook` adds the manager's own commands to the request riskell was about to send, so the manager lays the
+  windows out once instead of once per command. A behaviour's settings are its package's, and a change in the extensions card restarts it.
+  `risk ext add` installs one; `risk ext new behaviour` stays closed until there is a review policy.
+- The AeroSpace backend tells hooks when a window has arrived on a workspace (`window-arrived`): a window that moved, or that stopped
+  floating, as one of its own queries reports it. A window riskell moves itself is announced in the same request as the move.
 
 ### Changed
 - `risk status` follows the window manager that `wm` selects, not only OmniWM.
+- AeroSpace backend asks it less. A refresh is one request instead of two, a command and the queries that read back what it did are one
+  request too, and an event that already names what changed (a focus change, a workspace switch, a navigation keybinding, a volume or
+  echo binding) is applied to the last answer instead of being asked about. Every request makes AeroSpace lay out the visible windows and refresh what every app
+  holds, so a focus change no longer costs it anything. A workspace switch riskell sends itself asks for the rows once: the check a second
+  later now runs only while AeroSpace has not confirmed the switch. The workspace query also reads the layout of each workspace's top
+  container, and the backend reads the screens on the main thread to say whether a workspace's display is landscape; both are what a hook
+  decides from.
 
 ## [0.3.1] - 2026-11-23
 

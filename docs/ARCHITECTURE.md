@@ -11,10 +11,12 @@ next is `docs/ROADMAP.md`; what has not been tested on real hardware is `docs/UN
   `WingFit.swift` (one scale factor, the screen/notch model, top-bar fitting), `Spacing.swift`, `Overview.swift` (the workspace overview),
   `Wings.swift` (notch wings), `PillAtom.swift` (script pills and extension readings), `ExtensionHost.swift` (the app's side of the kit).
 - `Services/`: data and system access. `AppConfig.swift` (`~/.config/riskell/config.json`), `ConfigWatcher.swift` (live reload of config, pill
-  files, theme files), window-manager backends (`Omni`, `Yabai`, `AeroSpace` (a socket client; its wire format is in `RiskellWM/AeroSpaceSocket.swift`), `CommandWM`, `NoWM` behind `WindowManager`), `AeroGaps` with `WindowBook` for AeroSpace's frames and outer gaps, `Pills.swift`,
+  files, theme files), window-manager backends (`Omni`, `Yabai`, `AeroSpace` (a socket client; its wire format is in `RiskellWM/AeroSpaceSocket.swift`), `CommandWM`, `NoWM` behind `WindowManager`), `AeroGaps` with `WindowBook` for AeroSpace's frames and outer gaps, `RiskellWM/AeroSpaceHooks.swift` for what a manager hook is handed and for the requests its commands travel in, `Pills.swift`,
   `Sys` (battery and volume, for the feeds), `NowPlaying`, `Compat.swift` (version pill and checks).
 - `Packages/`: the atoms that have moved out of the app, each a package on the kit and installed by `extensions.lock.json`: `clock`, `weather`, `usage`, `system` (battery, CPU and fans, one package because their cards read each other's numbers), `volume`, `network` and `windows` (workspaces and the app icon). No atom is built into the application.
-- `Extensions/`: optional behaviours with a start/stop lifecycle. `Gestures/` (Touch, ScrollGuard) is off by default and starts nothing when off.
+- `Extensions/`: optional extensions with a start/stop lifecycle. `Gestures/` (Touch, ScrollGuard) is off by default and starts nothing
+  when off. `Extension.swift` also runs the behaviours of the installed packages (`RiskellPackage.behaviours`): one starts while its
+  package is installed, not disabled, and riskell runs the window manager it names, and it is stopped when any of that changes.
 - `Themes/`: Base16 schemes (generated `Schemes.swift`), `Theme.swift` (derivation with enforced contrast), `ThemePicker.swift`.
 - RiskellKit ([its own repository](https://github.com/rish139/riskell-kit), Apache-2.0): design tokens `Pal`/`T`/`G`, the drawing primitives, the `Reading` renderer, the
   popout hook, `ReadingAtom`/`CustomAtom`/`Env`/feeds. The app depends on it by URL (`Package.swift`); so does every extension. To change the
@@ -25,6 +27,15 @@ next is `docs/ROADMAP.md`; what has not been tested on real hardware is `docs/UN
   `Examples/load-ext` is the working example; `schemas/` holds the manifest schema.
 - `Sources/riskell-setup/`: the guided terminal installer, a second small executable (Foundation only).
 - `scripts/`: `risk` (control script: install, dev, restart, log, status, wm, ext), `idle-cpu`, `scrub-check.sh`, `try-installer`, generators.
+
+## Manager hooks
+A behaviour that conforms to the kit's `ManagerHook` is registered with the AeroSpace backend, which keeps its own copy of the hook list on
+its queue and calls it on the events it names, with the state built from the rows of the last query (windows the window server no longer
+lists left out; while the rows are stale, they are asked for first). What it returns is sent at once: one `eval` per target window, its
+scripts in front of the backend's own queries, and the answer is applied like any refresh. A window that arrived (`window-arrived`, which
+AeroSpace never reports) is found by comparing a refresh with the rows before it, and a window riskell moves itself is announced in the
+move's own request, so that one arrival is left out of the comparison. An answer to a hook's own request is not compared: one hook round
+must not start another. A hook therefore never sends a request of its own and never costs a second layout.
 
 ## Rules the code keeps
 - **Efficiency:** event-driven; nothing runs while it is switched off. Pills and extension atoms run only while their bar is showing
@@ -39,7 +50,8 @@ next is `docs/ROADMAP.md`; what has not been tested on real hardware is `docs/UN
 (dry run without `--yes`), `riskell-setup --self-test`, `Tests/installer/pty_flow.py`, snapshot flags (`--snap`, `--pop <card>`,
 `--settings`, `--edit`), environment: `RISKELL_FORCE_HOT=<card>[,<card>]` (hover through the real path), `RISKELL_FAKE_DISPLAY`
 (`1512x982:notch=32,185`), `RISKELL_SCALE`, `RISKELL_TEST_PIP`, `RISKELL_PANEL_DEBUG`, `RISKELL_SNAP_DIR` (where the `overview-snap` socket command writes), `RISKELL_CACHE_DIR` (where the weather cache lives, so a
-test instance never touches the real one), `RISKELL_WALLPAPER` (a picture to use as the overview's wallpaper), `RISKELL_DEMO` (placeholder names
+test instance never touches the real one), `RISKELL_AEROSPACE_SOCKET` (a path: the AeroSpace backend connects there instead of AeroSpace's own
+socket, so a scratch instance can talk to a stand-in and its requests can be counted), `RISKELL_WALLPAPER` (a picture to use as the overview's wallpaper), `RISKELL_DEMO` (placeholder names
 for devices, volumes, processes and addresses, and a minute of sample history for the CPU, network and volume graphs; `--fake-heat` seeds the
 fan history), `scripts/overview-check`
 (the overview at three scales on a scratch instance).

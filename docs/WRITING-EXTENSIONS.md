@@ -25,7 +25,7 @@ regenerate the import list, rebuild and restart riskell. A clean build takes abo
 | colours | **theme** (`docs/THEMES.md`) | none, live |
 | a figure, gauge and hover card from Swift | **reading** | yes |
 | your own drawing | **atom** | yes |
-| a background capability | **behaviour** | yes, but not open to third parties yet |
+| a background capability | **behaviour** | yes, but `risk ext new` does not scaffold one: community behaviours wait for a review policy |
 
 Choose the first one that fits. A `reading` looks exactly like a built-in atom with no layout code to get wrong; an `atom` is for the
 cases that need their own drawing.
@@ -122,7 +122,7 @@ A text setting is not offered in the card; it stays a file you edit.
 4. Publish: push the repo with a `LICENSE` and a tag `vX.Y.Z` on the commit, then `risk ext publish` prints the registry listing (and tells you what is
    missing). Save it as `listings/<id>.json` in [riskell-registry](https://github.com/rish139/riskell-registry) and open a pull request; people then
    `risk ext add <id>`, and `risk ext update` offers them each new commit you list. Add the GitHub topic `riskell-extension` and a screenshot. In a compiled extension's
-   `Package.swift` depend on the kit by URL: `.package(url: "https://github.com/rish139/riskell-kit", .upToNextMinor(from: "0.6.0"))` (the kit is 0.x: a new minor can change the API, so an extension pins the minor it was built for).
+   `Package.swift` depend on the kit by URL: `.package(url: "https://github.com/rish139/riskell-kit", .upToNextMinor(from: "0.7.0"))` (the kit is 0.x: a new minor can change the API, so an extension pins the minor it was built for).
 
 ## Trust
 

@@ -18,13 +18,13 @@ result the only easy one (the API has no way to say "wrong"), not from reviewing
 | RiskellKit, in [its own repository](https://github.com/rish139/riskell-kit) (tokens, primitives, reading renderer, popout hook, extension API, feeds) | built; the app depends on it by URL |
 | the app draws pills and extension readings with the same kit code | built; snapshots identical to before the split |
 | `reading` and `atom` extensions, linked through `extensions.lock.json` | built, tested end to end (`Examples/load-ext`) |
-| built-in atoms moved out: every atom that ships with riskell is a package in `Packages/` (kit 0.2.0 `PopState`, 0.3.0 `env.config` and `env.cache`, 0.4.0 `Demo` and `onRightClick`, 0.5.0 `onScrollSteps` and `AppHooks`, 0.6.0 `WindowsModel`, `RailState` and `WindowActions`) | built; placed as `ext:clock`, an older layout.json's `clock` is read as it |
+| built-in atoms moved out: every atom that ships with riskell is a package in `Packages/` (kit 0.2.0 `PopState`, 0.3.0 `env.config` and `env.cache`, 0.4.0 `Demo` and `onRightClick`, 0.5.0 `onScrollSteps` and `AppHooks`, 0.6.0 `WindowsModel`, `RailState` and `WindowActions`, 0.7.0 `Behaviour` and `ManagerHook`) | built; placed as `ext:clock`, an older layout.json's `clock` is read as it |
 | `risk ext` (`validate`, `new`, `add`, `remove`, `list`, `search`, `info`, `update`, `publish`, `sync`) | built |
 | `schemas/riskell-extension.schema.json`, `AGENTS.md`, `docs/WRITING-EXTENSIONS.md` | written |
 | settings card in riskell preferences (EXTENSIONS) | built: `settings` in the manifest, written to `~/.config/riskell/ext/<id>.json`, applies at once; `riskell --ext-selftest` |
 | disabling an installed extension from `config.json` (`disabledExtensions`) | built |
 | the registry, the storefront and `risk ext publish` | built (`docs/STOREFRONT.md`); the CI render matrix is not |
-| `behaviour` extensions from outside the app (the closed list in `Extensions/Extension.swift` is unchanged) | not built |
+| `behaviour` packages: an installed package's behaviours run while the window manager they name is the one riskell runs, and a `ManagerHook` adds its own commands to the AeroSpace backend's requests | built; `risk ext add` installs one and `risk ext new behaviour` does not scaffold one, because community behaviours wait for a review policy |
 
 ## 1. Kinds
 
@@ -38,7 +38,7 @@ SPDX licenses). Its `kind` says what it adds. The kinds are open: a new kind is 
 | `preset` | layout + pills + theme + config fragment | no | the files exist; no bundle yet |
 | `reading` | an atom fed by Swift; the kit draws both forms and the card | yes | yes |
 | `atom` | an atom with its own SwiftUI | yes | yes |
-| `behaviour` | a background capability with start/stop | yes | gestures only (closed list) |
+| `behaviour` | a background capability with start/stop, and optionally the window manager's own commands | yes | built; not scaffolded, and community behaviours wait for a review policy |
 
 `reading` is the one to prefer. Most useful atoms are "a number, a word, a gauge, a card of detail". If an author hands those over and the
 kit draws them, the result matches the built-ins on every bar, theme and scale, with no layout code to get wrong. It is the compiled twin of
@@ -80,6 +80,14 @@ multiplies by one scale factor where a number becomes a window frame.
   thermals, weather, Wi-Fi, AI usage) run only while an atom that needs them is placed on a bar that is on (`ExtensionHost.swift`'s `BarActivity`, which every package's atoms
   go through). The window manager and the notch wings' media feed are not gated by an atom.
 - **Prefs:** `env.prefs.number/bool/string` from `~/.config/riskell/ext/<id>.json`.
+- **Behaviours:** a package's `behaviours` run in the background and have no place on a bar. `start(env)` is called while the package is
+  installed, not in `disabledExtensions`, and riskell runs the window manager the behaviour names (`manager`, e.g. `"aerospace"`); what it
+  returns stops it again. A behaviour that also conforms to `ManagerHook` is called for each event it lists (AeroSpace's own names, plus
+  `window-arrived`, which riskell adds) with `ManagerState`: windows in id order, each with its workspace and `floating` when it is outside
+  the tiling tree (a window the manager floats, and also a minimised one, a native-fullscreen one, a hidden app's and a popup); workspaces
+  with `rootLayout` and `landscape`; the focused window and workspace. It returns `ManagerCommand`s, and the backend sends them in the
+  request it was about to make, one `eval` per window they act on, with its queries after them: the manager lays the windows out once.
+  `commands(for:in:)` must return at once, reading and sending nothing. Only the AeroSpace backend carries hooks today.
 
 ## 4. Robustness
 

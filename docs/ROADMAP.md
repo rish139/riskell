@@ -24,7 +24,8 @@ runtime: no Qt, no QML, no web view. Ports are mechanical or algorithmic first; 
 
 - Verification on other Apple-silicon Macs and window managers ([`UNVERIFIED.md`](UNVERIFIED.md)): yabai, AeroSpace, command actions, other
   displays, macOS 14 and 15, a clean-machine install.
-- `behaviour` extensions from outside the application, with a review policy.
+- `behaviour` extensions from outside the application: the kind is built and `risk ext add` installs one, but scaffolding (`risk ext
+  new behaviour`) and listing wait for a review policy.
 - A CI step that builds `riskell-ext` from a pinned commit, instead of the registry's current unpinned `main`.
 
 ## Later
