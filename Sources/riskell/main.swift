@@ -402,7 +402,7 @@ events.commands["overview-click-other"] = {      // debug: open the overview and
         let cur = store.spaces.first { $0.focused }?.id
         guard let w = store.windows.first(where: { $0.space != cur && $0.app == "Arc" }), let r = o.screenRect(of: w.id) else { print("click-other: no window/rect"); fflush(stdout); return }
         let c = CGPoint(x: r.midX, y: r.midY)
-        var hitDesc = "?"; switch o.hit(c) { case .window(let h): hitDesc = "window \(h.app) ws \(h.space)"; case .tile(let n): hitDesc = "tile \(n)"; case .slot: hitDesc = "slot"; case .nothing: hitDesc = "nothing" }
+        var hitDesc = "?"; switch o.hit(c) { case .window(let h): hitDesc = "window \(h.app) ws \(h.space)"; case .tile(let n): hitDesc = "tile \(n)"; case .slot: hitDesc = "slot"; case .fullscreen(let p): hitDesc = "fullscreen \(p)"; case .nothing: hitDesc = "nothing" }
         print("click-other: target \(w.app) ws \(w.space) at \(Int(c.x)),\(Int(c.y)) hit=\(hitDesc)"); fflush(stdout)
         o.pointerUp(start: c, at: c)
     }

@@ -88,6 +88,9 @@ final class Overview: ObservableObject {
         set { pointer.drag = newValue }
     }
     @Published var query = ""
+    /// Apps in native full-screen Spaces, which the window manager does not list; found once when the overview opens.
+    struct FullApp: Identifiable { let pid: Int; let name: String; let wid: UInt32; var id: Int { pid } }
+    @Published private(set) var fullscreenApps: [FullApp] = []
     @Published private(set) var thumbs: [Int: NSImage] = [:]
     @Published private(set) var bars: [BarShot] = []
     private(set) var wallpaper: NSImage?
@@ -239,6 +242,43 @@ final class Overview: ObservableObject {
         WM.shared?.focus(space: n); close(quick: true)
     }
 
+    /// Windows of apps the window manager does not list that fill the main display inside a native full-screen Space, one per app.
+    private func findFullscreenApps() -> [FullApp] {
+        guard let list = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]] else { return [] }
+        let me = Int(ProcessInfo.processInfo.processIdentifier)
+        let known = Set(store.windows.map(\.pid))
+        let size = CGDisplayBounds(CGMainDisplayID()).size
+        var seen = Set<Int>(), out: [FullApp] = []
+        for w in list {
+            guard (w[kCGWindowLayer as String] as? Int) == 0, (w[kCGWindowAlpha as String] as? Double ?? 0) > 0,
+                  let pid = w[kCGWindowOwnerPID as String] as? Int, pid != me, !known.contains(pid), !seen.contains(pid),
+                  let wid = w[kCGWindowNumber as String] as? UInt32,
+                  let b = w[kCGWindowBounds as String] as? NSDictionary, let r = CGRect(dictionaryRepresentation: b),
+                  abs(r.width - size.width) <= 2, abs(r.height - size.height) <= 2,
+                  Sky.windowSpaces(wid).contains(where: Sky.isFullscreen) else { continue }
+            seen.insert(pid)
+            out.append(FullApp(pid: pid, name: w[kCGWindowOwnerName as String] as? String ?? Apps.info(pid: pid, fallback: "").name, wid: wid))
+        }
+        return out
+    }
+
+    /// The chips for those apps, in one row centred under the find field. Drawing and hit-testing both use these rects.
+    func chipRects() -> [(app: FullApp, rect: CGRect)] {
+        let cw = 150 * Real.k, ch = 26 * Real.k, gap = 8 * Real.k
+        let total = CGFloat(fullscreenApps.count) * (cw + gap) - gap
+        let cx = Config.shared.leftW + (screen.width - Config.shared.leftW - Config.shared.rightW) / 2
+        let y = (layout.tiles.first?.maxY ?? 0) + 64 * Real.k + 44 * Real.k + 14 * Real.k
+        return fullscreenApps.enumerated().map { i, a in
+            (a, CGRect(x: cx - total / 2 + CGFloat(i) * (cw + gap), y: y, width: cw, height: ch))
+        }
+    }
+
+    /// Switches to the app's full-screen Space and leaves the overview.
+    func go(fullscreen pid: Int) {
+        NSRunningApplication(processIdentifier: pid_t(pid))?.activate(options: [.activateAllWindows])
+        close(quick: true)
+    }
+
     func matches(_ w: WinInfo) -> Bool? {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
         return q.isEmpty ? nil : (w.title + " " + w.app).lowercased().contains(q)
@@ -301,13 +341,14 @@ final class Overview: ObservableObject {
     // One transparent layer over the whole overview maps the pointer onto the tiles here. SwiftUI's own hover and hit areas ignore
     // the miniatures' scaling (they stay where a window would be at full size), so windows low in a column could not be reached.
 
-    enum Hit { case window(WinInfo), tile(Int), slot, nothing }
+    enum Hit { case window(WinInfo), tile(Int), slot, fullscreen(Int), nothing }
     /// A window being carried: where the pointer is, where on the window it was picked up, and what it would land on.
     struct Drag { let win: WinInfo; var at: CGPoint; let grab: CGSize; var target: Int?; var toNew: Bool }
 
     var layout: OverviewLayout { OverviewLayout(count: store.spaces.count, screen: screen) }
 
     func hit(_ pt: CGPoint) -> Hit {
+        if let c = chipRects().first(where: { $0.rect.contains(pt) }) { return .fullscreen(c.app.pid) }
         let L = layout
         for (i, sp) in store.spaces.enumerated() where i < L.tiles.count && L.tiles[i].contains(pt) {
             let t = L.tiles[i], k = L.scale
@@ -349,7 +390,7 @@ final class Overview: ObservableObject {
         case .window(let w): target = w.space
         case .tile(let n): target = n
         case .slot: toNew = true
-        case .nothing: break
+        case .fullscreen, .nothing: break
         }
         drag?.at = pt; drag?.target = target; drag?.toNew = toNew
     }
@@ -372,6 +413,7 @@ final class Overview: ObservableObject {
         case .window(let w): go(window: w)
         case .tile(let n): go(space: n)
         case .slot: goNew()
+        case .fullscreen(let pid): go(fullscreen: pid)
         case .nothing: close()
         }
     }
@@ -446,6 +488,7 @@ final class Overview: ObservableObject {
         guard !live else { return }
         origin = store.spaces.first { $0.focused }?.id ?? store.spaces.first?.id ?? 1
         bars = snapshotBars?() ?? []
+        fullscreenApps = findFullscreenApps()
         Overview.refreshWallpaper(&wallpaper, stamp: &wallpaperStamp)
         let p = panel ?? makePanel()
         panel = p
@@ -660,6 +703,7 @@ final class Overview: ObservableObject {
         case .window(let w): kind = "window \(w.id)"
         case .tile(let n): kind = "tile \(n)"
         case .slot: kind = "slot"
+        case .fullscreen(let p): kind = "fullscreen \(p)"
         case .nothing: kind = "nothing"
         }
         tlog("overview press: key=\(p.isKeyWindow) hit=\(kind)")

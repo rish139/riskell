@@ -31,6 +31,14 @@ enum Sky {
         return f(cid(), sid) == 4
     }
 
+    private typealias SpacesForWindows = @convention(c) (Int32, Int32, CFArray) -> Unmanaged<CFArray>?
+    /// The Spaces window `wid` lives in (mask 0x7: every kind of Space).
+    static func windowSpaces(_ wid: UInt32) -> [UInt64] {
+        guard let cid = sym("SLSMainConnectionID", as: MainCID.self), let f = sym("SLSCopySpacesForWindows", as: SpacesForWindows.self),
+              let r = f(cid(), 0x7, [NSNumber(value: wid)] as CFArray)?.takeRetainedValue() as? [NSNumber] else { return [] }
+        return r.map { $0.uint64Value }
+    }
+
     private typealias NotifyProc = @convention(c) (UInt32, UnsafeMutableRawPointer?, Int, UnsafeMutableRawPointer?, Int32) -> Void
     private typealias Register = @convention(c) (Int32, NotifyProc, UInt32, UnsafeMutableRawPointer?) -> Int32
     private static var traceHandler: ((UInt32) -> Void)?
