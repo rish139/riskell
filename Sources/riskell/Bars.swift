@@ -114,6 +114,7 @@ struct VBar: View {
         .environment(\.popEdge, bar.edge)
         .coordinateSpace(name: "bar")
         .onPreferenceChange(FrameKey.self) { cfg.frames[bar] = $0 }
+        .onPreferenceChange(StripIslandKey.self) { stripIslands[bar] = $0 }
     }
 
     private func island(_ isl: Island, pad: CGFloat) -> some View {
@@ -137,9 +138,18 @@ struct VBar: View {
         .modifier(EditSwell(on: cfg.editing))
         .reportFrame("isl:" + isl.id, cfg.editing)
         .offset(y: fy)
+        .background(GeometryReader { g in Color.clear.preference(key: StripIslandKey.self, value: [g.frame(in: .named("bar"))]) })
         .animation(.spring(duration: 0.30, bounce: 0.05), value: fy)
     }
 }
+
+/// The drawn island rectangles of a strip, in the strip host's own coordinates (design units, top-left origin). Measured at rest: the
+/// preference changes only when the layout does, and the window reads it to decide which parts of the strip take the pointer.
+struct StripIslandKey: PreferenceKey {
+    static var defaultValue: [CGRect] = []
+    static func reduce(value: inout [CGRect], nextValue: () -> [CGRect]) { value += nextValue() }
+}
+var stripIslands: [BarKey: [CGRect]] = [:]
 
 /// An empty bar while editing: a dashed slot, so there is something to drop a pill on.
 struct EmptyBarHint: View {
