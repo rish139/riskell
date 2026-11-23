@@ -11,12 +11,12 @@ enum ThemeCommand {
     static let schema = "riskell.theme/1"
 
     static func run(_ args: [String]) -> Int32 {
-        guard let sub = args.first else { return usage("list, check or import") }
+        guard let sub = args.first else { return usage("theme", "list, check or import") }
         switch sub {
         case "list": return list(Array(args.dropFirst()))
         case "check": return check(Array(args.dropFirst()))
         case "import": return importScheme(Array(args.dropFirst()))
-        default: return usage("no subcommand \"\(sub)\"")
+        default: return usage("theme", "no subcommand \"\(sub)\"")
         }
     }
 
@@ -31,7 +31,7 @@ enum ThemeCommand {
 
         init() {
             let environment = ProcessInfo.processInfo.environment
-            let config = ThemeCommand.absolute(environment["RISKELL_CONFIG"] ?? NSHomeDirectory() + "/.config/riskell/config.json")
+            let config = ThemeCommand.absolute(environment["RISKELL_CONFIG"] ?? homePath() + "/.config/riskell/config.json")
             app = URL(fileURLWithPath: config).deletingLastPathComponent().appendingPathComponent("themes").path
             folder = environment["RISKELL_THEME_DIR"].map(ThemeCommand.absolute) ?? app
         }
@@ -44,7 +44,7 @@ enum ThemeCommand {
 
     /// A path as a person reads it: `~/…` under the home folder, absolute everywhere else.
     private static func shown(_ path: String) -> String {
-        let home = NSHomeDirectory()
+        let home = homePath()
         if path == home { return "~" }
         if path.hasPrefix(home + "/") { return "~/" + String(path.dropFirst(home.count + 1)) }
         return path
@@ -59,7 +59,7 @@ enum ThemeCommand {
         return FileManager.default.isExecutableFile(atPath: path) ? path : nil
     }
 
-    private static let notBuilt = "riskell is not built (.build/release/riskell) and this asks the app rather than guessing; `swift build -c release` builds it"
+    private static let notBuilt = "riskell is not built, and this asks the app rather than guessing"
 
     /// The app's answer to one question, or nil when it is not built or did not finish. The environment is inherited, so a scratch
     /// `RISKELL_CONFIG` has the app read the same folder this wrote to.
@@ -95,10 +95,10 @@ enum ThemeCommand {
         for arg in args {
             switch arg {
             case "--json": json = true
-            default: return usage("list takes only --json, not \"\(arg)\"")
+            default: return usage("theme list", "takes only --json, not \"\(arg)\"")
             }
         }
-        guard binary() != nil else { return fail(notBuilt) }
+        guard binary() != nil else { return fail(notBuilt, tries: [(cmd: "swift build -c release", note: "builds .build/release/riskell")]) }
         guard let listed = catalog() else { return fail("riskell --list-themes printed no list of schemes") }
         let themes = Themes()
 
@@ -108,18 +108,19 @@ enum ThemeCommand {
         }
 
         let tty = Terminal.tty()
-        let dim = Style(fg: tty.palette.color(.text4, tty.mode))
-        let rows = listed.rows.map { row -> [Cell] in
-            let isDefault = row["default"] as? Bool ?? false
-            return [Cell(row["id"] as? String ?? "", .left, Style(bold: true)),
-                    Cell(row["variant"] as? String ?? "", .left, dim),
-                    Cell(row["name"] as? String ?? ""),
-                    Cell(isDefault ? "default" : "", .left, Style(fg: tty.palette.color(.ok, tty.mode)))]
-        }
-        for line in tty.rows(rows) { print("  " + line) }
-        print("")
         let count = listed.rows.count
-        print("  " + tty.dim("\(count) scheme\(count == 1 ? "" : "s") in \(shown(themes.app)); a Base16 .yaml there is one of them"))
+        var lines = tty.tableHead(title: "theme list", meta: "\(count) scheme\(count == 1 ? "" : "s")")
+        lines += tty.entries(listed.rows.map { row in
+            let isDefault = row["default"] as? Bool ?? false
+            return (tone: isDefault ? Tone.ok : Tone.note, name: row["id"] as? String ?? "",
+                    tag: "", version: row["variant"] as? String ?? "", mark: isDefault ? "default" : nil,
+                    text: row["name"] as? String ?? "")
+        })
+        lines.append("")
+        lines += tty.paragraph("in \(shown(themes.app)); a Base16 .yaml there is one of them")
+        lines.append(tty.footerHint([(cmd: "risk theme check", text: "every scheme's contrast"),
+                                     (cmd: "risk theme import <file.yaml>", text: "bring one in")]))
+        print(lines.joined(separator: "\n"))
         return 0
     }
 
@@ -136,7 +137,6 @@ enum ThemeCommand {
     private struct Checked {
         let id: String
         let variant: String
-        let line: String
         let ratios: [Ratio]
 
         var belowFloor: Bool { ratios.contains(where: \.below) }
@@ -153,16 +153,15 @@ enum ThemeCommand {
             switch args[index] {
             case "--json": json = true; index += 1
             case "--scheme":
-                guard index + 1 < args.count else { return usage("--scheme needs a scheme id") }
+                guard index + 1 < args.count else { return usage("theme check", "--scheme needs a scheme id") }
                 wanted = args[index + 1]; index += 2
-            default: return usage("unexpected \"\(args[index])\"")
+            default: return usage("theme check", "unexpected \"\(args[index])\"")
             }
         }
-        guard binary() != nil else { return fail(notBuilt) }
-        guard let output = ask(["--check-themes"]) else { return fail("riskell --check-themes printed nothing") }
-        let lines = output.split(whereSeparator: \.isNewline).map(String.init)
-        let header = lines.first { $0.contains("WCAG") } ?? ""
-        let checked = lines.compactMap { row(in: $0) }
+        guard binary() != nil else { return fail(notBuilt, tries: [(cmd: "swift build -c release", note: "builds .build/release/riskell")]) }
+        guard let output = ask(["--check-themes", "--rows"]) else { return fail("riskell --check-themes printed nothing") }
+        let rows = output.split(whereSeparator: \.isNewline).map(String.init)
+        let checked = rows.compactMap { row(in: $0) }
         guard !checked.isEmpty else { return fail("riskell --check-themes printed no scheme rows") }
 
         let picked = wanted.map { id in checked.filter { $0.id == id } } ?? checked
@@ -182,16 +181,22 @@ enum ThemeCommand {
         }
 
         let tty = Terminal.tty()
-        if !header.isEmpty { print(tty.dim(header)) }
-        for scheme in picked { print(scheme.line) }
-        print("")
+        let keyWidth = max(picked.map(\.id.count).max() ?? 0, "floors".count) + 1
+        var lines = [tty.header("theme check", detail: "WCAG ratio against the surface; * is below its floor")]
+        lines += picked.flatMap { scheme -> [String] in
+            let ratios = scheme.ratios.map { "\($0.token) \($0.value)\($0.below ? "*" : "")" }.joined(separator: ", ")
+            return tty.check(scheme.belowFloor ? .crit : .ok, scheme.id, "\(scheme.variant) · \(ratios)", keyWidth: keyWidth)
+        }
+        lines.append("")
         let schemes = "\(picked.count) scheme\(picked.count == 1 ? "" : "s")"
         let floors = picked.count == 1 ? "its floor" : "their floors"
         if below.isEmpty {
-            print(tty.mark(.ok, "\(schemes) above \(floors)"))
+            lines += tty.check(.ok, "floors", "\(schemes) above \(floors)", keyWidth: keyWidth)
         } else {
-            print(tty.mark(.fail, "\(below.count) of \(schemes) below \(floors): \(below.joined(separator: ", "))"))
+            lines += tty.check(.crit, "floors", "\(below.count) of \(schemes) below \(floors): \(below.joined(separator: ", "))", keyWidth: keyWidth)
         }
+        lines.append(tty.footerHint([(cmd: "risk theme list", text: "every scheme in the catalog")]))
+        print(lines.joined(separator: "\n"))
         return below.isEmpty ? 0 : 1
     }
 
@@ -207,7 +212,7 @@ enum ThemeCommand {
             guard Double(value) != nil else { return nil }
             ratios.append(Ratio(token: token, value: value, below: below))
         }
-        return Checked(id: fields[0], variant: fields[1], line: line, ratios: ratios)
+        return Checked(id: fields[0], variant: fields[1], ratios: ratios)
     }
 
     // MARK: - import
@@ -230,29 +235,36 @@ enum ThemeCommand {
             case "--force": force = true; index += 1
             case "--dry-run": dryRun = true; index += 1
             case "--id":
-                guard index + 1 < args.count else { return usage("--id needs a name") }
-                guard id == nil else { return usage("--id once") }
+                guard index + 1 < args.count else { return usage("theme import", "--id needs a name") }
+                guard id == nil else { return usage("theme import", "--id once") }
                 id = args[index + 1]; index += 2
             case let arg where arg.hasPrefix("-"):
-                return usage("no flag \"\(arg)\"")
+                return usage("theme import", "no flag \"\(arg)\"")
             default:
-                guard file == nil else { return usage("one scheme file at a time") }
+                guard file == nil else { return usage("theme import", "one scheme file at a time") }
                 file = args[index]; index += 1
             }
         }
-        guard let file else { return usage("import <file.yaml> [--id ID] [--force] [--dry-run] [--json]") }
+        guard let file else { return usage("theme import", "name the scheme file: import <file.yaml> [--id ID] [--force] [--dry-run]") }
 
         let source = absolute(file)
         guard let text = try? String(contentsOfFile: source, encoding: .utf8) else {
-            return fail("cannot read \(shown(source)). Fix: pass the file that has the scheme, a Base16 .yaml or .yml")
+            return fail("cannot read \(shown(source))",
+                        tries: [(cmd: "risk theme import <file.yaml>", note: "the file that holds the scheme, a Base16 .yaml or .yml")])
         }
         let name = id ?? ((source as NSString).lastPathComponent as NSString).deletingPathExtension
         guard matches(name, "^[A-Za-z0-9][A-Za-z0-9._-]*$") else {
-            return fail("\"\(name)\" cannot be a scheme id (it names the file). Fix: letters, digits, . - and _, and pass it with --id, e.g. --id my-scheme")
+            return fail("\"\(name)\" cannot be a scheme id, and it names the file",
+                        tries: [(cmd: "risk theme import <file> --id my-scheme", note: "letters, digits, . - and _")])
         }
         let (scheme, problems) = parse(text, id: name)
         guard let scheme, problems.isEmpty else {
-            for problem in problems { report(problem.0, fix: problem.1) }
+            let tty = Terminal.tty()
+            var lines = [tty.header("theme import", detail: "not written; \(shown(source))")]
+            lines += tty.checks(problems.enumerated().map { index, problem in
+                (Tone.crit, "problem \(index + 1)", problem.0, (cmd: problem.1, note: nil) as (cmd: String, note: String?)?)
+            })
+            for line in lines { FileHandle.standardError.write(Data((line + "\n").utf8)) }
             return 1
         }
 
@@ -261,13 +273,18 @@ enum ThemeCommand {
         var notes: [String] = []
         if let existing = [themes.folder + "/" + name + ".yaml", themes.folder + "/" + name + ".yml"]
             .first(where: { FileManager.default.fileExists(atPath: $0) }), !force {
-            return fail("\(shown(existing)) is already there and nothing was written. Fix: pass --force to replace it, or --id for another name")
+            return fail("\(shown(existing)) is already there, and nothing was written",
+                        tries: [(cmd: "risk theme import <file> --force", note: "replace it"),
+                                (cmd: "risk theme import <file> --id <name>", note: "keep it and add another")])
         }
         if let known = catalog()?.rows.first(where: { ($0["id"] as? String) == name }),      // nil when riskell is not built: nothing to check against
            !FileManager.default.fileExists(atPath: themes.folder + "/" + name + ".yaml"),
            !FileManager.default.fileExists(atPath: themes.folder + "/" + name + ".yml") {
-            let what = "riskell already has a scheme called \"\(name)\" (\(known["name"] as? String ?? name)) and a user file replaces it"
-            guard force else { return fail("\(what); so \(shown(target)) would be that scheme from now on, and nothing was written. Fix: pass --force, or --id for another name") }
+            guard force else {
+                return fail("\"\(name)\" is the scheme riskell ships as \"\(known["name"] as? String ?? name)\", and a user file would replace it from now on",
+                            tries: [(cmd: "risk theme import <file> --force", note: "replace the shipped scheme"),
+                                    (cmd: "risk theme import <file> --id <name>", note: "keep it and add another")])
+            }
             notes.append("this replaces the scheme riskell shipped as \"\(name)\"")
         }
         if dryRun {
@@ -275,7 +292,10 @@ enum ThemeCommand {
                 print(importJSON(name: name, target: target, scheme: scheme, themes: themes, app: nil, notes: notes, dryRun: true))
                 return 0
             }
-            FileHandle.standardError.write(Data("risk theme import: \(shown(target)) would be written; nothing is.\n".utf8))      // the bytes go to stdout
+            let tty = Terminal.tty()
+            let lines = tty.plan([(verb: "write", text: shown(target))],
+                                 note: "dry run, nothing written; the scheme's own bytes go to stdout")
+            FileHandle.standardError.write(Data((lines.joined(separator: "\n") + "\n").utf8))      // the bytes go to stdout
             FileHandle.standardOutput.write(Data(text.utf8))
             if !text.hasSuffix("\n") { print("") }
             return 0
@@ -292,7 +312,9 @@ enum ThemeCommand {
             let keys = ["bg", "tile", "text1", "text2", "text3", "text4", "accent", "ok", "warn", "crit", "info"]
             app = (keys.compactMap { key in (row[key] as? String).map { (key, $0) } }, checked(name)?.ratios ?? [])
         } else {
-            return fail("\(shown(target)) was written, but riskell does not list \"\(name)\": it could not read what was just written. Fix: risk theme check --scheme \(name), then look at the file")
+            return fail("riskell does not list \"\(name)\" after the write, so it could not read what was just written",
+                        tries: [(cmd: "risk theme check --scheme \(name)", note: "what the app resolved"),
+                                (cmd: "risk theme import <file> --force", note: "write it again")])
         }
 
         if json {
@@ -300,44 +322,29 @@ enum ThemeCommand {
             return 0
         }
         let tty = Terminal.tty()
-        print(tty.mark(.ok, "imported \(name)"))
-        var rows: [(String, String)] = [("file", shown(target)), ("scheme", "\(scheme.name), \(scheme.variant)")]
-        for (i, group) in batches(app?.tokens ?? []).enumerated() { rows.append((i == 0 ? "tokens" : "", group)) }
-        let ratios = batches((app?.ratios ?? []).map { ($0.token, $0.value + ($0.below ? "*" : "")) })
-        for (i, group) in ratios.enumerated() { rows.append((i == 0 ? "ratios" : "", group)) }
+        var rows: [(Tone, String, String, (cmd: String, note: String?)?)] = [
+            (.ok, "imported", "\(scheme.name), \(scheme.variant)", nil),
+            (.ok, "file", shown(target), nil),
+        ]
+        for (i, group) in batches(app?.tokens ?? []).enumerated() {
+            rows.append((.note, i == 0 ? "tokens" : "", group, nil))
+        }
+        for (i, group) in batches((app?.ratios ?? []).map { ($0.token, $0.value + ($0.below ? "*" : "")) }).enumerated() {
+            rows.append((.note, i == 0 ? "ratios" : "", group, nil))
+        }
         if let app, !app.ratios.isEmpty {
             let below = app.ratios.filter(\.below).map(\.token)
-            rows.append(("", below.isEmpty ? "every token above its floor (the app's WCAG check)"
-                                            : "\(below.count == 1 ? "below its floor" : "below their floors"): \(below.joined(separator: ", "))"))
+            rows.append(below.isEmpty
+                        ? (.ok, "floors", "every token above its floor, by the app's own WCAG check", nil)
+                        : (.warn, "floors", "\(below.count == 1 ? "below its floor" : "below their floors"): \(below.joined(separator: ", "))", nil))
         }
-        for note in notes { rows.append(("note", note)) }
-        for line in labelled(tty, rows) { print(line) }
+        for note in notes { rows.append((.note, "note", note, nil)) }
+        var lines = [tty.header("theme import", detail: name)]
+        lines += tty.checks(rows)
+        lines.append("")
+        lines.append(tty.footerHint([(cmd: "risk theme check --scheme \(name)", text: "its ratios, read from the app")]))
+        print(lines.joined(separator: "\n"))
         return 0
-    }
-
-    /// A label and its value, the label dim, the value wrapped under itself. `Tty.rows` cuts a value that does not fit, and a cut path is a
-    /// path nobody can copy; a word longer than the line (a path) is left whole and the terminal wraps it.
-    private static func labelled(_ tty: Tty, _ pairs: [(String, String)]) -> [String] {
-        let width = pairs.map(\.0.count).max() ?? 0
-        let start = 2 + width + 2
-        return pairs.flatMap { pair -> [String] in
-            let pieces = wrap(pair.1, max(8, tty.width - start - 2))
-            let pad = String(repeating: " ", count: width - pair.0.count)
-            return ["  " + tty.dim(pair.0 + pad) + "  " + pieces[0]]
-                + pieces.dropFirst().map { String(repeating: " ", count: start) + $0 }
-        }
-    }
-
-    /// Breaks `text` on spaces into lines no wider than `room`, so a long note keeps its label column and a long path is not cut short.
-    private static func wrap(_ text: String, _ room: Int) -> [String] {
-        var lines: [String] = [], line = ""
-        for word in text.split(separator: " ").map(String.init) {
-            if line.isEmpty { line = word }
-            else if line.count + 1 + word.count <= room { line += " " + word }
-            else { lines.append(line); line = word }
-        }
-        if !line.isEmpty { lines.append(line) }
-        return lines.isEmpty ? [""] : lines
     }
 
     /// The four slots to a line: a whole palette on one line is wider than a terminal, and a cut token is not a token.
@@ -349,7 +356,7 @@ enum ThemeCommand {
 
     /// The app's ratios for one scheme, from the same rows `check` reads.
     private static func checked(_ id: String) -> Checked? {
-        guard let output = ask(["--check-themes"]) else { return nil }
+        guard let output = ask(["--check-themes", "--rows"]) else { return nil }
         return output.split(whereSeparator: \.isNewline).compactMap { row(in: String($0)) }.first { $0.id == id }
     }
 
@@ -451,21 +458,13 @@ enum ThemeCommand {
 
     // MARK: - messages
 
-    private static func usage(_ problem: String) -> Int32 {
-        let message = "risk theme: \(problem)\nusage: risk theme list [--json]\n" +
-                      "       risk theme check [--scheme ID] [--json]\n" +
-                      "       risk theme import <file.yaml> [--id ID] [--force] [--dry-run] [--json]\n"
-        FileHandle.standardError.write(Data(message.utf8))
-        return 2
+    private static func usage(_ command: String, _ problem: String) -> Int32 {
+        Usage.error(command, problem)
     }
 
-    /// One thing that is wrong with the scheme, and what to do about it.
-    private static func report(_ message: String, fix: String) {
-        FileHandle.standardError.write(Data(("risk theme import: \(message). Fix: \(fix).\n").utf8))
-    }
-
-    private static func fail(_ message: String) -> Int32 {
-        FileHandle.standardError.write(Data(("risk theme: " + message + "\n").utf8))
+    private static func fail(_ message: String,
+                             tries: [(cmd: String, note: String)] = [("risk theme list", "every scheme in the catalog")]) -> Int32 {
+        Usage.failure(message, tries: tries)
         return 1
     }
 }

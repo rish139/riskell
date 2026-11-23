@@ -1,0 +1,7 @@
+  ▐▌ riskell  uninstall                                          dry run
+
+  has   stop   the agent
+  has   remove the login agent at
+               ~/Library/LaunchAgents/com.rish.riskell.plist
+
+  dry run, nothing changed

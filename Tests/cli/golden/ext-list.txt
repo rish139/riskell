@@ -1,0 +1,12 @@
+  ▐▌ riskell  extensions                                     4 installed
+  ──────────────────────────────────────────────────────────────────────
+  ●  alpha   atom     1.2.0
+     the first extension: a gauge and a hover card
+  ●  beta    reading  0.4.0
+     a figure from a command, with a hover card
+  ●  gauges  pill     2.0.0
+     two numbers from a command
+  ●  nord    theme    0.3.0
+     a quiet blue-grey scheme, in use
+
+  risk ext add <name> to install one   ·   risk ext search what the registry lists

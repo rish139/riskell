@@ -149,13 +149,12 @@ enum Snap {
         // A picture a script draws is not something this command can make: say which one, and which snapshots it is made from.
         let composed = picked.filter { $0.by == .script }
         if !composed.isEmpty {
-            for maker in composed {
-                let from = maker.feeds.isEmpty
-                    ? "scripts/make-screenshots draws it from text alone, so there is no snapshot to take"
-                    : "scripts/make-screenshots composes it from \(maker.feeds.map { "risk snap \($0)" }.joined(separator: ", "))"
-                FileHandle.standardError.write(Data("risk snap: \(maker.id): \(from)\n".utf8))
+            var tries = composed.filter { !$0.feeds.isEmpty }.flatMap { maker in
+                maker.feeds.map { (cmd: "risk snap \($0)", note: "a snapshot for \(maker.id)") }
             }
-            return 1
+            if tries.isEmpty { tries = [("risk snap --list", "which maker this command draws")] }
+            return fail("\(composed.map(\.id).joined(separator: ", ")) \(composed.count == 1 ? "is a picture" : "are pictures") scripts/make-screenshots draws",
+                        tries: tries)
         }
 
         var schemes = [theme]
@@ -205,29 +204,28 @@ enum Snap {
             return findings.isEmpty ? 0 : 1
         }
 
-        let tty = Terminal.tty(), pad = makers.map(\.id.count).max() ?? 0
-        func line(_ id: String, _ text: String) -> String { "  " + tty.bold(id.padding(toLength: pad, withPad: " ", startingAt: 0)) + "  " + text }
-        var lines = [tty.heading("snap") + tty.dim("  \(makers.count) pictures; \(makers.filter { $0.by == .snap }.count) drawn here")]
+        let tty = Terminal.tty()
+        let here = makers.filter { $0.by == .snap }
+        var lines = [tty.header("snap", detail: "\(makers.count) pictures, \(here.count) drawn by this command")]
         lines.append("")
-        lines.append("  " + tty.dim("risk snap <maker> --out DIR: one scratch instance per maker, killed however the command ends"))
-        for maker in makers where maker.by == .snap {
-            lines.append(line(maker.id, maker.summary))
-            let from = makers.filter { $0.feeds.contains(maker.id) }.map(\.id)
-            let target = maker.files.joined(separator: " ")
-            lines.append("      " + tty.dim(target + (from.isEmpty ? "" : "  → " + from.joined(separator: ", "))))
-        }
-        lines.append("")
-        lines.append("  " + tty.dim("scripts/make-screenshots composes these from the files above (Pillow: grids, captions, the hero screen, the gif)"))
-        for maker in makers where maker.by == .script {
-            lines.append(line(maker.id, maker.summary))
-            let from = maker.feeds.isEmpty ? "no snapshot: drawn from text" : maker.feeds.map { "risk snap \($0)" }.joined(separator: ", ")
-            lines.append("      " + tty.dim(maker.files.joined(separator: " ") + "  ← " + from))
-        }
+        lines += tty.commandList([
+            (title: "drawn here", rows: here.map { maker in
+                let used = makers.filter { $0.feeds.contains(maker.id) }.map(\.id)
+                let text = maker.summary + " · " + maker.files.joined(separator: " ")
+                    + (used.isEmpty ? "" : " · used by " + used.joined(separator: ", "))
+                return (name: maker.id, text: text)
+            }),
+            (title: "scripts/make-screenshots", rows: makers.filter { $0.by == .script }.map { maker in
+                let from = maker.feeds.isEmpty ? "drawn from text" : "from " + maker.feeds.map { "risk snap \($0)" }.joined(separator: ", ")
+                return (name: maker.id, text: maker.summary + " · " + maker.files.joined(separator: " ") + " · " + from)
+            }),
+        ])
         for finding in findings {
             lines.append("")
-            lines.append("  " + tty.tone("✗ ", .crit) + finding)      // not `mark`: a finding is longer than the terminal and must not be cut
+            lines += tty.check(.crit, "drift", finding, keyWidth: 6)
         }
         lines.append("")
+        lines.append(tty.footerHint([(cmd: "risk snap <maker> --out DIR", text: "draw it into DIR")]))
         print(lines.joined(separator: "\n"))
         return findings.isEmpty ? 0 : 1
     }
@@ -274,8 +272,14 @@ enum Snap {
         }
         defer { stopEverything() }
 
+        let labels = picked.flatMap { maker in schemes.map { maker.id + (schemes.count > 1 ? " " + $0 : "") } }
+        let labelWidth = (labels.map(\.count).max() ?? 0) + 1
+        if !json && !dryRun {
+            say(tty.header("snap", detail: "\(labels.count) scratch instance\(labels.count == 1 ? "" : "s")"))
+        }
         var manifest: [(String, [String])] = []
         var runs: [String] = []
+        var planned: [(verb: String, text: String)] = []
         for maker in picked {
             for scheme in schemes {
                 let label = maker.id + (schemes.count > 1 ? " \(scheme)" : "")
@@ -290,11 +294,7 @@ enum Snap {
 
                 if dryRun {
                     runs.append(run(maker: maker, theme: scheme, command: command, files: targets))
-                    if !json {
-                        print(tty.bold(label))
-                        print("  " + command)
-                        print("  " + tty.dim("writes " + targets.joined(separator: " ")))
-                    }
+                    planned.append((verb: "write", text: "\(label): \(targets.joined(separator: " "))"))
                     continue
                 }
                 if maker.id == "card", !put(layout(atom: card), scratch + "/card-layout.json") { return fail("could not write the card's layout") }
@@ -317,6 +317,7 @@ enum Snap {
                 }
                 manifest.append((label, targets))
                 runs.append(run(maker: maker, theme: scheme, command: command, files: targets))
+                if !json { say(tty.check(.ok, label, "\(targets.count) file\(targets.count == 1 ? "" : "s")", keyWidth: labelWidth).joined(separator: "\n")) }
             }
         }
         if json {
@@ -324,14 +325,19 @@ enum Snap {
                   + runs.joined(separator: ",\n  ") + "\n]}")
             return 0
         }
-        if dryRun { return 0 }      // nothing was written, and nothing says it was
-        let pad = manifest.map(\.0.count).max() ?? 0
-        for (label, files) in manifest {
-            print(tty.bold(label.padding(toLength: pad, withPad: " ", startingAt: 0)) + "  " + files.joined(separator: " "))
+        if dryRun {
+            var lines = [tty.header("snap", detail: "dry run, \(runs.count) scratch instance\(runs.count == 1 ? "" : "s")")]
+            lines.append("")
+            lines += tty.plan(planned, note: "dry run, nothing written; take out --dry-run to draw them into \(out ?? "the current directory")")
+            print(lines.joined(separator: "\n"))
+            return 0
         }
         let count = manifest.reduce(0) { $0 + $1.1.count }
-        print("")
-        print(tty.dim("\(count) file\(count == 1 ? "" : "s") in \(out ?? "the current directory")"))
+        var lines = [""]
+        lines += tty.checks(manifest.map { (Tone.ok, $0.0, $0.1.joined(separator: " "), nil) })
+        lines += tty.paragraph("\(count) file\(count == 1 ? "" : "s") in \(out ?? "the current directory")")
+        lines.append(tty.footerHint([(cmd: "risk snap --list", text: "every picture of the set")]))
+        print(lines.joined(separator: "\n"))
         return 0
     }
 
@@ -584,18 +590,19 @@ enum Snap {
 
     // MARK: - output
 
-    private static func usage(_ problem: String) -> Int32 {
-        FileHandle.standardError.write(Data("""
-            risk snap: \(problem)
-            usage: risk snap --list [--json]
-                   risk snap <maker> [<maker>…] | all --out DIR [--theme ID|all] [--scale N] [--display WxH] [--card ATOM] [--dry-run] [--json]
-
-            """.utf8))
-        return 2
+    /// A line printed while the instances run, flushed at once: a pipe holds its buffer until the process exits, and the point of the line
+    /// is that someone can see where a minute of drawing has got to.
+    private static func say(_ line: String) {
+        print(line)
+        fflush(stdout)
     }
 
-    private static func fail(_ message: String) -> Int32 {
-        FileHandle.standardError.write(Data(("risk snap: " + message + "\n").utf8))
+    private static func usage(_ problem: String) -> Int32 {
+        Usage.error("snap", problem)
+    }
+
+    private static func fail(_ message: String, tries: [(cmd: String, note: String)] = [("risk snap --list", "every picture of the set")]) -> Int32 {
+        Usage.failure(message, tries: tries)
         return 1
     }
 }

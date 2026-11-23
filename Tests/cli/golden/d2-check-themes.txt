@@ -1,0 +1,28 @@
+  ▐▌ riskell  check-themes
+
+  A ratio is that tone's WCAG contrast against the scheme's surface; one
+  followed by * is below its floor.
+
+  ✓  gruvbox-dark-medium        dark · t1 10.75 t2 8.59 t3 6.77 t4 4.02
+                                acc 8.69 ok 7.14 warn 5.84 crit 4.29
+  ✓  catppuccin-mocha           dark · t1 12.95 t2 11.34 t3 4.73 t4 3.32
+                                acc 12.91 ok 11.03 warn 9.27 crit 7.08
+  ✓  rose-pine                  dark · t1 13.39 t2 13.39 t3 5.48 t4 3.23
+                                acc 10.45 ok 3.38 warn 10.77 crit 6.07
+  ✓  nord                       dark · t1 10.84 t2 10.26 t3 9.25 t4 3.40
+                                acc 8.00 ok 6.13 warn 4.39 crit 3.05
+  ✓  tokyo-night-dark           dark · t1 10.66 t2 8.10 t3 4.81 t4 3.35
+                                acc 7.27 ok 9.35 warn 8.10 crit 10.59
+  ✓  kanagawa                   dark · t1 8.89 t2 11.26 t3 4.58 t4 3.23
+                                acc 6.78 ok 4.84 warn 8.15 crit 3.22
+  ✓  everforest-dark-medium     dark · t1 8.14 t2 5.35 t3 5.33 t4 3.32
+                                acc 6.84 ok 6.23 warn 5.41 crit 4.55
+  ✓  dracula                    dark · t1 13.36 t2 13.36 t3 6.02 t4 3.37
+                                acc 12.74 ok 10.38 warn 8.36 crit 4.53
+  ✓  github-dark-high-contrast  dark · t1 17.39 t2 13.07 t3 6.50 t4 3.33
+                                acc 10.38 ok 9.85 warn 10.96 crit 8.92
+  ✓  gruvbox-light-medium       light · t1 12.99 t2 10.22 t3 7.78 t4
+                                3.20 acc 3.33 ok 4.29 warn 5.40 crit
+                                7.60
+  ✓  catppuccin-latte           light · t1 7.74 t2 5.10 t3 7.06 t4 3.32
+                                acc 3.21 ok 3.19 warn 3.08 crit 4.80

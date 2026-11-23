@@ -1,0 +1,4 @@
+  ✗  unknown flag "--nope"
+     risk gallery [--ascii] [--plain] [--width N]
+
+     try   risk help gallery    the full page

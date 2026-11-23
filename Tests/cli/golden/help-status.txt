@@ -1,9 +1,10 @@
-  risk status [--json] [--check]
+  ▐▌ riskell  help status
+
+  status [--json] [--check] [--all]
 
   check health and name the first failing check
 
-    aliases   risk doctor
-    tier      stable
+    aliases   doctor
     example   risk status --json
     replaces  riskell-setup --check
               riskell --dump

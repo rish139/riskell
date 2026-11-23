@@ -39,19 +39,46 @@ What is deliberately **not** contracted, having looked at it once:
 - **Incident values.** `generatedAt`, `running.pid`, `running.version`, `files.log.modifiedAt`, `log`'s `path`: true of one run on one
   Mac. They may be printed, not parsed.
 
+## The front door
+
+`Tests/cli/contract.sh` also checks that the wrapper at `scripts/risk` reaches every command it documents. Each read-only form
+(`config path`, `version`, `theme list --json`, `gestures fix --dry-run`, `setup --dry-run`, `bench --list`, `snap --list`, `gallery --plain`)
+must print the command's own output and exit 0, never the wrapper's `# riskell control` header. An unknown command must exit 2 with a message on
+stderr. There is no `self-test --list`, and running a self-test is not read-only, so that line is skipped with the reason. The checks use a
+scratch home, and the dry runs write nothing.
+
+## The error shape
+
+A wrong flag or a failed command prints the kit's error block on stderr: what went wrong, the usage line, then the commands to try.
+`riskell-setup`, the app's check flags and `scripts/risk` all print that shape; the wrapper reaches it through `riskell-ext error`, and falls
+back to one plain line when the tool is not built (it never builds it just to print an error). No error starts with `usage:` or a bare
+`risk:` / `riskell-setup:` prefix.
+
 ## What is only a screen
 
-`Tests/cli/golden/` holds three screens as plain text, and the same script compares each with what the command prints now:
+`Tests/cli/golden/` holds the screens as plain text, and the same script compares each with what the command prints now:
 
 ```
-COLUMNS=80 riskell-ext help           → Tests/cli/golden/help.txt
-COLUMNS=80 riskell-ext help status    → Tests/cli/golden/help-status.txt
-COLUMNS=80 riskell-ext snap --list    → Tests/cli/golden/snap-list.txt
+COLUMNS=80 riskell-ext help                    → Tests/cli/golden/help.txt
+COLUMNS=80 riskell-ext help status             → Tests/cli/golden/help-status.txt
+COLUMNS=80 riskell-ext snap --list             → Tests/cli/golden/snap-list.txt
+COLUMNS=80 riskell-ext gallery --plain         → Tests/cli/golden/gallery-plain.txt
+COLUMNS=80 riskell-ext gallery --ascii --plain → Tests/cli/golden/gallery-ascii.txt
+COLUMNS=80 riskell-ext gallery --color         → Tests/cli/golden/gallery-color.txt
 ```
+
+The developer commands' screens are the `dev-` recordings: `bench --list`, `snap --list`, `theme list` and `theme check` (which reads the
+built app, so it is skipped when `.build/release/riskell` is not there), and one wrong flag each for `bench`, `snap`, `theme` and
+`gallery`, which is the kit's error block on stderr with exit 2. A wrong flag writes nothing to stdout, and the recording is of stderr.
+Six more records start with `d2`: `riskell-setup --help`, one wrong flag of it, `riskell-ext error` (the wrapper's failure shape),
+`riskell --key-test`, `riskell --check-themes`, and `riskell --check-fit` with no layout to check.
 
 `COLUMNS` is fixed so the wrapping is the recording's and not this terminal's, and the home is a scratch one so the line about the agent
 says the same thing on a Mac that runs riskell and on a runner that does not. A difference is a decision, not a bug report: read the
 diff, and if the new text is the right text, record it.
+
+The gallery's three are the kit's screens drawn from fixed data (`risk gallery --plain`, `--ascii --plain`, `--color`): the tokens are the
+command's own and a UTF-8 locale is named in the golden's call, so nothing in them depends on the clock, the theme or the machine.
 
 ```
 Tests/cli/contract.sh --update
@@ -59,6 +86,19 @@ git diff Tests/cli/golden        # read this before committing: it is the screen
 ```
 
 Nothing rewrites a recording on its own, and a fixture that is missing is a failure with the `--update` to run, not a silent pass.
+
+## The versions, and the theme
+
+Two things have no schema and no recording, so they are checked against their sources instead.
+
+`risk version --json` prints one object — `riskell`, `kit`, `lock` — and the check compares it with `VERSION`, the `riskell-kit` pin in
+`Package.resolved` and the entries in `extensions.lock.json`. Both forms are read from the same three files, so a release bump moves the
+command and the check together; the plain form stays the one line `riskell 0.2.1`.
+
+The theme a command draws in is the built `riskell`'s answer (`Tty.themed()`, `Sources/RiskellTTY/Kit-theme.swift`). A scratch checkout
+with a stub in `.build/release/riskell` shows both directions through `script(1)`, which is the only way a shell command gets a tty: the
+stub's tokens reach the screen, and with no stub at all the screen is plain text rather than a guessed palette. `RISKELL_ROOT` picks the
+checkout the binary is looked for in; a pipe is plain either way, which is why a tty is needed for the check.
 
 ## When a command gains a schema
 

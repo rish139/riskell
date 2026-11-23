@@ -3,8 +3,9 @@
 
 import Foundation
 
-/// `risk completions <shell>`: the table as a completion script. Commands, aliases and the subcommands of every group are completed with
-/// their one-liners, so pressing tab says what a name does. bash cannot show descriptions; there they are a comment block above the function.
+/// `risk completions <shell>`: the user CLI as a completion script. Commands, aliases and the subcommands of every group are completed with
+/// their one-liners, so pressing tab says what a name does. A developer command is not completed: it still runs, and `risk help <name>`
+/// prints it. bash cannot show descriptions; there they are a comment block above the function.
 enum Completions {
     /// The script for a shell name, or nil for a shell the table does not know.
     static func script(_ shell: String) -> String? {
@@ -24,24 +25,34 @@ enum Completions {
         "'" + text.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
+    /// The rows completions offer: the user CLI. Everything below reads this, so a developer command cannot slip in.
+    private static var rows: [Command] { commandTable.filter { $0.tier == .stable } }
+
+    /// The subcommands of a row that completions offer: a pass-through's declared children, or a group's own rows of the user CLI
+    /// (`gestures fix`, not `gestures status`).
+    private static func children(of name: String) -> [Child] {
+        if let row = command(named: name), !row.children.isEmpty { return row.tier == .stable ? row.children : [] }
+        return subcommands(of: name).filter { child in rows.contains { $0.display == "\(name) \(child.name)" } }
+    }
+
     /// Every name a user can type at the top level: one entry per command, then its aliases. A group's description names its subcommands.
     private static var names: [(name: String, summary: String)] {
         var out: [(name: String, summary: String)] = []
         var seen = Set<String>()
-        for row in commandTable where seen.insert(row.name).inserted {
-            let children = subcommands(of: row.name)
+        for row in rows where seen.insert(row.name).inserted {
+            let children = children(of: row.name)
             out.append((row.name, row.children.isEmpty && !children.isEmpty ? children.map(\.name).joined(separator: ", ") : row.summary))
         }
-        out += commandTable.flatMap { row in row.aliases.map { ($0, "another name for \(row.display)") } }
+        out += rows.flatMap { row in row.aliases.map { ($0, "another name for \(row.display)") } }
         return out
     }
 
-    /// The groups that have subcommands: `wm`, `gestures`, `config`, `theme`, and `ext` with its declared children.
+    /// The groups that have subcommands: `gestures`, `config`, `ext` with its declared children, and any other group of the user CLI.
     private static var groups: [(name: String, children: [Child])] {
         var seen = Set<String>()
         var out: [(name: String, children: [Child])] = []
-        for row in commandTable where seen.insert(row.name).inserted {
-            let children = subcommands(of: row.name)
+        for row in rows where seen.insert(row.name).inserted {
+            let children = children(of: row.name)
             if !children.isEmpty { out.append((row.name, children)) }
         }
         return out

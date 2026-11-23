@@ -1,0 +1,2 @@
+  ✓  load-ext  added · v1.0.0 · load-ext
+  next  risk dev  a compiled extension changed the build

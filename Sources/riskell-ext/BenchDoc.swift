@@ -24,7 +24,7 @@ enum BenchDoc {
     /// `--json` prints the document and writes nothing, so a script can compare it with the committed file first; the flagless form writes it
     /// and says in one line what it wrote.
     static func run(_ args: [String]) -> Int32 {
-        if let other = args.first(where: { $0 != "--json" }) { return usage("emit-doc takes only --json, not \"\(other)\"") }
+        if let other = args.first(where: { $0 != "--json" }) { return usage("takes only --json, not \"\(other)\"") }
         if args.contains("--json") {
             print(document(), terminator: "")
             return 0
@@ -34,7 +34,15 @@ enum BenchDoc {
         catch { return fail("could not write \(path): \(error)") }
         let published = Bench.measures.filter { $0.published != nil }.count
         let tty = Terminal.tty()
-        print(tty.heading("emit-doc") + tty.dim("  wrote \(path): \(Bench.measures.count) measures, \(published) with a published figure, schema \(schema)"))
+        var lines = [tty.header("bench emit-doc", detail: path)]
+        lines += tty.checks([
+            (Tone.ok, "wrote", path, nil),
+            (Tone.note, "measures", "\(Bench.measures.count), \(published) with a published figure", nil),
+            (Tone.note, "schema", "\(schema), mirroring \(source)", nil),
+        ])
+        lines.append("")
+        lines.append(tty.footerHint([(cmd: "risk bench --list", text: "the table as a terminal prints it")]))
+        print(lines.joined(separator: "\n"))
         return 0
     }
 
@@ -86,13 +94,11 @@ enum BenchDoc {
     }
 
     private static func usage(_ problem: String) -> Int32 {
-        FileHandle.standardError.write(Data("risk bench emit-doc: \(problem)\n".utf8))
-        FileHandle.standardError.write(Data("usage: risk bench emit-doc [--json]\n\n".utf8))
-        return 2
+        Usage.error("bench", "emit-doc " + problem)
     }
 
     private static func fail(_ problem: String) -> Int32 {
-        FileHandle.standardError.write(Data("risk bench emit-doc: \(problem)\n".utf8))
+        Usage.failure(problem, tries: [(cmd: "risk bench --list", note: "what the document mirrors")])
         return 1
     }
 }

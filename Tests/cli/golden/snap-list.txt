@@ -1,34 +1,37 @@
-snap  14 pictures; 5 drawn here
+  ▐▌ riskell  snap                  14 pictures, 5 drawn by this command
 
-  risk snap <maker> --out DIR: one scratch instance per maker, killed however the command ends
-  bars          the four bars at rest, one picture each
-      left.png right.png top.png bottom.png  → hero, themes, pills, scale
-  card          one atom's hover card, and the bars lit around it
-      pop-<atom>-1.png top-lit.png left-lit.png bottom-lit.png  → cards, pills
-  edit          the top and bottom bars in the layout editor
-      edit-top.png edit-bottom.png  → editor
-  settings      riskell preferences, as the panel draws it
-      settings.png  → editor
-  overview      the workspace overview, over a made-up desktop
-      overview.png
+  DRAWN HERE
+    bars          the four bars at rest, one picture each · left.png
+                  right.png top.png bottom.png · used by hero, themes,
+                  pills, scale
+    card          one atom's hover card, and the bars lit around it ·
+                  pop-<atom>-1.png top-lit.png left-lit.png
+                  bottom-lit.png · used by cards, pills
+    edit          the top and bottom bars in the layout editor ·
+                  edit-top.png edit-bottom.png · used by editor
+    settings      riskell preferences, as the panel draws it ·
+                  settings.png · used by editor
+    overview      the workspace overview, over a made-up desktop ·
+                  overview.png
 
-  scripts/make-screenshots composes these from the files above (Pillow: grids, captions, the hero screen, the gif)
-  hero          the whole screen: the bars over a made-up desktop
-      hero.png  ← risk snap bars
-  cards         every built-in hover card on one sheet
-      cards.png  ← risk snap card
-  themes        every scheme, as a grid and a gif
-      themes.png themes.gif  ← risk snap bars
-  editor        the preferences panel above the editing bars
-      editor.png  ← risk snap settings, risk snap edit
-  pills         script pills at rest, and their cards
-      pills.png  ← risk snap bars, risk snap card
-  scale         the bars at three display sizes
-      scale.png  ← risk snap bars
-  extension     a compiled extension's atom, card and strip
-      extension.png  ← no snapshot: drawn from text
-  installer     the installer's two screens, from their text
-      installer.png  ← no snapshot: drawn from text
-  architecture  the layers, drawn from text
-      architecture.png  ← no snapshot: drawn from text
+  SCRIPTS/MAKE-SCREENSHOTS
+    hero          the whole screen: the bars over a made-up desktop ·
+                  hero.png · from risk snap bars
+    cards         every built-in hover card on one sheet · cards.png ·
+                  from risk snap card
+    themes        every scheme, as a grid and a gif · themes.png
+                  themes.gif · from risk snap bars
+    editor        the preferences panel above the editing bars ·
+                  editor.png · from risk snap settings, risk snap edit
+    pills         script pills at rest, and their cards · pills.png ·
+                  from risk snap bars, risk snap card
+    scale         the bars at three display sizes · scale.png · from
+                  risk snap bars
+    extension     a compiled extension's atom, card and strip ·
+                  extension.png · drawn from text
+    installer     the installer's two screens, from their text ·
+                  installer.png · drawn from text
+    architecture  the layers, drawn from text · architecture.png · drawn
+                  from text
 
+  risk snap <maker> --out DIR draw it into DIR

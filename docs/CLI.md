@@ -14,7 +14,7 @@ Everything below comes from the same table `risk help` and `risk completions` re
 - Every writer takes `--dry-run`, and `--yes` where it destroys something.
 - Exit codes: `0` success, `1` findings or a failed check, `2` bad usage, `10` a rebuild is needed (`risk ext` hands its rebuild to `risk dev`).
 - Nothing self-updates: `brew upgrade`, then `risk install`.
-- An `experimental` command may change or go; a `stable` one is removed only with a note in [CHANGELOG.md](../CHANGELOG.md).
+- A `stable` command is removed only with a note in [CHANGELOG.md](../CHANGELOG.md).
 
 ## stable
 
@@ -25,14 +25,7 @@ build, then start riskell now and at login
 - example: `risk install`
 - replaces: `scripts/risk install`
 
-### `risk uninstall [--all] [--keep-config] [--dry-run] [--yes]`
-
-stop riskell and remove its login agent
-
-- example: `risk uninstall --dry-run`
-- replaces: `riskell-setup --uninstall`, `riskell-setup --remove-config`
-
-### `risk dev [--no-launch]`
+### `risk dev [--no-launch] [--dry-run]`
 
 rebuild and restart the running agent
 
@@ -40,7 +33,21 @@ rebuild and restart the running agent
 - example: `risk dev`
 - replaces: `risk ext (exit 10)`
 
-### `risk status [--json] [--check]`
+### `risk setup [--yes] [--dry-run]`
+
+run the guided installer; flags answer its questions
+
+- example: `risk setup --dry-run`
+- replaces: `riskell-setup`, `riskell-install`
+
+### `risk uninstall [--dry-run] [--yes]`
+
+stop riskell and remove its login agent
+
+- example: `risk uninstall --dry-run`
+- replaces: `riskell-setup --uninstall`, `riskell-setup --remove-config`
+
+### `risk status [--json] [--check] [--all]`
 
 check health and name the first failing check
 
@@ -55,20 +62,6 @@ print the last few log lines, or follow them
 - example: `risk log 50 --json`
 - replaces: `tail ~/.cache/riskell/riskell.log`
 
-### `risk ctl <word|--list> [--json] [--dry-run] [--yes]`
-
-send one word to the running bar, or list them
-
-- example: `risk ctl overview --dry-run`
-- replaces: `printf overview | nc -U ~/.cache/riskell/ev.sock`
-
-### `risk setup [--yes] [--dry-run]`
-
-run the guided installer; flags answer its questions
-
-- example: `risk setup --dry-run`
-- replaces: `riskell-setup`, `riskell-install`
-
 ### `risk config <subcommand>`
 
 read and change riskell's settings without editing JSON
@@ -82,33 +75,12 @@ read and change riskell's settings without editing JSON
   - `set`: change one setting and leave the rest as it was
   - `edit`: open the file in $EDITOR and check what was saved
 
-### `risk theme list [--json]`
+### `risk ctl <word|--list> [--json] [--dry-run] [--yes]`
 
-list every scheme with its resolved tokens
+send one word to the running bar, or list them
 
-- example: `risk theme list --json`
-- replaces: `riskell --list-themes`
-
-### `risk theme check [--scheme ID] [--json]`
-
-check each scheme's contrast against its floors
-
-- example: `risk theme check --scheme nord`
-- replaces: `riskell --check-themes`
-
-### `risk theme import <file> [--id ID] [--force] [--dry-run] [--json]`
-
-bring a Base16 scheme in from another shell
-
-- example: `risk theme import base16-nord.yaml --id nord`
-- replaces: `cp <scheme>.yaml ~/.config/riskell/themes/`
-
-### `risk gestures status [--json]`
-
-show which trackpad and dock keys fight riskell
-
-- example: `risk gestures status`
-- replaces: `riskell --gestures-fix (dry run)`
+- example: `risk ctl overview --dry-run`
+- replaces: `printf overview | nc -U ~/.cache/riskell/ev.sock`
 
 ### `risk gestures fix [--restart-dock] [--dry-run] [--yes]`
 
@@ -123,24 +95,6 @@ put the saved key values back
 
 - example: `risk gestures restore`
 - replaces: `riskell --gestures-restore`, `riskell-setup --restore-gestures`
-
-### `risk wm status [--json]`
-
-show which window manager is driving the rail
-
-- example: `risk wm status --json`
-
-### `risk wm export [--json]`
-
-save each window's workspace number
-
-- example: `risk wm export`
-
-### `risk wm import [--dry-run]`
-
-put each saved window back on its number
-
-- example: `risk wm import --dry-run`
 
 ### `risk ext <subcommand>`
 
@@ -166,56 +120,10 @@ print the shell completions for this table
 
 - example: `risk completions zsh`
 
-### `risk version [--json]`
-
-print riskell, kit and lockfile versions
-
-- example: `risk version --json`
-- replaces: `riskell --version`, `riskell-setup --version`
-
 ### `risk help [command]`
 
 print this table, or one command in detail
 
 - example: `risk help gestures`
 - replaces: `the header of scripts/risk`
-
-## experimental
-
-### `risk fit [--scale N] [--panels] [--json]`
-
-run pass/fail checks on each fake display
-
-- example: `risk fit --panels`
-- replaces: `riskell --check-fit`, `riskell --check-panel`
-
-### `risk snap <maker>…|all|--list [--out DIR] [--theme ID|all] [--scale N] [--display WxH] [--card ATOM] [--json] [--dry-run]`
-
-render the picture set from scratch instances
-
-- example: `risk snap card clock --out /tmp/p`
-- replaces: `riskell --snap`, `riskell --pop`, `riskell --settings --snap`, `scripts/overview-check`
-
-### `risk wm start`
-
-start omniwm and put each window on its number
-
-- example: `risk wm start`
-- replaces: `risk wm omniwm`
-
-### `risk bench [idle|card <atom>|all] [--runs N] [--list] [--json]`
-
-re-measure the efficiency table on this machine
-
-- example: `risk bench idle --runs 3`
-- replaces: `scripts/idle-cpu`, `scripts/resource-check`
-- subcommands:
-  - `emit-doc [--json]`: write the table as data: docs/efficiency.json
-
-### `risk self-test [name] [--json]`
-
-run the ci checks: installer, extensions, weather, usage
-
-- example: `risk self-test installer`
-- replaces: `riskell-setup --self-test`, `riskell --ext-selftest`, `riskell --weather-selftest`, `riskell --usage-selftest`, `riskell --key-test`, `riskell --lock-test`
 

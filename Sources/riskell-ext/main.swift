@@ -2,8 +2,10 @@
 // Copyright 2026 Rishabh Tiwari
 
 import Foundation
+import RiskellTTY
 
-// risk ext (this tool, built as riskell-ext): validate, scaffold and install riskell extensions (docs/EXTENSION-KIT.md). Foundation only.
+// risk ext (this tool, built as riskell-ext): validate, scaffold and install riskell extensions (docs/EXTENSION-KIT.md). The screens are
+// the kit's (Sources/RiskellTTY); the manifest, source and lock checks are Foundation only.
 //   risk ext validate <dir>            check riskell.json and, for compiled kinds, the source against the kit's rules
 //   risk ext new <kind> <name>         scaffold: reading | atom | pill | theme
 //   risk ext search <words>            what the registry lists (RISKELL_REGISTRY points at another one)
@@ -25,15 +27,19 @@ import Foundation
 //   snap <maker>…|all --out DIR        the picture set from scratch instances (Snap.swift), or --list: what it is
 //   bench [idle|card <atom>|all] [--runs N] [--json]   the numbers docs/EFFICIENCY.md publishes, measured again (Bench.swift), or --list
 //   bench emit-doc [--json]            those numbers as data: docs/efficiency.json, generated so a change shows up as a diff (BenchDoc.swift)
+//   gallery [--ascii] [--plain] [--width N]   every screen the kit draws, from fixed data, so the look can be read and diffed (Gallery.swift)
 // Exit status: 0 ok, 1 findings or a failed command, 2 usage.
 
 let fm = FileManager.default
 let compiled: Set<String> = ["reading", "atom", "behaviour"]
 let kinds = ["pill", "theme", "preset", "reading", "atom", "behaviour"]
 
-func fail(_ s: String) -> Never { FileHandle.standardError.write(Data((s + "\n").utf8)); exit(1) }
+func fail(_ s: String) -> Never { Usage.failure(s, tries: [("risk help ext", "what ext can do")]); exit(1) }
 func usage() -> Never {
-    print("usage: risk ext search <words> | info <name> | add <name|dir|git-url> [rev] | update [name] [--yes] | publish [dir] | remove <id> | list | validate <dir> | new <reading|atom|pill|theme> <name> | sync | help [command] | completions <zsh|fish|bash> | docs | config path|show|get|set|edit | theme list|check|import | ctl <word|--list> [--json] [--dry-run] | log [N] [--follow] [--json] | snap <maker>…|all --out DIR [--json] [--dry-run] | bench [idle|card <atom>|all|--list] [--runs N] [--json] | bench emit-doc [--json]")
+    let given = CommandLine.arguments.dropFirst()
+    // No words at all asks what `risk ext` can do; a word that is not one of its commands is a mistake, and gets the same page after it.
+    if given.isEmpty { exit(HelpScreen.run(["ext"])) }
+    _ = Usage.error("ext", "no ext command \"\(given.first ?? "")\", or it is missing something")
     exit(2)
 }
 func read(_ p: String) -> String? { try? String(contentsOfFile: p, encoding: .utf8) }
@@ -158,7 +164,9 @@ func lint(_ dir: String) {
     if !any { report("source.missing", "Sources/", nil, "no Swift sources", fix: "a compiled extension needs code under Sources/<module>") }
 }
 
-func validate(_ dir: String) -> Bool {
+/// `announce` is false when a command only uses the check as a gate (`add`, `install`, `publish`): the findings and a failed verdict are
+/// still printed, but a command that also prints what it did does not print "valid" first.
+func validate(_ dir: String, announce: Bool = true) -> Bool {
     findings = []
     let j = validateManifest(dir)
     if let k = j?["kind"] as? String, compiled.contains(k) {
@@ -167,11 +175,22 @@ func validate(_ dir: String) -> Bool {
             for id in ids where !all.contains("id: \"\(id)\"") { report("manifest.atoms", "riskell.json", nil, "atom \"\(id)\" is listed but no AtomMeta(id: \"\(id)\") is in the source", fix: "make the manifest and the code agree") }
         }
     }
+    // The problem line is a public contract for coding agents (AGENTS.md): the same characters in a terminal and in a pipe.
+    // Styling adds colour to the place, the rule and the word Fix, and nothing else, so the plain line is unchanged.
+    let t = Terminal.tty()
     for f in findings.sorted(by: { ($0.file, $0.line ?? 0) < ($1.file, $1.line ?? 0) }) {
-        print("\(f.file)\(f.line.map { ":\($0)" } ?? ""): rule \(f.rule): \(f.message). Fix: \(f.fix).")
+        let place = f.file + (f.line.map { ":\($0)" } ?? "")
+        let rule = "rule \(f.rule)"
+        print(t.tone(place, .text4) + ": " + t.tone(rule, .warn) + ": \(f.message). " + t.tone("Fix:", .accent) + " \(f.fix).")
     }
     let errors = findings.filter { !$0.message.hasSuffix("(warning)") }
-    print(errors.isEmpty ? "ok: \((j?["id"] as? String) ?? dir) is valid" + (findings.isEmpty ? "" : " (\(findings.count) warning)") : "\(errors.count) problem(s)")
+    let name = (j?["id"] as? String) ?? dir
+    if announce || !errors.isEmpty {
+        let verdict: (Tone, String, String) = errors.isEmpty
+            ? (.ok, name, "valid")
+            : (.crit, name, "\(errors.count) problem\(errors.count == 1 ? "" : "s")")
+        print(t.checks([(verdict.0, verdict.1, verdict.2, nil)]).joined(separator: "\n"))
+    }
     return errors.isEmpty
 }
 func allSource(_ dir: String) -> String? {
@@ -183,7 +202,7 @@ func allSource(_ dir: String) -> String? {
 
 /// A setting as the manifest declares it, kept in the lock so the generated list does not need the package's source (a git package is cloned to a temporary folder).
 struct SettingDecl: Codable { var key: String; var label: String; var type: String; var min: Double?; var max: Double?; var step: Double?; var number: Double?; var on: Bool?; var options: [String]?; var choice: String? }
-struct Locked: Codable { var id: String; var module: String; var entry: String; var product: String; var package: String; var path: String?; var url: String?; var revision: String?; var settings: [SettingDecl]?; var version: String? }
+struct Locked: Codable { var id: String; var module: String; var entry: String; var product: String; var package: String; var path: String?; var url: String?; var revision: String?; var settings: [SettingDecl]?; var version: String?; var name: String?; var kind: String?; var summary: String? }
 func loadLock(_ r: String) -> [Locked] { (read(r + "/extensions.lock.json").flatMap { try? JSONDecoder().decode([Locked].self, from: Data($0.utf8)) }) ?? [] }
 func saveLock(_ l: [Locked], _ r: String) {
     let e = JSONEncoder(); e.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -228,23 +247,31 @@ func sh(_ args: [String], in dir: String? = nil, env: [String: String] = [:]) ->
     return (p.terminationStatus, String(decoding: d, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines))
 }
 
-func add(_ source: String, rev: String?, version: String? = nil, expectID: String? = nil, userTyped: Bool = false, yes: Bool = false) {
+func add(_ source: String, rev: String?, version: String? = nil, expectID: String? = nil, userTyped: Bool = false, yes: Bool = false,
+         next nextLine: Bool = true, announce: Bool = true) {
     let r = root()
     var dir = source, url: String?, revision = rev
     if source.contains("://") || source.hasPrefix("git@") {      // a git URL (https, ssh, file); anything else is a folder
-        guard safeRepoURL(source, userTyped: userTyped) else { fail("risk ext: \(source) is not an address this tool will clone (https only; ssh and local paths only when you type them yourself)") }
+        guard safeRepoURL(source, userTyped: userTyped) else {
+            failBlock("\(source) is not an address this tool will clone", detail: "https only; ssh and local paths only when you type them yourself",
+                      tries: [(cmd: "risk ext add <name>", note: "install one the registry lists")])
+        }
         if let rev, !matches(rev, "^[0-9a-f]{7,40}$") { fail("risk ext: \(rev) is not a commit hash") }
         dir = NSTemporaryDirectory() + "risk-ext-" + UUID().uuidString
         let (c, _) = git(["clone", "--quiet", "--", source, dir], userTyped: userTyped)
-        guard c == 0 else { fail("risk ext: could not clone \(source)") }
+        guard c == 0 else {
+            failBlock("could not clone \(source)", tries: [(cmd: "risk ext add <name>", note: "install one the registry lists")])
+        }
         if let rev { _ = git(["checkout", "--quiet", rev], in: dir, userTyped: userTyped) }
         revision = git(["rev-parse", "HEAD"], in: dir, userTyped: userTyped).1
-        if let rev, revision != rev { fail("risk ext: commit \(rev.prefix(10)) is not in \(source)") }
+        if let rev, revision != rev { failBlock("commit \(rev.prefix(10)) is not in \(source)", tries: [(cmd: "git fetch", note: "get the commit first")]) }
         url = source
     } else { dir = URL(fileURLWithPath: source, relativeTo: URL(fileURLWithPath: fm.currentDirectoryPath)).standardized.path }
-    guard validate(dir), let j = (read(dir + "/riskell.json").flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) }) as? [String: Any],
+    guard validate(dir, announce: false), let j = (read(dir + "/riskell.json").flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) }) as? [String: Any],
           let id = j["id"] as? String, let module = j["module"] as? String, let entry = j["entry"] as? String
-    else { fail("risk ext: not added: fix the findings above") }
+    else {
+        failBlock("not added: fix the findings above", tries: [(cmd: "risk ext validate \(shortPath(dir))", note: "see every problem")])
+    }
     if let e = expectID, e != id { fail("risk ext: not added: the listing says \"\(e)\" but riskell.json says \"\(id)\"") }
     if let v = version, let mv = j["version"] as? String, mv != v { fail("risk ext: not added: the listing says v\(v) but riskell.json says v\(mv)") }
     if url != nil {      // a repository you did not write: show it, and ask, before anything is built
@@ -263,9 +290,15 @@ func add(_ source: String, rev: String?, version: String? = nil, expectID: Strin
         return SettingDecl(key: key, label: label, type: type, min: n("min"), max: n("max"), step: n("step"), number: type == "number" ? n("default") : nil,
                            on: type == "bool" ? s["default"] as? Bool : nil, options: s["options"] as? [String], choice: type == "choice" ? s["default"] as? String : nil)
     }
-    l.append(Locked(id: id, module: module, entry: entry, product: module, package: pkg, path: rel, url: url, revision: revision, settings: decls.isEmpty ? nil : decls, version: version ?? (j["version"] as? String)))
+    l.append(Locked(id: id, module: module, entry: entry, product: module, package: pkg, path: rel, url: url, revision: revision,
+                    settings: decls.isEmpty ? nil : decls, version: version ?? (j["version"] as? String),
+                    name: j["name"] as? String, kind: j["kind"] as? String, summary: j["summary"] as? String))
     saveLock(l, r); sync(r)
-    print("added \(id); the lock and the import list are updated. `risk dev` rebuilds and restarts riskell (`risk ext add` does that for you).")
+    guard announce else { return }
+    let t = Terminal.tty()
+    let origin = (url ?? rel ?? dir) + (revision.map { " @ " + $0.prefix(8) } ?? "")
+    printAll(t.checks([(.ok, id, "added · v\(j["version"] as? String ?? "?") · \(origin)", nil)]))
+    if nextLine { print(t.next(cmd: "risk dev", why: "a compiled extension changed the build")) }
 }
 
 // MARK: scaffolds
@@ -365,7 +398,7 @@ func scaffold(_ kind: String, _ name: String) {
         write(yaml, dir + "/\(name).yaml")
     default: fail("risk ext: new <reading|atom|pill|theme> <name>")
     }
-    print("created \(name)/ (\(kind)). Next: edit it, then `risk ext validate \(name)`.")
+    printAll(Terminal.tty().checks([(.ok, name, "created · \(kind)", (cmd: "risk ext validate \(name)", note: "edit it, then check the rules"))]))
 }
 
 // MARK: dispatch
@@ -375,7 +408,7 @@ switch a.first {
 case "help": exit(HelpScreen.run(Array(a.dropFirst())))
 case "completions":
     guard a.count == 2, let script = Completions.script(a[1]) else {
-        FileHandle.standardError.write(Data("risk: completions <zsh|fish|bash>\n".utf8)); exit(2)
+        exit(Usage.error("completions", "name a shell: zsh, fish or bash"))
     }
     print(script)
 case "docs": print(Docs.markdown())
@@ -386,6 +419,11 @@ case "log": exit(LogCommand.run(Array(a.dropFirst())))
 case "snap": exit(Snap.run(Array(a.dropFirst())))
 // `emit-doc` is the one bench word that measures nothing: it reads the published table and writes docs/efficiency.json (BenchDoc.swift).
 case "bench": exit(a.count > 1 && a[1] == "emit-doc" ? BenchDoc.run(Array(a.dropFirst(2))) : Bench.run(Array(a.dropFirst())))
+case "gallery": exit(Gallery.run(Array(a.dropFirst())))
+// `lifecycle` is internal: scripts/risk runs risk install, dev and uninstall through it (Lifecycle.swift).
+case "lifecycle": exit(Lifecycle.run(Array(a.dropFirst())))
+// `error` is internal too: the wrapper's own failures are drawn by it, so one shape covers every command (ErrorCommand.swift).
+case "error": exit(ErrorCommand.run(Array(a.dropFirst())))
 case "validate": exit(a.count > 1 && validate(a[1]) ? 0 : 1)
 case "new": if a.count == 3 { scaffold(a[1], a[2]) } else { usage() }
 case "add":
@@ -396,21 +434,21 @@ case "add":
 case "remove":
     guard a.count == 2 else { usage() }
     if removeFiles(a[1]) { break }
-    let r = root(); let before = loadLock(r)
+    let r = root(), t = Terminal.tty(), before = loadLock(r)
     saveLock(before.filter { $0.id != a[1] }, r); sync(r)
-    print(before.contains { $0.id == a[1] } ? "removed \(a[1]); `risk dev` rebuilds and restarts riskell (`risk ext remove` does that for you)" : "\(a[1]) is not installed")
-    if before.contains(where: { $0.id == a[1] }) { exit(needsRebuild) }
-case "list":
-    let l = loadLock(root()), f = loadInstalled()
-    if l.isEmpty && f.isEmpty { print("no extensions installed") }
-    else {
-        for e in l { print("\(e.id)  \(e.module).\(e.entry)  \(e.version.map { "v" + $0 + "  " } ?? "")\(e.url ?? e.path ?? "")\(e.revision.map { " @ " + $0.prefix(8) } ?? "")") }
-        for e in f { print("\(e["id"] as? String ?? "")  \(e["kind"] as? String ?? "")  v\(e["version"] as? String ?? "")  \((e["files"] as? [String] ?? []).joined(separator: ", "))") }
+    if before.contains(where: { $0.id == a[1] }) {
+        printAll(t.checks([(.ok, a[1], "removed · the lock and the import list are updated", nil)]))
+        print(t.next(cmd: "risk dev", why: "a compiled extension changed the build"))
+        exit(needsRebuild)
     }
+    printAll(t.checks([(.note, a[1], "not installed", nil)]))
+case "list": list()
 case "search": search(Array(a.dropFirst()))
 case "info": if a.count == 2 { info(a[1]) } else { usage() }
 case "update": update(Array(a.dropFirst()))
 case "publish": publish(a.count > 1 ? a[1] : nil)
-case "sync": sync(root()); print("synced")
+case "sync":
+    sync(root())
+    printAll(Terminal.tty().checks([(.ok, "sync", "the lock's Swift files are regenerated", nil)]))
 default: usage()
 }

@@ -11,10 +11,28 @@ self=$0      # $0 is the script here; inside a function zsh makes it the functio
 label=com.rish.riskell
 plist=$HOME/Library/LaunchAgents/$label.plist
 dom=gui/$(id -u)
-mkdir -p $HOME/.cache/riskell $HOME/Library/LaunchAgents    # a new user account has no LaunchAgents folder yet
 app=$root/.build/riskell.app    # the app bundle the agent runs: macOS only offers Location (Wi-Fi names) and Bluetooth to a process with a bundle identity
+# A new user account has no LaunchAgents folder yet. The internal steps create what they need themselves, so a read-only probe changes nothing.
+[[ ${1:-} == __step ]] || mkdir -p $HOME/.cache/riskell $HOME/Library/LaunchAgents
+
+# A failure a person reads: the kit's error block, drawn by riskell-ext when it is built. It is never built here just to print an error: a
+# checkout without the tool says the same thing in one plain line. `fail_code` is the exit status (1 unless a case sets 2 for bad usage).
+#   fail <title> [detail] [try-cmd] [try-note]
+fail() {
+  local tool=$root/.build/release/riskell-ext code=${fail_code:-1}
+  if [[ -x $tool ]]; then
+    local args=(error "$1")
+    [[ -n ${2:-} ]] && args+=(--detail "$2")
+    [[ -n ${3:-} ]] && args+=(--try "$3|${4:-}")
+    RISKELL_ROOT=$root $tool "$args[@]" >&2 || true      # it exits 2 by design; the status is this function's (`fail_code`)
+  else
+    print -u2 "risk: $1${2:+: $2}"
+  fi
+  exit $code
+}
 
 write_plist() {
+mkdir -p $HOME/.cache/riskell $HOME/Library/LaunchAgents
 cat > $plist <<PL
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -61,6 +79,24 @@ IP
   codesign -f -s $id --identifier com.rish.riskell $app 2>/dev/null || echo "unsigned (codesign failed)"
 }
 build() { (cd $root && swift build -c release 2>&1 | grep -E "error|Build complete" && bundle) }
+
+# --- internal steps: `risk __step <name>`, called by riskell-ext (Sources/riskell-ext/Lifecycle.swift), never listed as a command ---
+# A step is quiet when it works and prints its diagnostics when it does not; its exit code is the failure. Swift owns the screen.
+step_build() {
+  local log=$(mktemp) rc=0
+  (cd $root && swift build -c release) >$log 2>&1 || rc=$?
+  if (( rc == 0 )); then bundle >>$log 2>&1 || rc=$?; fi
+  (( rc == 0 )) || cat $log >&2
+  rm -f $log
+  return $rc
+}
+step_pid() {
+  local p
+  p=$(launchctl print $dom/$label 2>/dev/null | awk '$1 == "pid" && $2 == "=" { print $3; exit }')
+  [[ -n $p ]] || p=$(pgrep -f "$app/Contents/MacOS/riskell" 2>/dev/null | head -1)
+  [[ -n $p ]] || return 1
+  print -r -- $p
+}
 
 # --- OmniWM helpers (OmniWM is the window manager; it keeps one macOS Space and its own virtual workspaces) ---
 # export (window -> workspace number into $map), start, import (put each window back on its number).
@@ -111,7 +147,8 @@ import_omniwm() {
 start_wm() {   # start OmniWM if it is not running, then put each window back on its saved workspace number
   [[ $(wm_now) == omniwm ]] && { echo "omniwm is already running"; return; }
   echo "starting omniwm (grant Accessibility / Input Monitoring if macOS asks)..."
-  start_omniwm || { echo "omniwm did not come up with your windows within 60 s; once it has, re-run: risk wm import"; exit 1; }
+  start_omniwm || fail "omniwm did not come up with your windows within 60 s" "grant it Accessibility and Input Monitoring if macOS asks" \
+    "risk wm import" "put each window back on its number"
   [[ -s $map ]] && import_omniwm
   launchctl kickstart -k $dom/$label 2>/dev/null || true
   echo "omniwm on. Window map: $map"
@@ -132,7 +169,10 @@ reload() {
 # fallback rather than nothing at all.
 ext_tool() {
   local tool=$root/.build/release/riskell-ext
-  [[ -x $tool ]] || swift build -c release --product riskell-ext --package-path $root >/dev/null 2>&1 || return 1
+  # Built when missing and again when its sources are newer, so `risk dev` never runs a tool older than the checkout it is rebuilding.
+  if [[ ! -x $tool || -n $(find $root/Sources/riskell-ext $root/Sources/RiskellTTY $root/Package.swift -newer $tool -print -quit 2>/dev/null) ]]; then
+    swift build -c release --product riskell-ext --package-path $root >/dev/null 2>&1 || return 1
+  fi
   print -r -- $tool
 }
 front_door() {
@@ -142,26 +182,134 @@ front_door() {
 }
 with_ext() {
   local tool
-  tool=$(ext_tool) || { echo "risk: riskell-ext is not built"; exit 1; }
+  tool=$(ext_tool) || fail "riskell-ext is not built" "the front door and every command it runs live in that tool" \
+    "swift build -c release --product riskell-ext" "build it"
   RISKELL_ROOT=$root exec $tool "$@"
 }
+# The three older bodies, kept for a checkout where riskell-ext cannot be built: the fallback is the wrapper exactly as it was.
+legacy_install() { build; write_plist; reload; echo "riskell running" }
+legacy_dev() {
+  build
+  if ! launchctl print $dom/$label >/dev/null 2>&1; then write_plist; reload; echo "no agent was running: installed one"
+  elif ! grep -qF "$app/Contents/MacOS/riskell" $plist 2>/dev/null; then write_plist; reload; echo "moved the agent into the app bundle"
+  else launchctl kickstart -k $dom/$label; echo restarted; fi
+}
+legacy_uninstall() { launchctl bootout $dom/$label 2>/dev/null || true; rm -f $plist; echo "riskell stopped" }
+
+# The steps, the progress and the dry runs are riskell-ext's (Lifecycle.swift); this keeps the mechanics. No riskell-ext, no new screens:
+# the old bodies still install, restart and remove the agent.
+lifecycle() {
+  local cmd=$1 tool
+  shift
+  if tool=$(ext_tool); then RISKELL_ROOT=$root exec $tool lifecycle "$cmd" "$@"; fi
+  case $cmd in
+    install) legacy_install ;;
+    dev) legacy_dev ;;
+    uninstall) legacy_uninstall ;;
+    *) fail_code=2 fail "unknown lifecycle command '$cmd'" "risk install | dev | uninstall" "risk help dev" "what each does" ;;
+  esac
+}
+
+setup_tool() {
+  local tool=$root/.build/release/riskell-setup
+  if [[ ! -x $tool || -n $(find $root/Sources/riskell-setup $root/Sources/RiskellTTY $root/Package.swift -newer $tool -print -quit 2>/dev/null) ]]; then
+    swift build -c release --product riskell-setup --package-path $root >/dev/null 2>&1 || return 1
+  fi
+  print -r -- $tool
+}
+app_tool() {
+  local tool=$root/.build/release/riskell
+  [[ -x $tool ]] || swift build -c release --product riskell --package-path $root >/dev/null 2>&1 || return 1
+  print -r -- $tool
+}
+
+# Output a person reads starts one blank line below the prompt. Nothing is added when stdout is not a terminal or the output is JSON, so
+# `$(risk config get x)`, pipes and `--json` stay exactly what the command printed.
+if [[ -t 1 && ${1:-} != (__step|completions) && " $* " != *" --json "* ]]; then print; fi
 
 case ${1:-} in
   "")       front_door ;;
-  help)     front_door "${@:2}" ;;
+  help|--help|-h) front_door "${@:2}" ;;
   completions) with_ext completions "${@:2}" ;;
-  install)
-    build; write_plist
-    reload
-    echo "riskell running" ;;
-  uninstall)
-    launchctl bootout $dom/$label 2>/dev/null || true
-    rm -f $plist
-    echo "riskell stopped" ;;
-  dev|restart|rebuild)  build      # restart and rebuild are older names for the same command
-            if ! launchctl print $dom/$label >/dev/null 2>&1; then write_plist; reload; echo "no agent was running: installed one"
-            elif ! grep -qF "$app/Contents/MacOS/riskell" $plist 2>/dev/null; then write_plist; reload; echo "moved the agent into the app bundle"
-            else launchctl kickstart -k $dom/$label; echo restarted; fi ;;
+  config|theme|snap|bench|gallery) with_ext "$@" ;;   # the settings, schemes, pictures, efficiency table and screens live in riskell-ext
+  setup)    tool=$(setup_tool) || fail "riskell-setup is not built" "the guided installer is that binary" \
+                                     "swift build -c release --product riskell-setup" "build it"
+            exec $tool "${@:2}" ;;   # no flags: the guided installer; --yes and --dry-run answer it
+  gestures) tool=$(app_tool) || fail "riskell is not built" "the gestures screens are drawn by the app" "risk dev" "build and start it"
+            sub=${2:-status}; write=0; dry=0; rest=()
+            for arg in "${@:3}"; do
+              case $arg in
+                --yes) write=1 ;;
+                --dry-run) dry=1 ;;
+                *) rest+=($arg) ;;
+              esac
+            done
+            case $sub in
+              status) exec $tool --gestures-fix --status "${rest[@]}" ;;   # read-only: --status never writes, whatever else is passed
+              fix)    (( write && ! dry )) && rest+=(--yes)
+                      exec $tool --gestures-fix "${rest[@]}" ;;
+              restore) (( write && ! dry )) && rest+=(--yes)
+                      exec $tool --gestures-restore "${rest[@]}" ;;
+              *)      fail_code=2 fail "unknown gestures command '$sub'" "risk gestures status | fix | restore" \
+                        "risk help gestures" "the three screens" ;;
+            esac ;;
+  version|--version|-v)   # the app's own line, or --json: VERSION, the kit pin and the lock entry count, with nothing built
+            if [[ ${2:-} == --json ]]; then
+              vv=$(cat $root/VERSION 2>/dev/null || echo 0)
+              vkit=""; vlock=0
+              if [[ -f $root/Package.resolved ]]; then
+                if [[ -n ${JQ:-} && -x $JQ ]]; then
+                  vkit=$($JQ -r '[.pins[] | select(.identity == "riskell-kit")][0].state.version // ""' $root/Package.resolved 2>/dev/null || true)
+                else
+                  vkit=$(awk '/"riskell-kit"/ { pin = 1 } pin && /"version"/ { print; exit }' $root/Package.resolved 2>/dev/null \
+                         | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                fi
+              fi
+              if [[ -f $root/extensions.lock.json ]]; then
+                if [[ -n ${JQ:-} && -x $JQ ]]; then
+                  vlock=$($JQ 'length' $root/extensions.lock.json 2>/dev/null || echo 0)
+                else
+                  vlock=$(grep -c '"entry"[[:space:]]*:' $root/extensions.lock.json 2>/dev/null || true)
+                fi
+              fi
+              printf '{"riskell":"%s","kit":"%s","lock":%s}\n' "$vv" "$vkit" "${vlock:-0}"
+              exit 0
+            fi
+            if [[ -x $root/.build/release/riskell ]]; then exec $root/.build/release/riskell --version; fi
+            echo "riskell $(cat $root/VERSION 2>/dev/null || echo 0)" ;;
+  fit)      tool=$(app_tool) || fail "riskell is not built" "the fit and panel checks are the app's own" "risk dev" "build and start it"
+            panels=0; for arg in "${@:2}"; do [[ $arg == --panels ]] && panels=1; done
+            if (( panels )); then
+              rc=0
+              $tool --check-fit || rc=$?
+              $tool --check-panel || rc=$?
+              exit $rc
+            fi
+            exec $tool --check-fit ;;
+  self-test) name=${2:-}
+            case $name in
+              ""|installer) tool=$(setup_tool) || fail "riskell-setup is not built" "the installer's checks are that binary" \
+                                                       "swift build -c release --product riskell-setup" "build it"
+                            exec $tool --self-test ;;
+              extensions|weather|usage|keys)
+                            tool=$(app_tool) || fail "riskell is not built" "the self-tests are the app's own" "risk dev" "build and start it"
+                            case $name in
+                              extensions) flag=--ext-selftest ;;
+                              weather)    flag=--weather-selftest ;;
+                              usage)      flag=--usage-selftest ;;
+                              keys)       flag=--key-test ;;
+                            esac
+                            exec $tool $flag ;;
+              lock)         tool=$(app_tool) || fail "riskell is not built" "the lock test is the app's own" "risk dev" "build and start it"
+                            (( $# >= 3 )) || fail_code=2 fail "self-test lock wants hold or try, and a file" \
+                              "risk self-test lock hold|try <file>" "risk help self-test" "every check"
+                            exec $tool --lock-test "${@:3}" ;;
+              *)            fail_code=2 fail "unknown self-test '$name'" "installer, extensions, weather, usage, keys, lock" \
+                              "risk help self-test" "every check" ;;
+            esac ;;
+  install)  lifecycle install "${@:2}" ;;
+  uninstall) lifecycle uninstall "${@:2}" ;;
+  dev|restart|rebuild) lifecycle dev "${@:2}" ;;   # restart and rebuild are older names for the same command
   log)      with_ext log "${@:2}" ;;   # the last few lines of the agent's log, or follow it: --follow, --json
   ctl)      with_ext ctl "${@:2}" ;;   # the socket words as commands, so scripting does not start with nc -U: ctl --list
   ext)      tool=$root/.build/release/riskell-ext      # validate | new | add | remove | list | sync: see docs/WRITING-EXTENSIONS.md
@@ -178,12 +326,28 @@ case ${1:-} in
                    tool=$root/.build/release/riskell-setup   # the report, its sections and --json live in the installer's binary
                    [[ -x $tool ]] || swift build -c release --product riskell-setup --package-path $root >/dev/null || exit 1
                    exec $tool --doctor "${@:2}" ;;    # `--check` stays the installer's checklist; --doctor is the report
-  wm)       [[ $2 == omniwm || $2 == export || $2 == import ]] && ! -x ${JQ:-/nonexistent} && { echo "risk: jq not found (brew install jq)"; exit 1; }
+  wm)       [[ $2 == omniwm || $2 == export || $2 == import ]] && ! -x ${JQ:-/nonexistent} && \
+              fail "jq is not installed" "risk wm export and import read JSON with it" "brew install jq" "install it"
             case $2 in
               omniwm) start_wm ;;
               export) export_omniwm; echo "saved $(grep -vc '^focus' $map) windows to $map" ;;
-              import) [[ $(wm_now) == omniwm ]] || { echo "omniwm is not running"; exit 1; }; import_omniwm; echo "windows placed" ;;
+              import) [[ $(wm_now) == omniwm ]] || fail "omniwm is not running" "import needs its window list" "risk wm start" "start it, then import"; import_omniwm; echo "windows placed" ;;
               *) echo "window manager: $(wm_now)" ;;
             esac ;;
-  *) sed -n 2,7p $0 ;;
+  __step)
+            case ${2:-} in
+              build)     step_build ;;
+              plist)     write_plist ;;
+              reload)    reload ;;
+              kickstart) launchctl kickstart -k $dom/$label ;;
+              stop)      launchctl bootout $dom/$label 2>/dev/null || true ;;
+              unplist)   rm -f $plist ;;
+              loaded)    launchctl print $dom/$label >/dev/null 2>&1 ;;
+              bundled)   grep -qF "$app/Contents/MacOS/riskell" $plist 2>/dev/null ;;
+              pid)       step_pid ;;
+              *)         print -u2 "risk: unknown step '${2:-}' (build, plist, reload, kickstart, stop, unplist, loaded, bundled, pid)"
+                         exit 2 ;;
+            esac
+            exit $? ;;
+  *) fail_code=2 fail "unknown command '$1'" "risk help lists every one" "risk help" "every command" ;;
 esac

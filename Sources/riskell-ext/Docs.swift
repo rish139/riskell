@@ -19,17 +19,15 @@ enum Docs {
                    "## house rules",
                    ""]
         out += rules.map { "- " + $0 }
-        for tier in Tier.allCases {
-            out += ["", "## \(tier.rawValue)"]
-            for row in commandTable where row.tier == tier {
-                out += ["", "### `risk \(row.usage)`", "", row.summary, ""]
-                if !row.aliases.isEmpty { out.append("- alias: " + row.aliases.map { "`risk \($0)`" }.joined(separator: ", ")) }
-                out.append("- example: `\(row.example)`")
-                if !row.otherReplaces.isEmpty { out.append("- replaces: " + row.otherReplaces.map { "`\($0)`" }.joined(separator: ", ")) }
-                if !row.children.isEmpty {
-                    out.append("- subcommands:")
-                    for child in row.children { out.append("  - `\(child.name)`: \(child.summary)") }
-                }
+        out += ["", "## \(Tier.stable.rawValue)"]
+        for row in commandTable where row.tier == .stable {
+            out += ["", "### `risk \(row.usage)`", "", row.summary, ""]
+            if !row.aliases.isEmpty { out.append("- alias: " + row.aliases.map { "`risk \($0)`" }.joined(separator: ", ")) }
+            out.append("- example: `\(row.example)`")
+            if !row.otherReplaces.isEmpty { out.append("- replaces: " + row.otherReplaces.map { "`\($0)`" }.joined(separator: ", ")) }
+            if !row.children.isEmpty {
+                out.append("- subcommands:")
+                for child in row.children { out.append("  - `\(child.name)`: \(child.summary)") }
             }
         }
         return out.joined(separator: "\n") + "\n"
@@ -42,6 +40,6 @@ enum Docs {
         "Every writer takes `--dry-run`, and `--yes` where it destroys something.",
         "Exit codes: `0` success, `1` findings or a failed check, `2` bad usage, `10` a rebuild is needed (`risk ext` hands its rebuild to `risk dev`).",
         "Nothing self-updates: `brew upgrade`, then `risk install`.",
-        "An `experimental` command may change or go; a `stable` one is removed only with a note in [CHANGELOG.md](../CHANGELOG.md).",
+        "A `stable` command is removed only with a note in [CHANGELOG.md](../CHANGELOG.md).",
     ]
 }

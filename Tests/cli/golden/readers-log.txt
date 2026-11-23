@@ -1,0 +1,7 @@
+  ▐▌ riskell  log  ~/.cache/riskell/riskell.log        last 5 · --follow
+  ──────────────────────────────────────────────────────────────────────
+  12:04:11  info   overview  opened on workspace 3
+  12:04:12  info   touch     frames arriving, 3 fingers down
+  12:04:19  warn   touch     no frame for 2 s, reattaching
+  12:04:30  error  weather   fetch failed (offline); retry in 600 s
+  12:04:31  info   weather   serving the cached forecast

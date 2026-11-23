@@ -1,0 +1,8 @@
+  ▐▌ riskell  registry                                          2 listed
+  ──────────────────────────────────────────────────────────────────────
+  ●  alpha  atom     1.2.0  ✓ installed
+     the first extension: a gauge and a hover card
+  ●  gamma  reading  0.1.0
+     a load figure and a card, ported from another project
+
+  risk ext info <name> one in full   ·   risk ext add <name> to install one

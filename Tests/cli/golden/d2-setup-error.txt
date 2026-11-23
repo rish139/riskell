@@ -1,0 +1,4 @@
+  ✗  unknown option --bogus
+     riskell-setup [options]
+
+     try   risk help setup    every option, with its values

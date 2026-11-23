@@ -81,6 +81,12 @@ enum Bench {
         measures.first { $0.id == word || $0.id == "card:" + word || $0.hot == word }
     }
 
+    /// How a reader measures this one on its own: the word `run` takes for it. `loaded` has none of its own, so it comes with `all`.
+    private static func invocation(_ measure: Measure) -> String {
+        if measure.id.hasPrefix("card:") { return "risk bench card " + measure.id.dropFirst("card:".count) }
+        return measure.id == "idle" ? "risk bench idle" : "risk bench all"
+    }
+
     // MARK: - measuring
 
     /// One run's numbers: the CPU seconds the instance used over the window, the same as a percent of one core, and the resident memory
@@ -180,9 +186,16 @@ enum Bench {
     /// and the instance writes everything else there too, so a run never reads the owner's layout, never writes into ~/.config/riskell and
     /// leaves nothing behind.
     private static func setup() -> Setup {
-        guard let root = checkout() else { fail("run it inside the riskell checkout (no extensions.lock.json above here)") }
+        guard let root = checkout() else {
+            Usage.failure("run it inside the riskell checkout (no extensions.lock.json above here)")
+            exit(1)
+        }
         let binary = root + "/.build/release/riskell"
-        guard fm.isExecutableFile(atPath: binary) else { fail("build first (swift build -c release)") }
+        guard fm.isExecutableFile(atPath: binary) else {
+            Usage.failure("the app is not built, and these numbers are measured on it",
+                          tries: [(cmd: "swift build -c release", note: "builds .build/release/riskell")])
+            exit(1)
+        }
         let scratch = "/tmp/risk-bench-\(getpid())"
         let layout = scratch + "/layout.json", config = scratch + "/config.json"
         try? fm.removeItem(atPath: scratch)          // a folder a killed run of this pid left is not a fixture to trust
@@ -192,7 +205,8 @@ enum Bench {
             try scratchConfig.write(toFile: config, atomically: true, encoding: .utf8)
         } catch {
             try? fm.removeItem(atPath: scratch)
-            fail("could not write the scratch layout and config in \(scratch): \(error)")
+            Usage.failure("could not write the scratch layout and config in \(scratch): \(error)")
+            exit(1)
         }
         return Setup(binary: binary, layout: layout, config: config, scratch: scratch)
     }
@@ -242,7 +256,7 @@ enum Bench {
         case "all" where words.count == 1:
             return runMeasures(measures, count: runs ?? 1, json: json, narrate: true)
         default:
-            return usage(nil)
+            return usage("name a measure: idle, card <atom> or all")
         }
     }
 
@@ -262,8 +276,8 @@ enum Bench {
 
     // MARK: - --list
 
-    /// The measures as data: what each costs, how long one run takes, what it needs and whether docs/EFFICIENCY.md claims it. Pure: no
-    /// instance is started, and nothing of the owner's is read.
+    /// The measures as data: what each costs, how long one run takes and whether docs/EFFICIENCY.md claims it (the JSON also says what a
+    /// run needs). Pure: no instance is started, and nothing of the owner's is read.
     private static func printList(json: Bool) -> Int32 {
         if json {
             let rows = measures.map { m in
@@ -276,7 +290,7 @@ enum Bench {
             return 0
         }
         let tty = Terminal.tty()
-        print(listing(tty))
+        print(listing(tty).joined(separator: "\n"))
         return 0
     }
 
@@ -286,23 +300,21 @@ enum Bench {
             + (p.seconds.map(number) ?? "null") + "}"
     }
 
-    /// The table as a terminal prints it: the id and the one line, then what a run needs, how long it runs and the published figure.
-    private static func listing(_ tty: Tty) -> String {
+    /// The table as a terminal prints it: one check a measure, its one line, how long a run is and the figure the page claims. A check, not
+    /// a table, because the published row is a sentence that must not be cut: it wraps under its own column instead.
+    private static func listing(_ tty: Tty) -> [String] {
         let claimed = measures.filter { $0.published != nil }.count
-        let dim = Style(fg: tty.palette.color(.text4, tty.mode))
-        let pad = measures.map(\.id.count).max() ?? 0
-        var lines = [tty.heading("bench") + tty.dim("  \(measures.count) measures, \(claimed) claimed in docs/EFFICIENCY.md; --list starts nothing")]
+        var lines = [tty.header("bench", detail: "\(measures.count) measures, \(claimed) claimed in docs/EFFICIENCY.md")]
+        lines += tty.checks(measures.map { measure in
+            let cost = "\(measure.summary) · \(measure.window) s"
+                + (measure.published.map { " · published " + $0.text } ?? " · not published")
+            return (Tone.note, measure.id, cost, nil)
+        })
         lines.append("")
-        for m in measures {
-            lines.append("  " + tty.bold(m.id.padding(toLength: pad, withPad: " ", startingAt: 0)) + "  " + m.summary)
-            let cost = m.needs.joined(separator: ", ") + " · \(m.window) s"
-                + (m.published.map { " · published " + $0.text } ?? " · not published")
-            lines.append("      " + tty.dim(cost))
-        }
-        lines.append("")
-        lines.append("  " + tty.dim("published: the \"after\" column of docs/EFFICIENCY.md, measured on \(publishedMachine)"))
-        lines.append("  " + tty.dim("risk bench idle | card <atom> | all [--runs N] [--json] — each run is a scratch instance with bench's own layout, killed afterwards"))
-        return lines.joined(separator: "\n")
+        lines += tty.paragraph("published is the \"after\" column of docs/EFFICIENCY.md, measured on \(publishedMachine); --list starts nothing")
+        lines.append(tty.footerHint([(cmd: "risk bench idle", text: "the idle figure, three runs"),
+                                     (cmd: "risk bench all", text: "every measure, once each")]))
+        return lines
     }
 
     // MARK: - the scratch instance
@@ -314,8 +326,8 @@ enum Bench {
     private static var loads: [Process] = []
     private static var signalSources: [DispatchSourceSignal] = []
 
-    /// The seconds an instance gets to draw its bars and take its first readings before the measured window starts. `plan` counts it into a
-    /// measure's cost, so `bench all` can say how long it is about to take instead of leaving the screen to guess.
+    /// The seconds an instance gets to draw its bars and take its first readings before the measured window starts. `before` counts it into
+    /// a measure's cost, so `bench all` can say how long it is about to take instead of leaving the screen to guess.
     private static let settle = 10
 
     /// Runs one measure `count` times, in order. Each run is a scratch instance of the built app: its own config, layout, cache and event
@@ -335,7 +347,11 @@ enum Bench {
             instance.standardOutput = FileHandle.nullDevice
             instance.standardError = FileHandle.nullDevice
             child = instance
-            do { try instance.run() } catch { child = nil; fail("could not start \(setup.binary): \(error)") }
+            do { try instance.run() } catch {
+                child = nil
+                Usage.failure("could not start \(setup.binary): \(error)")
+                exit(1)
+            }
             let pid = instance.processIdentifier
             pause(Double(settle))
             let start = cpuSeconds(pid)
@@ -346,7 +362,11 @@ enum Bench {
             instance.terminate()        // SIGTERM: the app shuts down cleanly, and --stay is the way out if it does not
             instance.waitUntilExit()
             child = nil
-            guard alive else { fail("the instance exited during run \(index + 1) of \(measure.id): a dead process's CPU time is not a measurement") }
+            guard alive else {
+                Usage.failure("the instance exited during run \(index + 1) of \(measure.id): a dead process's CPU time is not a measurement",
+                              tries: [(cmd: invocation(measure) + " --runs 1", note: "try that measure on its own")])
+                exit(1)
+            }
             out.append(sample)
         }
         return out
@@ -444,17 +464,16 @@ enum Bench {
         let mark = fingerprint(setup)
         let tty = Terminal.tty(), pad = picked.map(\.id.count).max() ?? 0
         let talking = narrate && !json
-        if talking { say(plan(picked, count: count, pad: pad, tty)) }
+        if talking { say(before(picked, count: count, tty).joined(separator: "\n")) }
         var results: [Result] = []
         for measure in picked {
-            if talking { say("  " + tty.mark(.info, "\(measure.id)  \(measure.window) s")) }
             let result = Result(measure, samples(measure, count: count, setup))
             results.append(result)
-            if talking { say(summary(result, pad: pad, machine: mark.machine, tty)) }
+            if talking { say(tty.check(tone(result, machine: mark.machine), measure.id, numbers(result), keyWidth: pad + 1).joined(separator: "\n")) }
         }
         if json { print(jsonReport(results, mark)) }
-        else if talking { say(trailer(results, count: count, mark: mark, tty)) }
-        else { print(plainReport(results, mark, tty)) }
+        else if talking { print(trailer(results, count: count, mark: mark, tty).joined(separator: "\n")) }
+        else { print(report(results, mark, tty).joined(separator: "\n")) }
         return 0
     }
 
@@ -467,17 +486,21 @@ enum Bench {
 
     /// What `bench all` is about to do, printed before the first run: the measures are 20 to 30 s each and six minutes together, and a command
     /// that says nothing for six minutes looks like one that is stuck. A run costs `settle` plus the measure's window.
-    private static func plan(_ picked: [Measure], count: Int, pad: Int, _ tty: Tty) -> String {
+    private static func before(_ picked: [Measure], count: Int, _ tty: Tty) -> [String] {
         let dim = Style(fg: tty.palette.color(.text4, tty.mode))
         let each = count == 1 ? "one run each" : "\(count) runs each"
         let estimate = count * picked.reduce(0) { $0 + $1.window + settle }
-        var lines = [tty.heading("bench all") + tty.dim("  \(picked.count) measures, \(each), about \(duration(estimate))")]
-        lines.append(contentsOf: tty.rows(picked.map { measure in
-            [Cell("  " + measure.id.padding(toLength: pad, withPad: " ", startingAt: 0), .left, Style(bold: true)),
-             Cell(measure.summary), Cell("\(measure.window) s", .right, dim)]
-        }))
-        lines.append("  " + tty.dim("every run is a scratch instance, killed however this command ends"))
-        return lines.joined(separator: "\n")
+        var lines = tty.table(title: "bench all", meta: "\(picked.count) measures",
+                              columns: [Column(priority: 3), Column(priority: 2), Column(priority: 1)],
+                              rows: picked.map { measure in
+                                  [tty.statusDot(.note),
+                                   Cell(measure.id, .left, Style(bold: true)),
+                                   Cell(measure.summary, .left, Style(fg: tty.palette.color(.text3, tty.mode))),
+                                   Cell("\(measure.window) s", .right, dim)]
+                              })
+        lines.append("")
+        lines += tty.paragraph("\(each), about \(duration(estimate)); every run is a scratch instance, killed however this command ends")
+        return lines
     }
 
     /// A run's cost, rounded the way someone waiting for it would say it out loud.
@@ -485,31 +508,41 @@ enum Bench {
         seconds < 90 ? "\(seconds) s" : "\(Int((Double(seconds) / 60).rounded())) minutes"
     }
 
-    /// One line a measure, printed as `bench all` finishes it: the median, what it used, and how that stands beside the page's figure.
-    private static func summary(_ result: Result, pad: Int, machine: String, _ tty: Tty) -> String {
-        let dim = Style(fg: tty.palette.color(.text4, tty.mode)), window = result.measure.window
-        var cells = [Cell("  " + result.measure.id.padding(toLength: pad, withPad: " ", startingAt: 0), .left, Style(bold: true)),
-                     Cell(fixed(result.median.seconds) + " s / \(window) s", .right),
-                     Cell(fixed(result.median.percent) + " %", .right), Cell("\(result.median.memory) MB", .right),
-                     Cell("\(result.median.threads) threads", .right, dim)]
-        if let verdict = verdict(result, machine: machine) { cells.append(Cell(verdict.rawValue.replacingOccurrences(of: "-", with: " "), .left, dim)) }
-        return tty.rows([cells]).first ?? ""
+    /// The median of one finished measure, as `bench all` prints it the moment the measure is done: what it used, beside nothing yet —
+    /// the page's figure is set beside it once, at the end, because on this machine it can never be reproduced (`verdict`).
+    private static func numbers(_ result: Result) -> String {
+        let median = result.median
+        return "\(fixed(median.seconds)) s · \(fixed(median.percent)) % · \(median.memory) MB · \(median.threads) threads"
+    }
+
+    /// The tone a finished measure is marked with: what its verdict on the published figure says, and dim when there is nothing to compare.
+    private static func tone(_ result: Result, machine: String) -> Tone {
+        guard let verdict = verdict(result, machine: machine) else { return .note }
+        switch verdict {
+        case .reproduced, .below: return .ok
+        case .exceeded: return .crit
+        case .cannotCompare: return .note
+        }
     }
 
     /// What the measures of one `all` share, said once rather than a block each: the fingerprint the numbers belong to, the note a single run
-    /// needs, and the two reasons a published figure cannot be compared with one measured here (see `verdict`).
-    private static func trailer(_ results: [Result], count: Int, mark: Fingerprint, _ tty: Tty) -> String {
+    /// needs, and the reason a published figure cannot be compared with one measured here (see `verdict`).
+    private static func trailer(_ results: [Result], count: Int, mark: Fingerprint, _ tty: Tty) -> [String] {
         var lines = [""]
-        lines.append(contentsOf: fingerprintRows(mark, tty))
-        if count < 3 { lines.append(singleRunNote(each: true, tty)) }
+        lines += fingerprintRows(mark, tty)
+        if count < 3 {
+            lines += tty.check(.warn, "one run each", "a single run is noise of about ±0.1 s",
+                               hint: (cmd: "risk bench idle --runs 3", note: "a median instead of one run"), keyWidth: 14)
+        }
         let claimed = results.filter { $0.measure.published != nil }.count
         if claimed > 0 {
-            lines.append("")
-            lines.append("  " + tty.mark(.warn, "cannot compare \(claimed) published figure\(claimed == 1 ? "" : "s"): another machine, another layout"))
-            lines.append("    " + tty.dim("the page names \"\(publishedMachine)\"; this run is a \(mark.machine)"))
-            lines.append("    " + tty.dim("bench card <atom> sets one measure's number beside its figure"))
+            lines += tty.check(.warn, "cannot compare",
+                               "\(claimed) published figure\(claimed == 1 ? "" : "s"): the page measured another machine, on another layout",
+                               hint: (cmd: "risk bench --list", note: "which measures the page claims"), keyWidth: 14)
         }
-        return lines.joined(separator: "\n")
+        lines.append("")
+        lines.append(tty.footerHint([(cmd: "risk bench --list", text: "every measure and its figure")]))
+        return lines
     }
 
     private static func sampleJSON(_ sample: Sample) -> String {
@@ -537,74 +570,68 @@ enum Bench {
             + rows.joined(separator: ",\n  ") + "\n]}"
     }
 
-    /// The runs as a terminal prints them: a line a run, then the median and the spread, the fingerprint the numbers belong to, and how the
-    /// median compares with the published figure.
-    private static func plainReport(_ results: [Result], _ mark: Fingerprint, _ tty: Tty) -> String {
-        let dim = Style(fg: tty.palette.color(.text4, tty.mode)), bold = Style(bold: true)
+    /// The runs as a terminal prints them: a table a measure — the samples and the median, what the measure is, and the spread when there
+    /// is one — then the fingerprint the numbers belong to, and how each median stands beside the page's figure.
+    private static func report(_ results: [Result], _ mark: Fingerprint, _ tty: Tty) -> [String] {
+        let dim = Style(fg: tty.palette.color(.text4, tty.mode))
         var lines: [String] = []
         for result in results {
             let window = result.measure.window
-            lines.append("")
-            lines.append(tty.heading("bench " + result.measure.id)
-                         + tty.dim("  \(result.measure.summary); \(result.samples.count == 1 ? "one run" : "\(result.samples.count) runs") of \(window) s"))
-            var rows: [[Cell]] = result.samples.enumerated().map { index, s in
-                [Cell("  run \(index + 1)", .left, dim), Cell(fixed(s.seconds) + " s / \(window) s", .right), Cell(fixed(s.percent) + " %", .right),
-                 Cell("\(s.memory) MB", .right), Cell("\(s.threads) threads", .right, dim)]
+            func row(_ tone: Tone, _ label: String, _ sample: Sample, bold: Bool) -> [Cell] {
+                [tty.statusDot(tone), Cell(label, .left, Style(bold: bold)), Cell(fixed(sample.seconds) + " s", .right),
+                 Cell(fixed(sample.percent) + " %", .right), Cell("\(sample.memory) MB", .right, dim), Cell("\(sample.threads) threads", .right, dim)]
             }
-            rows.append([Cell("  median", .left, dim), Cell(fixed(result.median.seconds) + " s / \(window) s", .right, bold),
-                         Cell(fixed(result.median.percent) + " %", .right, bold), Cell("\(result.median.memory) MB", .right),
-                         Cell("\(result.median.threads) threads", .right, dim)])
-            lines.append(contentsOf: tty.rows(rows))
+            var rows = result.samples.enumerated().map { index, sample in row(.note, "run \(index + 1)", sample, bold: false) }
+            rows.append(row(.ok, "median", result.median, bold: true))
+            if !lines.isEmpty { lines.append("") }
+            let runs = result.samples.count == 1 ? "one run of \(window) s" : "\(result.samples.count) runs of \(window) s"
+            lines += tty.table(title: "bench " + result.measure.id, meta: runs,
+                               columns: [Column(priority: 4), Column(priority: 3), Column(priority: 2), Column(priority: 1), Column(priority: 1)],
+                               rows: rows)
+            lines.append("")
+            lines += tty.paragraph(result.measure.summary)
             if let noise = result.noise {
-                lines.append("  " + tty.dim("noise    ±" + fixed(noise) + " s between runs (" + fixed(noise * 100 / Double(window)) + " %)"))
+                lines += tty.check(.note, "noise", "±\(fixed(noise)) s between runs (\(fixed(noise * 100 / Double(window))) %)", keyWidth: 8)
             } else {
-                lines.append(singleRunNote(each: false, tty))
+                lines += tty.check(.warn, "one run", "a single run is noise of about ±0.1 s",
+                                   hint: (cmd: invocation(result.measure) + " --runs 3", note: "a median instead of one run"), keyWidth: 8)
             }
         }
         lines.append("")
-        lines.append(contentsOf: fingerprintRows(mark, tty))
+        lines += fingerprintRows(mark, tty)
         for result in results {
             guard let published = result.measure.published, let verdict = verdict(result, machine: mark.machine) else { continue }
-            let here = fixed(result.median.seconds) + " s over \(result.measure.window) s (" + fixed(result.median.percent) + " %)"
+            let here = "\(fixed(result.median.seconds)) s over \(result.measure.window) s (\(fixed(result.median.percent)) %)"
             lines.append("")
             switch verdict {
             case .cannotCompare:
-                lines.append("  " + tty.mark(.warn, "cannot compare: the page's figure is from another machine"))
-                lines.append("    " + tty.dim("published " + published.text + "; here " + here))
-                lines.append("    " + tty.dim("the page names \"\(publishedMachine)\", this run is a \(mark.machine)"))
-                lines.append("    " + tty.dim("a figure can also differ for a second reason: another layout"))
+                lines += tty.check(.warn, "cannot compare", "\(here) · published \(published.text)",
+                                   hint: (cmd: "risk bench --list", note: "which measures the page claims"), keyWidth: 15)
             case .reproduced:
-                lines.append("  " + tty.mark(.ok, "reproduced: " + here + " is inside the published range"))
-                lines.append("    " + tty.dim("published " + published.text))
+                lines += tty.check(.ok, "reproduced", "\(here) · inside the published \(published.text)", keyWidth: 15)
             case .exceeded:
-                lines.append("  " + tty.mark(.fail, "exceeded: " + here + " is above the published range"))
-                lines.append("    " + tty.dim("published " + published.text))
+                lines += tty.check(.crit, "exceeded", "\(here) · above the published \(published.text)", keyWidth: 15)
             case .below:
-                lines.append("  " + tty.mark(.ok, "below: " + here + " is under the published range"))
-                lines.append("    " + tty.dim("published " + published.text))
+                lines += tty.check(.ok, "below", "\(here) · under the published \(published.text)", keyWidth: 15)
             }
         }
-        return lines.joined(separator: "\n")
+        lines.append("")
+        lines.append(tty.footerHint([(cmd: "risk bench --list", text: "every measure and its figure")]))
+        return lines
     }
 
     /// A measured number in JSON and in the terminal: two decimals, which is finer than the noise, so nothing is rounded into looking better.
     private static func fixed(_ value: Double) -> String { String(format: "%.2f", value) }
 
-    /// The machine, the build and the two scratch files the numbers belong to, as rows: printed once, under the runs they explain.
+    /// The machine, the build and the two scratch files the numbers belong to, as checks: printed once, under the runs they explain.
     private static func fingerprintRows(_ mark: Fingerprint, _ tty: Tty) -> [String] {
-        let dim = Style(fg: tty.palette.color(.text4, tty.mode))
         let shown = mark.binary.replacingOccurrences(of: (checkout() ?? "") + "/", with: "")
-        return tty.rows([
-            [Cell("  machine", .left, dim), Cell("\(mark.machine) · \(mark.os) · \(mark.cores) cores")],
-            [Cell("  build", .left, dim), Cell("\(mark.revision) · \(shown)")],
-            [Cell("  layout", .left, dim), Cell(mark.layout)],
-            [Cell("  config", .left, dim), Cell(mark.config)],
+        return tty.checks([
+            (Tone.note, "machine", "\(mark.machine) · \(mark.os) · \(mark.cores) cores", nil),
+            (Tone.note, "build", "\(mark.revision) · \(shown)", nil),
+            (Tone.note, "layout", mark.layout, nil),
+            (Tone.note, "config", mark.config, nil),
         ])
-    }
-
-    /// The note one run needs: it has no spread, and one run must never read as the median of three.
-    private static func singleRunNote(each: Bool, _ tty: Tty) -> String {
-        "  " + tty.mark(.warn, (each ? "one run each: a single run" : "one run: a single run") + " is noise of about ±0.1 s — --runs 3 gives a median")
     }
 
     /// A number in JSON: no trailing `.0`, and two decimals at most, so 1.1 stays 1.1 and 0.25 stays 0.25.
@@ -615,14 +642,6 @@ enum Bench {
     // MARK: - output
 
     private static func usage(_ problem: String?) -> Int32 {
-        if let problem { FileHandle.standardError.write(Data("risk bench: \(problem)\n".utf8)) }
-        FileHandle.standardError.write(Data("""
-            usage: risk bench --list [--json]
-                   risk bench idle [--runs N] [--json]
-                   risk bench card <atom> [--runs N] [--json]
-                   risk bench all [--runs N] [--json]
-
-            """.utf8))
-        return 2
+        Usage.error("bench", problem ?? "name a measure: idle, card <atom> or all")
     }
 }

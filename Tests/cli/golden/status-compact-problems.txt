@@ -1,0 +1,16 @@
+  ▐▌ ▄▄▄▄▄▄▄▄▄▄   riskell 0.2.1
+  ▐▌              macOS 27.2 · Apple silicon · OmniWM
+  ▐▌ ▀▀▀▀▀▀▀▀▀▀   ● running · pid 67123 · up 3d 4h
+
+  build        binary  checkout  ! freshness
+  running app  ✗ socket  atoms  window manager
+
+  ✗  socket     ~/.cache/riskell/ev.sock does not answer
+     ↳ risk dev  start it from this checkout
+  !  freshness  a source file is newer than the binary
+     ↳ risk dev  rebuild and restart
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   3 ok  ·  1 to look at  ·  1 failing
+
+  next  risk dev  start it from this checkout
+  risk status --all every check, with its detail

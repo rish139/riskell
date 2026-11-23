@@ -4,14 +4,15 @@
 import Foundation
 import RiskellTTY
 
-/// `risk help [command]`: the front door and per-command help, rendered from the command table. Styled on a terminal; a pipe gets the same
-/// text with no escape sequences. Nothing is ever wider than the terminal (COLUMNS, else 80): a description that does not fit wraps under
-/// itself, and a terminal too narrow for a table puts the description on the line below the name, so a reader never loses a word.
+/// `risk help [command]`: the front door and per-command help, drawn by the kit from the command table. Styled on a terminal; a pipe gets
+/// the same text with no escape sequences. Nothing is ever wider than the terminal (COLUMNS, else 80): the kit wraps a description under
+/// itself, so a reader never loses a word.
 enum HelpScreen {
     /// Prints the front door with no name, one command when a name is given (an alias works too), or the group's subcommands. 0 when it
-    /// printed, 2 for a name the table does not know.
+    /// printed, 2 for a name the table does not know. `--unknown <word>` draws the wrapper's unknown-command error, also exit 2.
     static func run(_ args: [String]) -> Int32 {
         let tty = Terminal.tty()
+        if args.first == "--unknown" { return fail(tty, title: "unknown command '\(args.dropFirst().joined(separator: " "))'") }
         let name = args.joined(separator: " ").trimmingCharacters(in: .whitespaces)
         if name.isEmpty { print(frontDoor(tty).joined(separator: "\n")); return 0 }
         if let row = command(named: name) { print(detail(tty, row).joined(separator: "\n")); return 0 }
@@ -19,153 +20,64 @@ enum HelpScreen {
         let head = String(name.split(separator: " ").first ?? "")      // `risk help ext add`: the pass-through's own page lists add
         if let row = command(named: head) { print(detail(tty, row).joined(separator: "\n")); return 0 }
         if !subcommands(of: head).isEmpty { print(group(tty, head).joined(separator: "\n")); return 0 }
-        FileHandle.standardError.write(Data("risk: no command \"\(name)\": risk help lists them all\n".utf8))
+        return fail(tty, title: "no command \"\(name)\"")
+    }
+
+    /// The error a name the table does not know prints: the kit's shape, on stderr, exit 2.
+    private static func fail(_ tty: Tty, title: String) -> Int32 {
+        let lines = tty.errorBlock(title: title, detail: nil, tries: [(cmd: "risk help", note: "every command")])
+        FileHandle.standardError.write(Data((lines.joined(separator: "\n") + "\n").utf8))
         return 2
     }
 
     // MARK: screens
 
-    /// The name and version, the agent's state, the one line that says what risk is, then commands by tier with their one-liners, then
-    /// the three commands a first-time reader can start with.
+    /// The four groups of the front door, in the order a reader meets them.
+    private static let groupOrder = ["RUN", "LOOK", "CHANGE", "EXTEND"]
+
+    /// The name and version, the agent's state, the one line that says what risk is, the user CLI in its four groups, then the two ways to
+    /// read more. A row with no group and front line (`completions`, `help`) is not on the front door; `risk help <name>` still prints it.
     private static func frontDoor(_ tty: Tty) -> [String] {
-        var lines: [String] = []
-        let number = version()
-        let head = wrap("riskell" + (number.map { " " + $0 } ?? ""), tty.width - 2)
-        if head.count == 1, let number {
-            lines.append("  " + tty.heading("riskell") + " " + tty.dim(number))
-        } else {
-            lines.append(contentsOf: head.map { "  " + tty.heading($0) })
+        let groups = groupOrder.map { title in
+            (title: title, rows: commandTable.compactMap { row in
+                row.group == title ? row.front.map { (name: row.name, text: $0) } : nil
+            })
         }
-        lines.append(contentsOf: agentState(tty))
-        lines.append("")
-        lines.append(contentsOf: wrap("build it, run it, check it, extend it.", tty.width - 2).map { "  " + $0 })
-        lines.append(contentsOf: wrap("risk help <command> for one, docs/CLI.md for all.", tty.width - 2).map { "  " + tty.dim($0) })
-        lines.append("")
-
-        // One table for every command, so the columns line up across both tiers; a tier heading is a row of its own.
-        let dim = Style(fg: tty.palette.color(.text4, tty.mode))
-        let headings = tty.rows(Tier.allCases.map { tier in
-            [Cell("  " + tier.rawValue, .left, dim),
-             Cell("\(commandTable.filter { $0.tier == tier }.count) commands", .right, Style(bold: true))]
-        })
-        let rows = commandTable.map { [Cell("    " + $0.display, .left, Style(bold: true)), Cell($0.summary)] }
-        let rendered = table(tty, rows, rest: "      ")
-        for (section, tier) in Tier.allCases.enumerated() {
-            lines.append(headings[section])
-            lines.append(contentsOf: commandTable.indices.filter { commandTable[$0].tier == tier }.flatMap { rendered[$0] })
-            lines.append("")
-        }
-
-        lines.append("  " + tty.dim("start here"))
-        for example in ["risk status --json", "risk log 50 --follow", "risk help <command>"] {
-            lines.append(contentsOf: marked(tty, example, Style(bold: true)))
-        }
-        return lines
+        var out = tty.masthead(version: version() ?? "", lines: ["a desktop shell for macOS: bars, cards and extensions"], state: agentState())
+        out.append("")
+        out += tty.commandList(groups)
+        out.append("")
+        out.append(tty.footerHint([(cmd: "risk help <command>", text: "for one"), (cmd: "docs/CLI.md", text: "for all")]))
+        return out
     }
 
-    /// One command: its synopsis and one-liner, then aliases, tier, example and what it replaces, then its subcommands when it has any.
+    /// One command: its synopsis and one-liner, then its aliases, example and what it replaces, then its subcommands when it has any.
+    /// A developer command says what it is under the summary: it still runs, but it is not part of the user CLI.
     private static func detail(_ tty: Tty, _ row: Command) -> [String] {
-        let dim = Style(fg: tty.palette.color(.text4, tty.mode)), bold = Style(bold: true)
-        var lines = heading(tty, "risk " + row.usage)
-        lines.append("")
-        lines.append(contentsOf: wrap(row.summary, tty.width - 2).map { "  " + $0 })
-        lines.append("")
-        var cells: [[Cell]] = []
-        if !row.aliases.isEmpty {
-            cells.append([Cell("    aliases", .left, dim), Cell(row.aliases.map { "risk " + $0 }.joined(separator: ", "), .left, bold)])
-        }
-        cells.append([Cell("    tier", .left, dim), Cell(tierText(tty, row.tier))])
-        cells.append([Cell("    example", .left, dim), Cell(row.example, .left, bold)])
-        for (i, source) in row.otherReplaces.enumerated() {
-            cells.append([Cell(i == 0 ? "    replaces" : "", .left, dim), Cell(source, .left, bold)])
-        }
-        lines.append(contentsOf: table(tty, cells, rest: "      ").flatMap { $0 })
-        if !row.children.isEmpty { lines.append(contentsOf: childBlock(tty, row.children)) }
-        return lines
+        var fields: [(String, [String])] = []
+        if !row.aliases.isEmpty { fields.append(("aliases", [row.aliases.joined(separator: ", ")])) }
+        fields.append(("example", [row.example]))
+        if !row.otherReplaces.isEmpty { fields.append(("replaces", row.otherReplaces)) }
+        let children = row.children.map { ($0.name, $0.summary) }
+        var lines = tty.detail(usage: row.usage, summary: row.summary, fields: fields, children: children)
+        if row.tier == .dev { lines.insert("  " + tty.dim(devNote), at: endOfSummary(lines)) }
+        return [tty.header("help " + row.display), ""] + lines
     }
 
-    /// A group such as `wm` that has no row of its own: its subcommands, one per line.
+    /// A group such as `gestures` that has no row of its own: its subcommands, one per line.
     private static func group(_ tty: Tty, _ name: String) -> [String] {
-        var lines = heading(tty, "risk \(name) <subcommand>")
-        lines.append("")
-        lines.append(contentsOf: wrap("pick one; risk help <command> prints its flags and example.", tty.width - 2).map { "  " + tty.dim($0) })
-        lines.append(contentsOf: childBlock(tty, subcommands(of: name)))
-        return lines
+        [tty.header("help " + name), ""] + tty.detail(usage: "\(name) <subcommand>", summary: "pick one; risk help <command> prints its flags and example.",
+                   fields: [], children: subcommands(of: name).map { ($0.name, $0.summary) })
     }
 
-    private static func childBlock(_ tty: Tty, _ children: [Child]) -> [String] {
-        var lines = ["", "  " + tty.dim("subcommands")]
-        let rows = children.map { [Cell("    " + $0.name, .left, Style(bold: true)), Cell($0.summary)] }
-        lines.append(contentsOf: table(tty, rows, rest: "      ").flatMap { $0 })
-        return lines
-    }
+    /// The line a developer command keeps under its summary, in the dimmest text.
+    private static let devNote = "developer command: not part of the user CLI"
 
-    /// `stable` in the ok tone, `experimental` in the warn tone. No mark: `✓` means a check passed, and a tier is not a check.
-    private static func tierText(_ tty: Tty, _ tier: Tier) -> String {
-        let token: Palette.Token = tier == .stable ? .ok : .warn
-        return tty.styling(tier.rawValue, Style(fg: tty.palette.color(token, tty.mode), bold: true))
-    }
-
-    // MARK: layout
-
-    /// A heading on an indented line, wrapped when the terminal is narrow.
-    private static func heading(_ tty: Tty, _ text: String) -> [String] {
-        wrap(text, tty.width - 2).map { "  " + tty.heading($0) }
-    }
-
-    /// An indented line led by the neutral mark, `· text`, wrapped when the terminal is narrow; the rest lines up under the text.
-    private static func marked(_ tty: Tty, _ text: String, _ style: Style = .plain) -> [String] {
-        var wrapped = wrap(text, tty.width - 4)
-        let bullet = tty.tone(Mark.info.rawValue, .info) + " "
-        return ["  " + bullet + tty.styling(wrapped.removeFirst(), style)]
-            + wrapped.map { "    " + tty.styling($0, style) }
-    }
-
-    /// Breaks `text` on spaces into lines no wider than `room`. A single word longer than the room is cut and ends in `…`, the only place a
-    /// mark stands in for text.
-    private static func wrap(_ text: String, _ room: Int) -> [String] {
-        let room = max(1, room)
-        var lines: [String] = []
-        var line = ""
-        for var word in text.split(separator: " ").map(String.init) {
-            while word.count > room {
-                if !line.isEmpty { lines.append(line); line = "" }
-                let take = max(1, room - 1)
-                lines.append(String(word.prefix(take)) + (room > 1 ? "…" : ""))
-                word = String(word.dropFirst(take))
-            }
-            if line.isEmpty { line = word }
-            else if line.count + 1 + word.count <= room { line += " " + word }
-            else { lines.append(line); line = word }
-        }
-        if !line.isEmpty { lines.append(line) }
-        return lines.isEmpty ? [""] : lines
-    }
-
-    /// Two columns of styled text, the second wrapped under itself: a value starts at the widest label plus the gutter and its continuation
-    /// lines start there too. When that leaves the value less than half the width the label is too wide for a table, so the value starts on
-    /// the next line, at `rest`, instead of being cut. One array of lines per row, so a caller can keep the rows it wants.
-    private static func table(_ tty: Tty, _ rows: [[Cell]], rest: String) -> [[String]] {
-        let label = rows.map { $0.first?.text.count ?? 0 }.max() ?? 0
-        let start = label + Tty.gutter
-        let aligned = start <= tty.width / 2
-        let indent = String(rest.prefix(max(0, tty.width - 1)))
-        return rows.map { row in
-            let head = row.first ?? Cell("")
-            let value = row.count > 1 ? row[1] : Cell("")
-            let rendered = tty.styling(head.text, head.style)
-            if value.text.isEmpty { return [rendered] }
-            if !aligned {
-                var out = head.text.trimmingCharacters(in: .whitespaces).isEmpty ? [] : [rendered]
-                for line in wrap(value.text, tty.width - indent.count) { out.append(indent + tty.styling(line, value.style)) }
-                return out
-            }
-            let lines = wrap(value.text, tty.width - start)
-            let pad = String(repeating: " ", count: max(0, label - head.text.count) + Tty.gutter)
-            var out = [rendered + pad + tty.styling(lines[0], value.style)]
-            for line in lines.dropFirst() { out.append(String(repeating: " ", count: start) + tty.styling(line, value.style)) }
-            return out
-        }
+    /// Where a command's summary block ends: the blank line the kit keeps between the summary and the fields.
+    private static func endOfSummary(_ lines: [String]) -> Int {
+        guard let afterUsage = lines.firstIndex(of: ""),
+              let afterSummary = lines[(afterUsage + 1)...].firstIndex(of: "") else { return lines.count }
+        return afterSummary
     }
 
     // MARK: the agent
@@ -173,20 +85,20 @@ enum HelpScreen {
     /// The launch agent's label, as `scripts/risk install` writes it under `~/Library/LaunchAgents`.
     private static let agentLabel = "com.rish.riskell"
 
-    /// One line about the bar behind this command: `· running, pid 123`, `· loaded, not running`, `· not installed`, or no line when the
-    /// agent cannot be asked. Cheap and never waiting on riskell: a live event socket answers with its peer pid at once (no word is
-    /// written), the plist is a stat, and only an agent that is installed but silent costs one local `launchctl print`. riskell itself is
-    /// never run, and a missing `launchctl` costs only the line.
-    private static func agentState(_ tty: Tty) -> [String] {
+    /// The bar behind this command, as the masthead draws it: `running, pid 123`, `stopped`, or `state unknown` when the agent is installed
+    /// but will not say. Cheap and never waiting on riskell: a live event socket answers with its peer pid at once (no word is written), the
+    /// plist is a stat, and only an agent that is installed but silent costs one local `launchctl print`. riskell itself is never run, and a
+    /// missing `launchctl` costs only the line.
+    private static func agentState() -> State {
         let socket = cacheDir() + "/ev.sock"
-        if let pid = peerPid(at: socket) { return marked(tty, "running, pid \(pid)") }
-        let home = ProcessInfo.processInfo.environment["HOME"] ?? NSHomeDirectory()
+        if let pid = peerPid(at: socket) { return .running("running · pid \(pid)") }
+        let home = ProcessInfo.processInfo.environment["HOME"] ?? homePath()
         let plist = home + "/Library/LaunchAgents/\(agentLabel).plist"
-        guard FileManager.default.fileExists(atPath: plist) else { return marked(tty, "not installed") }
-        // installed but not loaded: none of the three lines is true of that, so it prints nothing
-        guard let report = launchctlPrint() else { return [] }
-        if let pid = runningPid(report) { return marked(tty, "running, pid \(pid)") }
-        return marked(tty, "loaded, not running")
+        guard FileManager.default.fileExists(atPath: plist) else { return .stopped("stopped") }
+        // installed but not loaded: launchd says which, and one that cannot be asked leaves the state unknown
+        guard let report = launchctlPrint() else { return .unknown("state unknown") }
+        if let pid = runningPid(report) { return .running("running · pid \(pid)") }
+        return .stopped("stopped")
     }
 
     /// `launchctl print` for this user's agent: what launchd says, or nil when `launchctl` is missing or the service is not loaded.

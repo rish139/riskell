@@ -1,0 +1,33 @@
+  -- status --
+  ✗  macOS 3-finger horizontal swipe  2 · built-in
+  ✗  macOS Mission Control gesture    1 · dock
+
+  -- status, nothing conflicting --
+  ✓  gestures  nothing conflicts
+
+  -- fix --dry-run --
+  would set com.apple.AppleMultitouchTrackpad
+            TrackpadThreeFingerHorizSwipeGesture: 2 -> 0
+  would set com.apple.dock showMissionControlGestureEnabled: 1 -> 0
+
+  dry run, nothing written; add --yes to write (originals are saved to
+  ~/.config/riskell/gesture-backup.json)
+
+  -- fix --yes --
+  ✓  backup                           ~/.config/riskell/gesture-backup.…
+  ✓  macOS 3-finger horizontal swipe  2 -> 0 · built-in
+  ✓  macOS Mission Control gesture    1 -> 0 · dock
+  ·  logout                           the trackpad settings may need a
+                                      logout before macOS acts on them
+  next  killall Dock  the Dock reads its gestures when it starts
+
+  -- restore --dry-run --
+  would set com.apple.AppleMultitouchTrackpad
+            TrackpadThreeFingerHorizSwipeGesture: 0 -> 2
+  would set com.apple.dock showMissionControlGestureEnabled: 0 -> 1
+
+  dry run, nothing written; add --yes to write (originals are saved to
+  ~/.config/riskell/gesture-backup.json)
+
+  -- status --json --
+  {"conflicts":[{"domain":"com.apple.AppleMultitouchTrackpad","key":"TrackpadThreeFingerHorizSwipeGesture","value":2},{"domain":"com.apple.dock","key":"showMissionControlGestureEnabled","value":1}],"ok":false}

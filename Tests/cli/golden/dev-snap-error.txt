@@ -1,0 +1,5 @@
+  ✗  no flag "--nope"
+     risk snap <maker>…|all|--list [--out DIR] [--theme ID|all] [--scale
+     N] [--display WxH] [--card ATOM] [--json] [--dry-run]
+
+     try   risk help snap    the full page

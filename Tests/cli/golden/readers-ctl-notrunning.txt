@@ -1,0 +1,5 @@
+  ✗  riskell is not running
+     the bar's socket does not answer: ~/.cache/riskell/no-sock
+
+     try   risk dev       start it from this checkout
+           risk status    see what else is off

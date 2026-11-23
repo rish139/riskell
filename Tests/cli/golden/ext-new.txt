@@ -1,0 +1,2 @@
+  ✓  upinfo  created · pill
+     ↳ risk ext validate upinfo  edit it, then check the rules

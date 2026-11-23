@@ -1,0 +1,14 @@
+  ▐▌ riskell  ctl                                               36 words
+
+  settings        settings
+  bar             bar-left-on  bar-left-off  bar-right-on  bar-right-off
+                  bar-bottom-on  bar-bottom-off
+  workspace       workspace-1…9  overview
+  window manager  wm  aerospace
+  debug           compat  touch-state  scroll-guard  window-order
+                  overview-state  overview-bench  overview-snap
+                  screen-snap  overview-lift  overview-drop  gesture-up
+                  center-focused  floating-top  touch-reattach
+                  focus-latency  focus-other  overview-click-other
+
+  risk ctl <word> send one   ·   risk ctl --list --all what each word does

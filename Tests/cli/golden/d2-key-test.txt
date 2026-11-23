@@ -1,0 +1,13 @@
+  ▐▌ riskell  key-test                                           9 cases
+  ──────────────────────────────────────────────────────────────────────
+  ●  Escape            PASS  closes
+  ●  q                 PASS  closes
+  ●  Q (shift)         PASS  stays
+  ●  q (command)       PASS  stays
+  ●  q (option)        PASS  stays
+  ●  Escape (command)  PASS  stays
+  ●  a                 PASS  stays
+  ●  Return            PASS  stays
+  ●  Space             PASS  stays
+
+  ✓  result  PASS

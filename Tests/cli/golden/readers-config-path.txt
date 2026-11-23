@@ -1,0 +1,7 @@
+  ▐▌ riskell  config
+  ──────────────────────────────────────────────────────────────────────
+  ✓  config  ~/.config/riskell/config.json
+  ·  layout  ~/.config/riskell/layout.json
+  ✓  cache   ~/.cache/riskell
+  ✓  log     ~/.cache/riskell/riskell.log
+  ·  socket  ~/.cache/riskell/ev.sock

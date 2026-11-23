@@ -1,0 +1,27 @@
+  ▐▌ riskell  theme list                                      11 schemes
+  ──────────────────────────────────────────────────────────────────────
+  ●  gruvbox-dark-medium          dark  ✓ default
+     Gruvbox dark, medium
+  ●  catppuccin-mocha             dark
+     Catppuccin Mocha
+  ●  rose-pine                    dark
+     Rosé Pine
+  ●  nord                         dark
+     Nord
+  ●  tokyo-night-dark             dark
+     Tokyo Night Dark
+  ●  kanagawa                     dark
+     Kanagawa
+  ●  everforest-dark-medium       dark
+     Everforest Dark Medium
+  ●  dracula                      dark
+     Dracula
+  ●  github-dark-high-contrast    dark
+     Github Dark High Contrast
+  ●  gruvbox-light-medium         light
+     Gruvbox light, medium
+  ●  catppuccin-latte             light
+     Catppuccin Latte
+
+  in ~/.config/riskell/themes; a Base16 .yaml there is one of them
+  risk theme check every scheme's contrast   ·   risk theme import <file.yaml> bring one in

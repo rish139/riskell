@@ -1,40 +1,23 @@
-  riskell 0.2.1
-  · not installed
+  ▐▌ ▄▄▄▄▄▄▄▄▄▄   riskell 0.2.1
+  ▐▌              a desktop shell for macOS: bars, cards and extensions
+  ▐▌ ▀▀▀▀▀▀▀▀▀▀   ● stopped
 
-  build it, run it, check it, extend it.
-  risk help <command> for one, docs/CLI.md for all.
+  RUN
+    install    build, then start riskell now and at login
+    dev        rebuild and restart the running agent
+    setup      the guided installer
+    uninstall  stop riskell and remove its login agent
 
-  stable        21 commands
-    install           build, then start riskell now and at login
-    uninstall         stop riskell and remove its login agent
-    dev               rebuild and restart the running agent
-    status            check health and name the first failing check
-    log               print the last few log lines, or follow them
-    ctl               send one word to the running bar, or list them
-    setup             run the guided installer; flags answer its questions
-    config            read and change riskell's settings without editing JSON
-    theme list        list every scheme with its resolved tokens
-    theme check       check each scheme's contrast against its floors
-    theme import      bring a Base16 scheme in from another shell
-    gestures status   show which trackpad and dock keys fight riskell
-    gestures fix      save the originals, then turn the conflicting keys off
-    gestures restore  put the saved key values back
-    wm status         show which window manager is driving the rail
-    wm export         save each window's workspace number
-    wm import         put each saved window back on its number
-    ext               add, update, remove, validate and publish extensions
-    completions       print the shell completions for this table
-    version           print riskell, kit and lockfile versions
-    help              print this table, or one command in detail
+  LOOK
+    status     health, with the first thing to fix named
+    log        the last lines of the log, or follow it
 
-  experimental   5 commands
-    fit               run pass/fail checks on each fake display
-    snap              render the picture set from scratch instances
-    wm start          start omniwm and put each window on its number
-    bench             re-measure the efficiency table on this machine
-    self-test         run the ci checks: installer, extensions, weather, usage
+  CHANGE
+    config     read and change settings without editing JSON
+    ctl        send one word to the running bar
+    gestures   turn off the trackpad keys that fight riskell
 
-  start here
-  · risk status --json
-  · risk log 50 --follow
-  · risk help <command>
+  EXTEND
+    ext        add, update, remove, validate and publish extensions
+
+  risk help <command> for one   ·   docs/CLI.md for all

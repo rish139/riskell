@@ -1,0 +1,21 @@
+  || __________   riskell 0.2.1
+  ||              macOS 27.2 · Apple silicon · OmniWM
+  || ----------   * running · pid 67123 · up 3d 4h
+
+  build ----------------------------------------------------------------
+  +  binary          built · 0.2.1 · current
+  .  checkout        no riskell checkout found: pass --repo PATH to
+                     check the build
+  !  freshness       a source file is newer than the binary
+     > risk dev  rebuild and restart
+
+  running app ----------------------------------------------------------
+  x  socket          ~/.cache/riskell/ev.sock does not answer
+     > risk dev  start it from this checkout
+  +  atoms           11 on top, bottom, left · none need a service
+  +  window manager  OmniWM · subscribed, state reaches the bars live,
+                     and this value is long enough to wrap
+
+  ========================================   3 ok  .  1 to look at  .  1 failing
+
+  next  risk dev  rebuild and restart

@@ -1,0 +1,37 @@
+  ▐▌ riskell  theme check
+  ✓  gruvbox-dark-medium        dark · text1 10.75, text2 8.59, text3
+                                6.77, text4 4.02, accent 8.69, ok 7.14,
+                                warn 5.84, crit 4.29
+  ✓  catppuccin-mocha           dark · text1 12.95, text2 11.34, text3
+                                4.73, text4 3.32, accent 12.91, ok
+                                11.03, warn 9.27, crit 7.08
+  ✓  rose-pine                  dark · text1 13.39, text2 13.39, text3
+                                5.48, text4 3.23, accent 10.45, ok 3.38,
+                                warn 10.77, crit 6.07
+  ✓  nord                       dark · text1 10.84, text2 10.26, text3
+                                9.25, text4 3.40, accent 8.00, ok 6.13,
+                                warn 4.39, crit 3.05
+  ✓  tokyo-night-dark           dark · text1 10.66, text2 8.10, text3
+                                4.81, text4 3.35, accent 7.27, ok 9.35,
+                                warn 8.10, crit 10.59
+  ✓  kanagawa                   dark · text1 8.89, text2 11.26, text3
+                                4.58, text4 3.23, accent 6.78, ok 4.84,
+                                warn 8.15, crit 3.22
+  ✓  everforest-dark-medium     dark · text1 8.14, text2 5.35, text3
+                                5.33, text4 3.32, accent 6.84, ok 6.23,
+                                warn 5.41, crit 4.55
+  ✓  dracula                    dark · text1 13.36, text2 13.36, text3
+                                6.02, text4 3.37, accent 12.74, ok
+                                10.38, warn 8.36, crit 4.53
+  ✓  github-dark-high-contrast  dark · text1 17.39, text2 13.07, text3
+                                6.50, text4 3.33, accent 10.38, ok 9.85,
+                                warn 10.96, crit 8.92
+  ✓  gruvbox-light-medium       light · text1 12.99, text2 10.22, text3
+                                7.78, text4 3.20, accent 3.33, ok 4.29,
+                                warn 5.40, crit 7.60
+  ✓  catppuccin-latte           light · text1 7.74, text2 5.10, text3
+                                7.06, text4 3.32, accent 3.21, ok 3.19,
+                                warn 3.08, crit 4.80
+
+  ✓  floors                     11 schemes above their floors
+  risk theme list every scheme in the catalog

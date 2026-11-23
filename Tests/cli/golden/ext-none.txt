@@ -1,0 +1,2 @@
+  nothing matches "nothinghere"
+  risk ext search <words> try a shorter word

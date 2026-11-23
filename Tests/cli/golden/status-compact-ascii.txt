@@ -1,0 +1,18 @@
+  || __________   riskell 0.2.1
+  ||              macOS 27.2 · Apple silicon · OmniWM
+  || ----------   * running · pid 67123 · up 3d 4h
+
+  build           binary  app bundle  freshness  version
+  system          macOS  chip  swift  Spaces  signing  verified
+  install         launch agent  agent plist  risk link  PATH  homebrew
+  files           config.json  layout.json  instance lock
+  running app     socket  process  services  atoms
+  window manager  manager  subscription  protocol  settings  gaps
+  permissions     accessibility  location
+  gestures        conflicts  trackpad  scroll guard
+  log             errors
+
+  =======================================   32 ok  .  0 to look at  .  0 failing
+
+  everything is in order
+  risk status --all every check, with its detail

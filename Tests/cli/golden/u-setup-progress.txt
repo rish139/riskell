@@ -1,0 +1,24 @@
+
+  installing ───────────────────────────────────────────────────────────
+  ✓  Build riskell           built in 41 s
+  ✓  Write config.json       merged 6 owned keys, your other keys are k…
+  ✓  Write layout.json       kept your layout.json
+  ·  Trackpad gestures       left as they are
+  !  Link risk               starting the launch agent…
+  ·  Start the launch agent
+  ·  Health check
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  working the installer is writing the plan

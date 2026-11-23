@@ -1,0 +1,1 @@
+  ✓  sync  the lock's Swift files are regenerated

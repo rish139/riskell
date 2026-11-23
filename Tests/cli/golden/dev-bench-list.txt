@@ -1,0 +1,26 @@
+  ▐▌ riskell  bench        11 measures, 11 claimed in docs/EFFICIENCY.md
+  ·  idle             at rest: nothing open, nothing hovered · 30 s ·
+                      published 0.33 s / 30 s (1.1 %), 104 to 110 MB, 6
+                      to 9 threads
+  ·  loaded           at rest while every core is busy with other work ·
+                      30 s · published 0.09 s / 30 s
+  ·  card:clock       the date card held open · 20 s · published 1.4 to
+                      1.9 %
+  ·  card:bat         the battery card held open · 20 s · published 1.4
+                      to 1.9 %
+  ·  card:workspaces  the workspaces card held open · 20 s · published
+                      1.4 to 1.9 %
+  ·  card:weather     the weather card held open · 20 s · published 1.4
+                      to 1.9 %
+  ·  card:usage       the AI usage card held open · 20 s · published 1.4
+                      to 1.9 %
+  ·  card:fan         the fan card held open · 20 s · published 2.7 %
+  ·  card:net         the network card held open · 20 s · published 3.5
+                      %
+  ·  card:cpu         the vitals card held open · 20 s · published 6.1 %
+  ·  card:vol         the mixer card held open · 20 s · published 4.6 to
+                      8.4 %
+
+  published is the "after" column of docs/EFFICIENCY.md, measured on the
+  14-inch MacBook Pro; --list starts nothing
+  risk bench idle the idle figure, three runs   ·   risk bench all every measure, once each

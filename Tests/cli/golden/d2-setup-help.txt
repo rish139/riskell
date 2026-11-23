@@ -1,0 +1,69 @@
+  ▐▌ riskell  setup                     the guided installer for riskell
+
+  riskell-setup [options]
+
+  With no options it opens the guided terminal flow, which needs a
+  terminal; each option below answers one of its questions.
+
+  WITHOUT QUESTIONS
+    --yes                 take the detected defaults and install: no
+                          questions, and every usage source stays off
+                          unless a flag below turns it on
+    --dry-run             print the plan and the JSON that would be
+                          written; write nothing
+
+  REPORTS
+    --check               the installer's checklist: the preflight, then
+                          the agent, the socket and the log
+    --doctor              the health report: build, system, install,
+                          files, running app, window manager,
+                          permissions, gestures, log, verdict
+    --all                 with --doctor: every row with its detail,
+                          instead of one line per section
+    --json                with --check or --doctor: one JSON object on
+                          stdout and nothing else
+    --bundle              DIR: with --check or --doctor, also write a
+                          redacted report (the JSON and the last 200 log
+                          lines) to DIR as one tar.gz
+
+  ANSWERS (WITH --YES)
+    --wm                  auto, omniwm, yabai, aerospace, command or
+                          none: the window manager to set up
+    --theme               ID: a scheme id from installer/themes.json
+    --bars                minimal, classic or full: the layout to write
+    --cards               flush or chat: how a card sits against the bar
+    --city                "Name": the place the weather card shows,
+                          looked up once; the first match is used
+    --gestures            riskell or system: who owns the three and
+                          four-finger gestures
+    --claude              Claude Code usage on, from its local logs: no
+                          credentials, no network
+    --claude-limits       also the real plan limits: reads the keychain
+                          login token and asks Anthropic (unofficial,
+                          may breach its terms); implies --claude, and
+                          this flag is the consent
+    --opencode-workspace  wrk_...: OpenCode Go usage, which reads an
+                          opencode.ai browser cookie; this flag is the
+                          consent
+    --opencode-profiles   DIR: the browser profiles folder for OpenCode
+                          (default: Zen's)
+    --scale               N or auto: a number from 0.5 to 2.0
+    --replace-layout      replace an existing layout.json
+
+  OTHER
+    --repo                PATH: the riskell checkout (found
+                          automatically when omitted)
+    --no-build            do not build riskell
+    --no-launch           do not start the launch agent or link risk
+    --no-path             do not add the folder of the risk link to PATH
+                          in your shell start-up files
+    --uninstall           stop riskell and remove its agent, its risk
+                          link and its PATH block (asks, or --yes)
+    --remove-config       with --uninstall: also remove
+                          ~/.config/riskell
+    --restore-gestures    with --uninstall: restore the trackpad
+                          gestures too
+    --version             print the installer's version
+    --help                this page
+
+  Nothing is written before the final confirm. Docs: docs/INSTALL.md

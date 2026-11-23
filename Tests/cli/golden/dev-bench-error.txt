@@ -1,0 +1,4 @@
+  ✗  no flag "--nope"
+     risk bench [idle|card <atom>|all] [--runs N] [--list] [--json]
+
+     try   risk help bench    the full page

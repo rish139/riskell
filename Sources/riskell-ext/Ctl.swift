@@ -82,7 +82,17 @@ enum Ctl {
         ProcessInfo.processInfo.environment["RISKELL_EVENT_SOCKET"] ?? cacheDir() + "/ev.sock"
     }
 
+    /// A path as a person reads it: `~/…` under the home folder, absolute everywhere else.
+    private static func shown(_ path: String) -> String {
+        let home = ProcessInfo.processInfo.environment["HOME"].flatMap { $0.isEmpty ? nil : $0 } ?? homePath()
+        let normal = URL(fileURLWithPath: home).standardized.path
+        if path == normal { return "~" }
+        if path.hasPrefix(normal + "/") { return "~/" + String(path.dropFirst(normal.count + 1)) }
+        return path
+    }
+
     static func run(_ args: [String]) -> Int32 {
+        if args.isEmpty { return HelpScreen.run(["ctl"]) }
         var json = false, dryRun = false, yes = false, list = false
         var name: String?
         for arg in args {
@@ -91,6 +101,7 @@ enum Ctl {
             case "--dry-run": dryRun = true
             case "--yes": yes = true
             case "--list": list = true
+            case "--all": break
             default:
                 guard !arg.hasPrefix("-") else { return usage("no flag \"\(arg)\"") }
                 guard name == nil else { return usage("one word at a time") }
@@ -99,7 +110,7 @@ enum Ctl {
         }
         if list {
             guard name == nil else { return usage("--list takes no word") }
-            return printList(json: json)
+            return printList(json: json, all: args.contains("--all"))
         }
         guard let word = name else { return usage("ctl <word>, or ctl --list") }
         guard let entry = words.first(where: { $0.name == word }) else {
@@ -114,36 +125,51 @@ enum Ctl {
             if json {
                 print(object(word: word, sent: false, ok: true, note: "dry run; nothing was written"))
             } else {
-                print(word)      // the exact line the client would write, and nothing else
+                let tty = Terminal.tty()
+                print(tty.plan([(verb: "send", text: word, satisfied: false)],
+                               note: "dry run, nothing sent; take out --dry-run to send it").joined(separator: "\n"))
             }
             return 0
         }
 
         let path = socketPath
         guard FileManager.default.fileExists(atPath: path) else {
-            return fail(word, code: 1, json: json, note: "riskell is not running: no socket at \(path)",
-                        message: "risk ctl: riskell is not running (no socket at \(path)); start it with risk install")
+            if json {
+                return fail(word, code: 1, json: true, note: "riskell is not running: no socket at \(path)",
+                            message: "risk ctl: riskell is not running (no socket at \(path)); start it with risk install")
+            }
+            let tty = Terminal.tty()
+            let block = tty.errorBlock(title: "riskell is not running",
+                                       detail: "the bar's socket does not answer: \(shown(path))",
+                                       tries: [(cmd: "risk dev", note: "start it from this checkout"),
+                                               (cmd: "risk status", note: "see what else is off")])
+            FileHandle.standardError.write(Data((block.joined(separator: "\n") + "\n").utf8))
+            return 1
         }
         do {
             try send(word + "\n", to: path)
         } catch {
             let message = "risk ctl: could not write to \(path): \(error)"
-            return fail(word, code: 1, json: json, note: message, message: message)
+            if json { return fail(word, code: 1, json: true, note: message, message: message) }
+            let tty = Terminal.tty()
+            let block = tty.errorBlock(title: "could not send \(word)", detail: "the socket at \(shown(path)) did not take it: \(error)",
+                                       tries: [(cmd: "risk status", note: "see what else is off")])
+            FileHandle.standardError.write(Data((block.joined(separator: "\n") + "\n").utf8))
+            return 1
         }
 
         if json {
             print(object(word: word, sent: true, ok: true, note: entry.note))
         } else {
             let tty = Terminal.tty()
-            print(tty.mark(.ok, "sent " + word))
-            print("  " + tty.dim(entry.note))
+            print(tty.check(.ok, word, "sent", keyWidth: word.count + 1).joined(separator: "\n"))
         }
         return 0
     }
 
     // MARK: output
 
-    private static func printList(json: Bool) -> Int32 {
+    private static func printList(json: Bool, all: Bool = false) -> Int32 {
         if json {
             var rows: [String] = []
             for word in words {
@@ -155,22 +181,46 @@ enum Ctl {
         }
 
         let tty = Terminal.tty()
-        var lines: [String] = []
-        for group in Group.allCases {
-            let groupWords = words.filter { $0.group == group }
-            let width = groupWords.map(\.name.count).max() ?? 0
-            lines.append(tty.heading(group.rawValue))
-            for word in groupWords {
-                let pad = String(repeating: " ", count: width - word.name.count)
-                var line = "  " + tty.bold(word.name + pad) + "  " + word.summary
-                if word.destructive { line += "  " + tty.tone("destructive", .warn) }
-                lines.append(line)
+        if !all {
+            // One line per group: the words, with numbered runs (workspace-1 ... workspace-9) folded into one.
+            var lines = [tty.header("ctl", detail: "\(words.count) words"), ""]
+            let labelWidth = Group.allCases.map(\.rawValue.count).max() ?? 0
+            for group in Group.allCases {
+                let names = words.filter { $0.group == group }.map(\.name)
+                if !names.isEmpty { lines += tty.chips(label: group.rawValue, items: folded(names), labelWidth: labelWidth) }
             }
-            lines.append("")
+            lines += ["", tty.footerHint([(cmd: "risk ctl <word>", text: "send one"), (cmd: "risk ctl --list --all", text: "what each word does")])]
+            print(lines.joined(separator: "\n"))
+            return 0
         }
-        lines.append(tty.dim("a destructive word writes a file or moves the screen; no word puts that back"))
+        var groups: [(title: String, rows: [(name: String, text: String)])] = []
+        for group in Group.allCases {
+            let rows = words.filter { $0.group == group }.map { word -> (name: String, text: String) in
+                (name: word.name, text: word.summary + (word.destructive ? " (destructive)" : ""))
+            }
+            if !rows.isEmpty { groups.append((group.rawValue, rows)) }
+        }
+        var lines = [tty.header("ctl", detail: "\(words.count) words"), ""] + tty.commandList(groups)
+        lines.append("")
+        lines.append(tty.footerHint([(cmd: "risk ctl <word>", text: "send one")]))
         print(lines.joined(separator: "\n"))
         return 0
+    }
+
+    /// `workspace-1 ... workspace-9` become `workspace-1…9`: a run of words that differ only by a trailing number.
+    private static func folded(_ names: [String]) -> [String] {
+        var out: [String] = [], run: [String] = []
+        func base(_ n: String) -> String? { n.range(of: "-[0-9]+$", options: .regularExpression).map { String(n[..<$0.lowerBound]) } }
+        func flush() {
+            if run.count > 2, let b = base(run[0]), let last = run.last?.dropFirst(b.count + 1) { out.append("\(run[0])\u{2026}\(last)") } else { out += run }
+            run = []
+        }
+        for name in names {
+            if let b = base(name), let first = run.first, base(first) == b { run.append(name) }
+            else { flush(); run = [name] }
+        }
+        flush()
+        return out
     }
 
     private static func object(word: String, sent: Bool, ok: Bool, note: String?) -> String {
@@ -180,12 +230,11 @@ enum Ctl {
     }
 
     private static func usage(_ problem: String) -> Int32 {
-        FileHandle.standardError.write(Data("risk ctl: \(problem)\nusage: risk ctl <word> [--json] [--dry-run] [--yes] | risk ctl --list [--json]\n".utf8))
-        return 2
+        return Usage.error("ctl", problem)
     }
 
     private static func fail(_ word: String, code: Int32, json: Bool, note: String, message: String) -> Int32 {
-        FileHandle.standardError.write(Data((message + "\n").utf8))
+        Usage.failure(message, tries: [("risk ctl --list", "every word")])
         if json { print(object(word: word, sent: false, ok: false, note: note)) }
         return code
     }

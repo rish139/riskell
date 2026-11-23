@@ -1,0 +1,5 @@
+  ✗  the build failed
+     swift build said no
+
+     try   risk dev       try again
+           risk log 30    what it said

@@ -1,0 +1,12 @@
+  ▐▌ riskell  config  ~/.config/riskell/config.json
+  ──────────────────────────────────────────────────────────────────────
+  {
+    "theme": "gruvbox",
+    "scale": 1.25,
+    "tray": true,
+    "pills": [
+      "clock",
+      "battery"
+    ],
+    "apiKey": "set"
+  }

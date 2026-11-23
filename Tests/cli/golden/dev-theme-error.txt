@@ -1,0 +1,4 @@
+  ✗  takes only --json, not "--nope"
+     risk theme list [--json]
+
+     try   risk help theme list    the full page

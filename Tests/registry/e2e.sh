@@ -46,7 +46,7 @@ ok "a compiled add asks for a rebuild (exit 10)" "[[ $rc == 10 ]]"
 ok "the lock has it, with its version" "grep -q '\"version\" : \"1.0.0\"' $T/root/extensions.lock.json"
 ok "a pill is installed as a file" "$X add upinfo --yes >/dev/null 2>&1 && [[ -f $T/cfg/pills/upinfo.json ]]"
 ok "a theme is installed as a file" "$X add mytheme >/dev/null 2>&1 && [[ -f $T/cfg/themes/mytheme.yaml ]]"
-ok "list shows all three" "[[ \$($X list | grep -cE '^(load-ext|upinfo|mytheme) ') == 3 ]]"
+ok "list shows all three" "[[ \$($X list | grep -cE '^  .+  (load-ext|upinfo|mytheme) ') == 3 ]]"
 # the pill's author ships 0.2.0
 (cd $T/repos/upinfo && python3 - <<'PY'
 import json; m=json.load(open("riskell.json")); m["version"]="0.2.0"; json.dump(m,open("riskell.json","w"))
@@ -54,7 +54,7 @@ p=json.load(open("pill.json")); p["run"]="echo 43"; json.dump(p,open("pill.json"
 PY
 git -c user.email=t@t -c user.name=t commit -qam 0.2.0 && git tag v0.2.0)
 list upinfo; index
-ok "update shows the change and applies nothing" "[[ \$($X update) == *'nothing was changed'* ]] && grep -q 'echo 42' $T/cfg/pills/upinfo.json"
+ok "update shows the change and applies nothing" "[[ \$($X update) == *'nothing written'* ]] && grep -q 'echo 42' $T/cfg/pills/upinfo.json"
 ok "update --yes applies it" "$X update --yes >/dev/null 2>&1 && grep -q 'echo 43' $T/cfg/pills/upinfo.json"
 ok "then it is up to date" "[[ \$($X update) == *'up to date'* ]]"
 python3 -c "import json;p='$T/reg/listings/load-ext.json';d=json.load(open(p));d['version']='9.9.9';json.dump(d,open(p,'w'))"; (cd $T/reg && python3 scripts/build-index.py >/dev/null)

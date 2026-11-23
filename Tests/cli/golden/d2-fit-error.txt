@@ -1,0 +1,4 @@
+  ✗  there is no layout to check
+     RISKELL_LAYOUT=<a copy of layout.json>
+
+     try   risk fit    the wing and panel checks, without the environment

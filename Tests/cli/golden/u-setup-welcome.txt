@@ -1,0 +1,24 @@
+  ▐▌ ▄▄▄▄▄▄▄▄▄▄   riskell setup 1.0
+  ▐▌              macOS 15.2 · x86_64 · OmniWM
+  ▐▌ ▀▀▀▀▀▀▀▀▀▀   ● not installed
+
+  The guided installer asks eight short questions: your window manager,
+  the bars, a theme, a weather place, the optional usage sources, the
+  trackpad gestures and the scale. Nothing is written until you confirm.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  enter continue   ·   esc quit

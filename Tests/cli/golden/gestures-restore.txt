@@ -1,0 +1,7 @@
+  would set com.apple.AppleMultitouchTrackpad-riskell-contract
+            TrackpadThreeFingerHorizSwipeGesture: unset -> 2
+  would set com.apple.dock-riskell-contract
+            showMissionControlGestureEnabled: unset -> 1
+
+  dry run, nothing written; add --yes to write (originals are saved to
+  ~/.config/riskell/gesture-backup.json)

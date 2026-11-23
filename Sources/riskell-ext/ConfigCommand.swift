@@ -12,6 +12,7 @@ enum ConfigCommand {
     static let schema = "riskell.config/1"
 
     static func run(_ args: [String]) -> Int32 {
+        if args.isEmpty { return HelpScreen.run(["config"]) }
         guard let sub = args.first else { return usage("path, show, get, set or edit") }
         let rest = Array(args.dropFirst())
         switch sub {
@@ -37,10 +38,10 @@ enum ConfigCommand {
 
         init() {
             let env = ProcessInfo.processInfo.environment
-            config = Paths.absolute(env["RISKELL_CONFIG"] ?? NSHomeDirectory() + "/.config/riskell/config.json")
+            config = Paths.absolute(env["RISKELL_CONFIG"] ?? homePath() + "/.config/riskell/config.json")
             layout = env["RISKELL_LAYOUT"].map(Paths.absolute)
                 ?? URL(fileURLWithPath: config).deletingLastPathComponent().appendingPathComponent("layout.json").path
-            cache = Paths.absolute(env["RISKELL_CACHE_DIR"] ?? NSHomeDirectory() + "/.cache/riskell")
+            cache = Paths.absolute(env["RISKELL_CACHE_DIR"] ?? homePath() + "/.cache/riskell")
             log = cache + "/riskell.log"
             socket = Paths.absolute(env["RISKELL_EVENT_SOCKET"] ?? cache + "/ev.sock")
         }
@@ -53,9 +54,10 @@ enum ConfigCommand {
 
     /// A path as a person reads it: `~/…` under the home folder, absolute everywhere else.
     private static func shown(_ path: String) -> String {
-        let home = NSHomeDirectory()
-        if path == home { return "~" }
-        if path.hasPrefix(home + "/") { return "~/" + String(path.dropFirst(home.count + 1)) }
+        let home = ProcessInfo.processInfo.environment["HOME"].flatMap { $0.isEmpty ? nil : $0 } ?? homePath()
+        let normal = URL(fileURLWithPath: home).standardized.path
+        if path == normal { return "~" }
+        if path.hasPrefix(normal + "/") { return "~/" + String(path.dropFirst(normal.count + 1)) }
         return path
     }
 
@@ -76,11 +78,13 @@ enum ConfigCommand {
         }
         let tty = Terminal.tty()
         let rows = [("config", paths.config), ("layout", paths.layout), ("cache", paths.cache), ("log", paths.log), ("socket", paths.socket)]
-        let width = rows.map(\.0.count).max() ?? 0
-        for (label, value) in rows {
-            let pad = String(repeating: " ", count: width - label.count)
-            print("  " + tty.dim(label + pad) + "  " + shown(value))
-        }
+        var lines = tty.tableHead(title: "config", meta: nil)
+        // A file that is there is a check; one that is not yet written is a note; folders and the socket are places, not files.
+        lines += tty.checks(rows.map { row in
+            let there = FileManager.default.fileExists(atPath: row.1)
+            return (there ? Tone.ok : Tone.note, row.0, shown(row.1), nil)
+        })
+        print(lines.joined(separator: "\n"))
         return 0
     }
 
@@ -116,18 +120,31 @@ enum ConfigCommand {
             if let reason { out += ",\n  \"error\": \(jsonQuoted(reason))" }
             print(out + "\n}")
         } else {
-            let tty = Terminal.tty()
-            print(tty.bold(shown(file)))
-            print("  " + tty.dim("exists") + "  " + (exists ? "yes" : "no"))
-            print("  " + tty.dim("parses") + "  " + (parses ? "yes" : "no"))
-            if let reason { print("  " + tty.dim("reason") + "  " + reason) }
-            if let object, let text {
-                print("")
-                print(redactedSource(text, root: object))
-            } else if let text, !text.isEmpty {
-                print("")
-                print(text)
+            guard exists else {
+                return block("there is no config file", detail: shown(file),
+                             tries: [(cmd: "risk config set <key> <value>", note: "starts one")])
             }
+            guard text != nil else {
+                return block("cannot read the config file", detail: shown(file),
+                             tries: [(cmd: "risk config path", note: "see where it should be")])
+            }
+            guard let error = parsed?.error else {
+                if object != nil {
+                    let tty = Terminal.tty()
+                    var lines = tty.tableHead(title: "config", detail: shown(file), meta: nil)
+                    lines += tty.jsonLines(pretty(object!, redact: true, indent: 0))
+                    print(lines.joined(separator: "\n"))
+                } else {
+                    let tty = Terminal.tty()
+                    let lines = tty.errorBlock(title: "the config file is not an object",
+                                               detail: "\(shown(file)) is \(root.map(kind) ?? "empty"), and riskell's config is an object",
+                                               tries: [(cmd: "risk config edit", note: "open it and fix it")])
+                    FileHandle.standardError.write(Data((lines.joined(separator: "\n") + "\n").utf8))
+                }
+                return 0
+            }
+            return block("the config file is not valid JSON", detail: "\(shown(file)): \(error)",
+                         tries: [(cmd: "risk config edit", note: "open it and fix it")])
         }
         return exists && !parses ? 1 : 0
     }
@@ -152,24 +169,41 @@ enum ConfigCommand {
 
         let file = Paths().config
         guard FileManager.default.fileExists(atPath: file) else {
-            return report("risk config: there is no \(shown(file)) yet; `risk config set <key> <value>` starts one")
+            let problem = "risk config: there is no \(shown(file)) yet; `risk config set <key> <value>` starts one"
+            return json ? report(problem)
+                : block("there is no config file", detail: shown(file),
+                        tries: [(cmd: "risk config set \(key) <value>", note: "starts one")])
         }
         guard let text = try? String(contentsOfFile: file, encoding: .utf8) else {
-            return report("risk config: cannot read \(shown(file))")
+            let problem = "risk config: cannot read \(shown(file))"
+            return json ? report(problem)
+                : block("cannot read the config file", detail: shown(file),
+                        tries: [(cmd: "risk config path", note: "see where it should be")])
         }
         let parsed = ParsedJSON.parse(text)
         guard let root = parsed.root, isObject(root) else {
-            return report("risk config: \(shown(file)) is not a JSON object\(parsed.error.map { ": " + $0 } ?? ""); \"\(key)\" is not set")
+            let problem = "risk config: \(shown(file)) is not a JSON object\(parsed.error.map { ": " + $0 } ?? ""); \"\(key)\" is not set"
+            return json ? report(problem)
+                : block("the config file is not an object",
+                        detail: "\(shown(file))\(parsed.error.map { ": " + $0 } ?? " is not an object"), so \"\(key)\" is not set",
+                        tries: [(cmd: "risk config show", note: "see what the file holds")])
         }
 
         var node = root
         var walked: [String] = []
         for segment in segments {
             guard case .object(let members, _) = node else {
-                return report("risk config: \"\(walked.joined(separator: "."))\" is \(kind(node)) in \(shown(file)), so \"\(key)\" is not set")
+                let problem = "risk config: \"\(walked.joined(separator: "."))\" is \(kind(node)) in \(shown(file)), so \"\(key)\" is not set"
+                return json ? report(problem)
+                    : block("\"\(key)\" is not set",
+                            detail: "\"\(walked.joined(separator: "."))\" is \(kind(node)) in \(shown(file)), so there is nothing under it",
+                            tries: [(cmd: "risk config show", note: "see every key in it")])
             }
             guard let member = members.last(where: { $0.key == segment }) else {
-                return report("risk config: \"\(key)\" is not in \(shown(file))")
+                let problem = "risk config: \"\(key)\" is not in \(shown(file))"
+                return json ? report(problem)
+                    : block("\"\(key)\" is not set", detail: "\(shown(file)) has no such key",
+                            tries: [(cmd: "risk config show", note: "see every key in it")])
             }
             node = member.value
             walked.append(segment)
@@ -210,7 +244,10 @@ enum ConfigCommand {
         let old: String
         if exists {
             guard let read = try? String(contentsOfFile: file, encoding: .utf8) else {
-                return report("risk config: cannot read \(shown(file))")
+                let problem = "risk config: cannot read \(shown(file))"
+                return json ? report(problem)
+                    : block("cannot read the config file", detail: shown(file),
+                            tries: [(cmd: "risk config path", note: "see where it should be")])
             }
             old = read
         } else {
@@ -219,23 +256,39 @@ enum ConfigCommand {
         let base = exists ? old : "{}"
         let parsed = ParsedJSON.parse(base)
         guard let root = parsed.root else {
-            return report("risk config: \(shown(file)) is not valid JSON: \(parsed.error ?? "unknown error"). Not changed.")
+            let problem = "risk config: \(shown(file)) is not valid JSON: \(parsed.error ?? "unknown error"). Not changed."
+            return json ? report(problem)
+                : block("the config file is not valid JSON", detail: "\(shown(file)): \(parsed.error ?? "unknown error"). Not changed.",
+                        tries: [(cmd: "risk config edit", note: "open it and fix it")])
         }
         guard isObject(root) else {
-            return report("risk config: \(shown(file)) is not a JSON object (\(kind(root))). Not changed. Fix: make the file an object, e.g. {}")
+            let problem = "risk config: \(shown(file)) is not a JSON object (\(kind(root))). Not changed. Fix: make the file an object, e.g. {}"
+            return json ? report(problem)
+                : block("the config file is not an object", detail: "\(shown(file)) is \(kind(root)). Not changed.",
+                        tries: [(cmd: "risk config edit", note: "make the file an object, e.g. {}")])
         }
 
+        let previous = existing(root, segments)
         let value: JSONNode
         let text: String
         do {
             (text, value) = try rewritten(chars: parsed.chars, root: root, segments: segments, raw: raw, file: shown(file), fresh: !exists)
         } catch let problem as RewriteError {
-            return report("risk config: \(problem.message)")
+            let message = "risk config: \(problem.message)"
+            return json ? report(message)
+                : block("cannot set \"\(key)\"", detail: problem.message,
+                        tries: [(cmd: "risk config show", note: "see the value it already has")])
         } catch {
-            return report("risk config: could not change \(shown(file))")
+            let message = "risk config: could not change \(shown(file))"
+            return json ? report(message)
+                : block("could not change the config file", detail: shown(file),
+                        tries: [(cmd: "risk config show", note: "see the file as it is")])
         }
         guard let check = ParsedJSON.parse(text).root, isObject(check) else {
-            return report("risk config: the change to \(shown(file)) would not parse; not written")
+            let message = "risk config: the change to \(shown(file)) would not parse; not written"
+            return json ? report(message)
+                : block("the change would not parse", detail: "\(shown(file)) was not written",
+                        tries: [(cmd: "risk config show", note: "see the file as it is")])
         }
 
         let changed = text != base
@@ -244,7 +297,10 @@ enum ConfigCommand {
             return 0
         }
         if changed, let problem = writeAtomically(text, to: file) {
-            return report("risk config: \(problem)")
+            let message = "risk config: \(problem)"
+            return json ? report(message)
+                : block("could not write the config file", detail: problem,
+                        tries: [(cmd: "risk config path", note: "check the folder it lives in")])
         }
 
         if json {
@@ -253,9 +309,26 @@ enum ConfigCommand {
             return 0
         }
         let tty = Terminal.tty()
-        let setting = tty.bold(key) + " = " + compact(value) + " " + tty.dim("in " + shown(file))
-        print((changed ? tty.mark(.ok, "set") : tty.dim("unchanged")) + " " + setting)      // the mark's width must not clip the path
+        let arrow = tty.glyphs == .ascii ? "->" : "→"
+        let change = (previous.map(readable) ?? "unset") + " " + arrow + " " + readable(value)
+        print(tty.check(.ok, key, change, keyWidth: key.count + 1).joined(separator: "\n"))
         return 0
+    }
+
+    /// The value a dotted key names now, for the `old → new` line; nil when the key is not there yet.
+    private static func existing(_ node: JSONNode, _ segments: [String]) -> JSONNode? {
+        var node = node
+        for segment in segments {
+            guard case .object(let members, _) = node, let member = members.last(where: { $0.key == segment }) else { return nil }
+            node = member.value
+        }
+        return node
+    }
+
+    /// A value as the change line says it: a string without its quotes, everything else as JSON spells it.
+    private static func readable(_ node: JSONNode) -> String {
+        if case .string(let text, _) = node { return text }
+        return compact(node)
     }
 
     /// The new file text and the value written. An existing value decides the type (`false` stays a bool, `3` a number, an array stays an
@@ -405,7 +478,9 @@ enum ConfigCommand {
             }
         }
         guard yes || (isatty(STDIN_FILENO) != 0 && isatty(STDOUT_FILENO) != 0) else {
-            return report("risk config: edit opens an editor, and this is not a terminal. Run it in one, or pass --yes.", code: 2)
+            return block("edit needs a terminal", detail: "it opens an editor, and this is not one",
+                         tries: [(cmd: "risk config edit", note: "run it in a terminal"),
+                                 (cmd: "risk config edit --yes", note: "or say yes to the editor it starts")], code: 2)
         }
 
         let file = Paths().config
@@ -413,7 +488,8 @@ enum ConfigCommand {
         var before: String?
         if fm.fileExists(atPath: file) {
             guard let read = try? String(contentsOfFile: file, encoding: .utf8) else {
-                return report("risk config: cannot read \(shown(file))")
+                return block("cannot read the config file", detail: shown(file),
+                             tries: [(cmd: "risk config path", note: "see where it should be")])
             }
             before = read
         } else {
@@ -422,7 +498,8 @@ enum ConfigCommand {
                 try "{}\n".write(toFile: file, atomically: true, encoding: .utf8)
                 before = "{}\n"
             } catch {
-                return report("risk config: cannot create \(shown(file)): \(error.localizedDescription)")
+                return block("cannot create the config file", detail: "\(shown(file)): \(error.localizedDescription)",
+                             tries: [(cmd: "risk config path", note: "see where it should be")])
             }
         }
 
@@ -432,14 +509,17 @@ enum ConfigCommand {
         process.executableURL = URL(fileURLWithPath: "/bin/sh")
         process.arguments = ["-c", editor + " \"$1\"", "risk-config-edit", file]      // an $EDITOR such as `code --wait` keeps its arguments
         do { try process.run() } catch {
-            return report("risk config: could not start \(editor): \(error.localizedDescription)")
+            return block("could not start \(editor)", detail: error.localizedDescription,
+                         tries: [(cmd: "EDITOR=vi risk config edit", note: "use the editor that is always there")])
         }
         process.waitUntilExit()
 
         let after = try? String(contentsOfFile: file, encoding: .utf8)
         let parsed = after.map { ParsedJSON.parse($0) }
         if let root = parsed?.root, isObject(root) {
-            print("ok: \(shown(file)) is valid JSON")
+            let tty = Terminal.tty()
+            let name = shown(file)
+            print(tty.check(.ok, name, "is valid JSON", keyWidth: name.count + 1).joined(separator: "\n"))
             return 0
         }
 
@@ -453,7 +533,8 @@ enum ConfigCommand {
                 backup = ". The version from before your edit could not be copied to \(shown(file)).bak: \(error.localizedDescription)"
             }
         }
-        return report("risk config: \(shown(file)) is not valid: \(reason). Your edit is left in the file, as you saved it\(backup).")
+        return block("the config file is not valid", detail: "\(shown(file)): \(reason). Your edit is left in the file, as you saved it\(backup).",
+                     tries: [(cmd: "risk config edit", note: "open it and fix what made it invalid")])
     }
 
     private static func shellQuoted(_ path: String) -> String {
@@ -463,14 +544,23 @@ enum ConfigCommand {
     // MARK: messages
 
     private static func usage(_ problem: String) -> Int32 {
-        let message = "risk config: \(problem)\nusage: risk config path|show|get|set|edit [--json] [--dry-run] [--yes]\n"
-        FileHandle.standardError.write(Data(message.utf8))
-        return 2
+        return Usage.error("config", problem)
     }
 
     @discardableResult
     private static func report(_ message: String, code: Int32 = 1) -> Int32 {
         FileHandle.standardError.write(Data((message + "\n").utf8))
+        return code
+    }
+
+    /// A failed command in the same shape as every other screen: what went wrong, the one sentence that saves opening the log, and what
+    /// to try. It goes to stderr, where the old one-line messages went, so stdout stays scriptable.
+    @discardableResult
+    private static func block(_ title: String, detail: String? = nil, tries: [(cmd: String, note: String)],
+                              code: Int32 = 1) -> Int32 {
+        let tty = Terminal.tty()
+        let lines = tty.errorBlock(title: title, detail: detail, tries: tries)
+        FileHandle.standardError.write(Data((lines.joined(separator: "\n") + "\n").utf8))
         return code
     }
 
@@ -813,31 +903,5 @@ enum ConfigCommand {
         }
         if !current.isEmpty { words.append(current) }
         return words.contains { secretWords.contains($0.lowercased()) }
-    }
-
-    /// The file's text with each secret value replaced by `"set"`: the rest keeps its whitespace and member order.
-    private static func redactedSource(_ text: String, root: JSONNode) -> String {
-        var ranges: [Range<Int>] = []
-        secretRanges(root, into: &ranges)
-        guard !ranges.isEmpty else { return text }
-        var chars = Array(text)
-        for range in ranges.sorted(by: { $0.lowerBound > $1.lowerBound }) {
-            chars.replaceSubrange(range, with: Array(jsonQuoted("set")))
-        }
-        return String(chars)
-    }
-
-    private static func secretRanges(_ node: JSONNode, into ranges: inout [Range<Int>]) {
-        switch node {
-        case .object(let members, _):
-            for member in members {
-                if isSecret(member.key) { ranges.append(member.value.range) }
-                else { secretRanges(member.value, into: &ranges) }
-            }
-        case .array(let items, _):
-            for item in items { secretRanges(item, into: &ranges) }
-        default:
-            break
-        }
     }
 }

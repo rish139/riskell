@@ -1,0 +1,2 @@
+  no extensions installed
+  risk ext add <name> to install one

@@ -1,0 +1,8 @@
+  ▐▌ riskell  dev                                                dry run
+
+  would build the release binary and the app bundle
+  would write the login agent at
+              ~/Library/LaunchAgents/com.rish.riskell.plist
+  would load  it with launchd, so riskell starts now and at login
+
+  dry run, nothing changed

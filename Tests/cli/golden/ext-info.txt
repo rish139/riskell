@@ -1,0 +1,19 @@
+  Gamma (gamma)  reading  v0.1.0
+
+  a load figure and a card, ported from another project
+
+    repo          https://example.invalid/gamma
+    license       Apache-2.0
+    kind          reading
+    version       0.1.0
+    pinned to     3333333333333333333333333333333333333333
+    kit           ^0.6
+    atoms         ext:gamma ext:pulse
+    authors       A Person
+    derived from  Ported from https://github.com/example/load at 4444444
+                  (MIT)
+    settings      hotAt · Gauge full at % · number 50 to 200, step 25,
+                  default 100
+                  icon · Show icon · on by default
+                  unit · Unit · one of load, percent, default load
+    example       risk ext add gamma

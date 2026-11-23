@@ -1,0 +1,2 @@
+riskell.json: rule manifest.derived-from: "derivedFrom" has no "repo": a port must name the project it came from. Fix: add "repo": its https address, e.g. "https://github.com/author/project".
+  ✗  ported  1 problem
