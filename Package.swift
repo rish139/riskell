@@ -28,7 +28,7 @@ let package = Package(
         // loaded by /usr/bin/perl, not linked: see Services/NowPlaying.swift
         .library(name: "nowplaying", type: .dynamic, targets: ["nowplaying"]),
     ],
-    dependencies: [.package(url: "https://github.com/rish139/riskell-kit", from: "0.6.0")] + locked.map { l in
+    dependencies: [.package(url: "https://github.com/rish139/riskell-kit", from: "0.7.0")] + locked.map { l in
         if let p = l.path { return .package(path: p) }
         return .package(url: l.url ?? "", revision: l.revision ?? "main")
     },
@@ -43,10 +43,11 @@ let package = Package(
         // the terminal vocabulary the command line prints with: colours, mode detection, aligned rows (Foundation only)
         // the terminal vocabulary the command line prints with: colours, mode detection, aligned rows (Foundation only)
         .target(name: "RiskellTTY", path: "Sources/RiskellTTY"),
-        // the window managers' wire formats, parsed without a window: Foundation only, so a payload recorded from a real install can be
-        // replayed on CI. Parsers only; nothing here starts a process or reads a screen.
-        .target(name: "RiskellWM", path: "Sources/RiskellWM"),
+        // the window managers' wire formats and the decisions read from them, without a window: no process, no socket, no screen, so a
+        // payload recorded from a real install can be replayed on CI. The kit is here for the plain value types a hook is handed.
+        .target(name: "RiskellWM", dependencies: [.product(name: "RiskellKit", package: "riskell-kit")], path: "Sources/RiskellWM"),
         // the fixtures are read by path (#filePath), not copied into a bundle, so they stay out of the target's sources
-        .testTarget(name: "RiskellWMTests", dependencies: ["RiskellWM"], path: "Tests/RiskellWMTests", exclude: ["fixtures"]),
+        .testTarget(name: "RiskellWMTests", dependencies: ["RiskellWM", .product(name: "RiskellKit", package: "riskell-kit")],
+                    path: "Tests/RiskellWMTests", exclude: ["fixtures"]),
     ]
 )

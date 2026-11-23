@@ -26,6 +26,9 @@ protocol WindowManager: AnyObject {
     func reserve(_ config: Config)
     /// The manager's own gestures that would act on riskell's 3-finger touches, as labels for the Compat pills (empty: none, or it cannot say).
     var gestureConflicts: [String] { get }
+    /// The behaviours that add the manager's own commands to its requests (the kit's `ManagerHook`). Called when the set of running
+    /// behaviours changes; a backend that cannot carry them keeps the protocol's empty default.
+    func setHooks(_ hooks: [any ManagerHook])
 }
 
 extension WindowManager {
@@ -34,6 +37,7 @@ extension WindowManager {
     var ownsSwipe: Bool { false }
     func reserve(_ config: Config) {}
     var gestureConflicts: [String] { [] }
+    func setHooks(_ hooks: [any ManagerHook]) {}
 }
 
 enum WM {

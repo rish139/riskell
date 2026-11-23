@@ -19,6 +19,22 @@ final class WindowBook {
             if seen[id]?.rect != r { seen[id] = Seen(rect: r, workspace: seen[id]?.workspace) }
         }
     }
+    /// The ids in `ids` the window server no longer lists. A window can close without AeroSpace reporting anything (Cmd-W, an app
+    /// closing its own window), so this is the only word on whether the rows still name live windows. One call for all the ids, and none
+    /// when there is nothing to ask. Called from the AeroSpace queue too: it reads no state of its own.
+    static func gone(_ ids: Set<Int>) -> Set<Int> {
+        guard !ids.isEmpty else { return [] }
+        // no answer at all: ask the window manager rather than keep showing a window that may be gone
+        guard let list = CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID) as? [[String: Any]] else { return ids }
+        var live = Set<Int>()
+        for w in list {
+            if let id = w[kCGWindowNumber as String] as? Int { live.insert(id) }
+        }
+        return ids.subtracting(live)
+    }
+
+    /// True when the window server no longer lists one of `ids`.
+    static func anyGone(_ ids: Set<Int>) -> Bool { !gone(ids).isEmpty }
 
     /// A frame for each entry whose window still exists (top-left origin, screen points): the live one while it is on screen, else
     /// the remembered one while the window is on the same workspace at the same size, else a computed place (`placed == false`).

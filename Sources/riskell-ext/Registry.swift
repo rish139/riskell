@@ -324,7 +324,7 @@ func addByName(_ name: String, yes: Bool = false) {
     }
     switch l.kind {
     case "pill", "theme": installFiles(l, yes: yes)
-    case "atom", "reading":
+    case "atom", "reading", "behaviour":
         add(l.repo, rev: l.rev, version: l.version, expectID: l.id, yes: yes)
         exit(needsRebuild)
     default: fail("risk ext: kind \"\(l.kind)\" cannot be installed yet")

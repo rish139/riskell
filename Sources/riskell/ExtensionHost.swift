@@ -195,6 +195,9 @@ struct ExtSetting: Identifiable {
     var id: String { ext + "." + key }
 }
 
+/// An id an extension may take: letters, digits, `-` and `_`, and nothing else.
+func plainExtensionID(_ id: String) -> Bool { !id.isEmpty && id.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" } }
+
 enum ExtPrefs {
     static func file(_ ext: String) -> URL { AppConfig.directory.appendingPathComponent("ext").appendingPathComponent(ext + ".json") }
     static func json(_ ext: String) -> [String: Any] {
@@ -204,6 +207,9 @@ enum ExtPrefs {
     static func bool(_ s: ExtSetting, def: Bool) -> Bool { (json(s.ext)[s.key] as? NSNumber)?.boolValue ?? def }
     static func choice(_ s: ExtSetting, def: String) -> String { json(s.ext)[s.key] as? String ?? def }
 
+    /// The settings and the cache folder a package's atoms and its behaviours share.
+    static func env(_ id: String) -> Env { Env(id: id, prefs: Prefs(json: json(id)), cache: URL(fileURLWithPath: Demo.cacheDirectory)) }
+
     /// Writes one value (the others kept) and rebuilds the extension atoms, so the change shows at once.
     static func set(_ ext: String, _ key: String, _ value: Any) {
         var j = json(ext)
@@ -212,6 +218,7 @@ enum ExtPrefs {
         try? FileManager.default.createDirectory(at: f.deletingLastPathComponent(), withIntermediateDirectories: true)
         if let d = try? JSONSerialization.data(withJSONObject: j, options: [.prettyPrinted, .sortedKeys]) { try? d.write(to: f, options: .atomic) }
         PackageAtoms.reload(); Registry.rebuild(); ThemeState.shared.epoch += 1
+        Extensions.settingsChanged()      // a behaviour reads its settings when it starts, so it starts again
     }
 }
 
@@ -224,7 +231,7 @@ enum PackageAtoms {
     private static func build() -> [AtomDef] {
         var out: [AtomDef] = [], seen = Set<String>()
         func ok(_ m: AtomMeta) -> Bool {
-            guard !m.id.isEmpty, m.id.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }), seen.insert(m.id).inserted else {
+            guard plainExtensionID(m.id), seen.insert(m.id).inserted else {
                 print("extensions: ignoring atom \"\(m.id)\" (needs a unique plain id)"); fflush(stdout); return false
             }
             return true
@@ -239,8 +246,7 @@ enum PackageAtoms {
         return out
     }
 
-    private static func prefs(_ id: String) -> Prefs { Prefs(json: ExtPrefs.json(id)) }
-    private static func env(_ id: String) -> Env { Env(id: id, prefs: prefs(id), cache: URL(fileURLWithPath: Demo.cacheDirectory)) }
+    private static func env(_ id: String) -> Env { ExtPrefs.env(id) }
 
     private static func reading(_ t: any ReadingAtom.Type) -> AtomDef {
         let m = t.meta

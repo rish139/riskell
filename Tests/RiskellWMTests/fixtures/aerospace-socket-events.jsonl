@@ -4,3 +4,4 @@
 {"_event":"focused-monitor-changed"}
 {"_event":"mode-changed","mode":"main"}
 {"_event":"focus-changed"}
+{"_event":"binding-triggered","binding":"alt-h","mode":"main"}

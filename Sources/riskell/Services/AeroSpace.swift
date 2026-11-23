@@ -4,8 +4,9 @@ import RiskellWM
 
 /// AeroSpace backend, in-process over its socket (protocol in RiskellWM/AeroSpaceSocket.swift). One persistent connection holds a
 /// subscription to AeroSpace's events; a second one carries the queries and the commands and is opened when first needed. Nothing is
-/// polled and no process is started: an event (or an app launching, quitting or activating, which AeroSpace reports nothing for) asks for
-/// a refresh, a burst of them coalesces into one (two queries), and nothing is published when the result did not change.
+/// polled and no process is started: an event asks for a refresh only when the rows of the last query cannot already tell what it says
+/// (RiskellWM/AeroSpaceRows.swift makes that call), a burst of them coalesces into one (the queries of a refresh ride in one request), and
+/// nothing is published when the result did not change.
 /// If AeroSpace goes away the subscription retries every 2 s until it is back (the only timer, and only while disconnected).
 /// Everything that touches a socket runs on the private serial queue `io`; the Store is set on main.
 final class AeroSpace: WindowManager {
@@ -13,7 +14,11 @@ final class AeroSpace: WindowManager {
     let ownsSwipe = true            // AeroSpace has no swipe of its own, so nothing would switch on a prediction: Touch sends the switch itself
 
     static let candidates = ["/opt/homebrew/bin/aerospace", "/usr/local/bin/aerospace"]
-    static var path: String { RiskellWM.AeroSpace.socketPath(user: NSUserName()) }
+    /// The socket to talk to: AeroSpace's own, or the one `RISKELL_AEROSPACE_SOCKET` names (a fake server, for tests).
+    static var path: String {
+        let env = ProcessInfo.processInfo.environment["RISKELL_AEROSPACE_SOCKET"] ?? ""
+        return env.isEmpty ? RiskellWM.AeroSpace.socketPath(user: NSUserName()) : env
+    }
     /// AeroSpace is up and its socket exists.
     static var available: Bool { FileManager.default.fileExists(atPath: path) }
 
@@ -34,6 +39,13 @@ final class AeroSpace: WindowManager {
     private var running = false, retrying = false, scheduled = false, warned = false
     private var sub: Connection?, cmd: Connection?
     private var reader = RiskellWM.AeroSpace.FrameReader()
+    private var rows: RiskellWM.AeroSpace.Rows?          // the rows of the last query: all the bar shows is parsed from them
+    private var stale = false                            // a binding may have changed what the rows cannot say; nothing is applied until the next answer
+    private var bindings: RiskellWM.AeroSpace.Bindings?  // every mode's bindings, read with the first refresh of a connection
+    private var focused: Int?                            // the focused window, for the hooks (main keeps its own copy for the bar)
+    private var hooks: [any ManagerHook] = []             // what the running behaviours asked for; set from main, read here
+    private var landscape: [Int: Bool] = [:]              // monitor id to its screen being wider than tall; built on main, read here
+    private var deferred: [ArrivedEvent] = []             // events handed to the hooks only after the rows were asked for again
 
     init(store: Store) { self.store = store }
 
@@ -47,9 +59,15 @@ final class AeroSpace: WindowManager {
         started = true
         let nc = NSWorkspace.shared.notificationCenter
         // AeroSpace emits nothing when a window opens or closes in the background, but the app owning it launches, quits or is activated
-        for n in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification, NSWorkspace.didActivateApplicationNotification] {
+        for n in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification] {
             observers.append(nc.addObserver(forName: n, object: nil, queue: .main) { [weak self] _ in self?.requestRefresh() })
         }
+        observers.append(nc.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.io.async { [weak self] in self?.change(.activation) }
+        })
+        readScreens()
+        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil,
+                                                                queue: .main) { [weak self] _ in self?.readScreens() })
         io.async { [weak self] in self?.running = true; self?.connect() }
     }
 
@@ -62,6 +80,8 @@ final class AeroSpace: WindowManager {
         io.async { [weak self] in
             guard let self else { return }
             self.running = false
+            self.hooks = []
+            self.deferred = []
             self.sub?.close(); self.cmd?.close(); self.sub = nil; self.cmd = nil
             self.subscribedFlag = false
         }
@@ -72,6 +92,27 @@ final class AeroSpace: WindowManager {
 
     /// Queries now, for the overview as it opens.
     func refreshNow() { io.async { [weak self] in self?.refresh(force: true) } }
+
+    /// The running behaviours that add to the manager's requests. The list is copied over to the queue the backend reads it on, and the
+    /// behaviours are only ever called there.
+    func setHooks(_ hooks: [any ManagerHook]) {
+        let copy = hooks
+        io.async { [weak self] in self?.hooks = copy }
+    }
+
+    /// Screens are read on main; the map goes over to the queue that reads it, so nothing crosses queues by itself.
+    private func readScreens() {
+        let map = Self.landscapeByMonitor()
+        io.async { [weak self] in self?.landscape = map }
+    }
+
+    /// AeroSpace numbers the monitors by their place among the screens sorted by their top-left corner, so the same sort of
+    /// NSScreen.screens says which screen a row's monitor id names, and whether it is wider than it is tall.
+    static func landscapeByMonitor() -> [Int: Bool] {
+        let screens = NSScreen.screens
+        guard let main = screens.first(where: { $0.frame.minX == 0 && $0.frame.minY == 0 }) ?? screens.first else { return [:] }
+        return RiskellWM.AeroSpace.landscape(frames: screens.map(\.frame), mainHeight: main.frame.height)
+    }
 
     private func schedule(after delay: Double) {
         guard running, !scheduled else { return }
@@ -115,17 +156,19 @@ final class AeroSpace: WindowManager {
     }
 
     /// One request on the command connection and its answer. The connection is opened on first use and reopened once when a write or a
-    /// read on a long-idle one fails. nil when AeroSpace cannot be reached or answers with an error.
+    /// read on a long-idle one fails. nil when AeroSpace cannot be reached or answers with an error. `window` is the request's target
+    /// window, which AeroSpace hands to the commands that take no `--window-id` (its `test`). `quiet` keeps a failed command out of the
+    /// log: a hook's script can answer non-zero because there is nothing to do, and that is not an error.
     @discardableResult
-    private func run(_ args: [String]) -> RiskellWM.AeroSpace.Answer? {
+    private func run(_ args: [String], window: Int? = nil, quiet: Bool = false) -> RiskellWM.AeroSpace.Answer? {
         for _ in 0..<2 {
             if cmd == nil {
                 let c = Connection(queue: io)
                 guard c.open(AeroSpace.path) else { c.close(); return nil }
                 cmd = c
             }
-            if let frame = cmd?.call(RiskellWM.AeroSpace.request(args)), let a = RiskellWM.AeroSpace.parse(answer: frame) {
-                if a.exitCode != 0 { print("aerospace: \(args.first ?? "") failed: \(a.stderr.trimmingCharacters(in: .whitespacesAndNewlines))"); fflush(stdout) }
+            if let frame = cmd?.call(RiskellWM.AeroSpace.request(args, window: window)), let a = RiskellWM.AeroSpace.parse(answer: frame) {
+                if a.exitCode != 0, !quiet { print("aerospace: \(args.first ?? "") failed: \(a.stderr.trimmingCharacters(in: .whitespacesAndNewlines))"); fflush(stdout) }
                 return a.exitCode == 0 ? a : nil
             }
             cmd?.close(); cmd = nil
@@ -134,35 +177,162 @@ final class AeroSpace: WindowManager {
     }
 
     // MARK: events (io)
+    /// One event as the hooks see it, and what the backend itself makes of it.
+    private struct ArrivedEvent {
+        let fields: RiskellWM.AeroSpace.EventFields
+        let change: RiskellWM.AeroSpace.Event?
+    }
+
     private func received(_ bytes: Data) {
         for f in reader.feed(bytes) {
-            guard let e = RiskellWM.AeroSpace.parse(event: f) else { continue }
-            switch e {
-            case .focusChanged(let id, _):
+            guard let fields = RiskellWM.AeroSpace.parse(eventFields: f) else { continue }
+            let change = RiskellWM.AeroSpace.parse(event: f)
+            // the hooks' state and the bar follow the focus at once, whether or not a hook answers this event
+            if case .focusChanged(let id, _)? = change {
+                focused = id
                 DispatchQueue.main.async { [weak self] in self?.focusedWindow = id }
-                schedule(after: 0.04)
-            case .focusedWorkspaceChanged, .windowDetected, .focusedMonitorChanged:
-                schedule(after: 0.04)
-            case .other:
-                break
             }
+            let event = ArrivedEvent(fields: fields, change: change)
+            // the rows are older than the event (a binding riskell does not understand may have changed what they cannot say): ask for
+            // them first, and hand the event to the hooks with the fresh answer
+            if stale, hooksWant(fields.name) {
+                deferred.append(event)
+                schedule(after: 0.04)
+                continue
+            }
+            handle(event)
         }
         if reader.broken { sub?.close(); sub = nil; subscribedFlag = false; print("aerospace: unreadable stream, reconnecting"); fflush(stdout); retry() }
     }
 
+    /// Gives an event to the hooks, and handles it the way the backend always has when they return nothing. `justRefreshed` says the rows
+    /// were asked for after this event arrived, so a change whose only answer is a refresh needs nothing more.
+    private func handle(_ event: ArrivedEvent, justRefreshed: Bool = false) {
+        if runHooks(ManagerEvent(name: event.fields.name, fields: event.fields.fields)) { return }
+        switch event.change {
+            case .focusChanged(let id, let workspace)?:
+                change(.focus(windowId: id, workspace: workspace))
+            case .focusedWorkspaceChanged(let workspace, _)?:
+                change(.focusedWorkspace(workspace))
+            case .bindingTriggered(let mode, let binding)?:
+                change(.binding(mode: mode, binding: binding))
+            case .windowDetected?, .focusedMonitorChanged?:
+                if !justRefreshed { change(.refresh) }
+            case .other?, nil:
+                break
+        }
+    }
+
+    /// Answers an event with no request when the rows already say what it reports, and with one when they do not.
+    private func change(_ change: RiskellWM.AeroSpace.Change) {
+        switch RiskellWM.AeroSpace.decide(change, rows: rows, bindings: bindings, stale: stale) {
+        case .apply(let next):
+            // a window can close without AeroSpace saying so (Cmd-W, an app closing its own window): the window server is the only word
+            guard !WindowBook.anyGone(Set(next.windows.map(\.windowId))) else { stale = true; schedule(after: 0.04); return }
+            publish(next)
+        case .refresh:
+            schedule(after: 0.04)
+        case .staleRefresh:
+            stale = true
+            schedule(after: 0.04)
+        case .readBindings:
+            stale = true
+            schedule(after: 0.04)
+            readBindings()
+        }
+    }
+
+    /// The binding table again, for a binding the last one did not explain (a binding added or changed in the config).
+    private func readBindings() {
+        guard let answer = run(RiskellWM.AeroSpace.bindingTableQuery),
+              let table = RiskellWM.AeroSpace.parse(bindings: answer.stdout) else { return }
+        bindings = table
+    }
+
     // MARK: refresh (io, then main)
-    private func refresh(seed: Bool = false, force: Bool = false) {
+    /// One request: the commands (if any), then the queries that read back what they left. The first refresh of a connection also asks
+    /// for the focused window and the binding table, which no event reports.
+    private func refresh(_ commands: [[String]] = [], seed: Bool = false, force: Bool = false) {
         guard running else { return }
-        guard let ws = run(RiskellWM.AeroSpace.workspaceQuery), let wd = run(RiskellWM.AeroSpace.windowQuery),
-              let next = RiskellWM.AeroSpace.parse(workspaceRows: ws.stdout, windowRows: wd.stdout) else {
+        let queries = [RiskellWM.AeroSpace.workspaceQuery, RiskellWM.AeroSpace.windowQuery]
+        let ask = seed ? [RiskellWM.AeroSpace.bindingTableQuery, RiskellWM.AeroSpace.focusedWindowQuery] + queries : queries
+        guard let answer = run(RiskellWM.AeroSpace.evalArgs(commands + ask)),
+              let next = RiskellWM.AeroSpace.parse(refresh: answer.stdout, seed: seed) else {
             if !warned { warned = true; print("aerospace: query failed (is AeroSpace running?)"); fflush(stdout) }
             return
         }
-        // the queries do not say which window has focus; the events do, so only the first refresh asks
-        let focused = seed ? run(RiskellWM.AeroSpace.focusedWindowQuery).flatMap { RiskellWM.AeroSpace.parse(focusedWindow: $0.stdout) } : nil
+        let before = rows
+        rows = next.rows
+        stale = false
+        if seed {
+            bindings = next.bindings
+            // the queries do not say which window has focus; the events do, so only the first refresh asks
+            focused = next.focusedWindow
+            let focus = next.focusedWindow
+            DispatchQueue.main.async { [weak self] in self?.focusedWindow = focus }
+        }
+        publish(next.rows, force: force)
+        arrivals(from: before)
+        let due = deferred
+        deferred = []
+        for event in due { handle(event, justRefreshed: true) }
+    }
+
+    // MARK: hooks (io)
+    /// True when a running behaviour wants this event (by AeroSpace's name).
+    private func hooksWant(_ name: String) -> Bool { hooks.contains { $0.events.contains(name) } }
+
+    /// Calls the hooks that want `event`, and sends what they return at once (not on the next coalesced refresh): one `eval` per window
+    /// they act on, the queries at the end of the last one. true when they sent something, so the event needs nothing more from the
+    /// backend's own handling. A hook that returns nothing changes nothing, and the event is handled as it always was.
+    private func runHooks(_ event: ManagerEvent) -> Bool {
+        let wanting = hooks.filter { $0.events.contains(event.name) }
+        guard !wanting.isEmpty, let rows else { return false }
+        // a window can close without AeroSpace saying so (Cmd-W, an app closing its own window): the window server is the only word
+        let state = RiskellWM.AeroSpace.managerState(rows: rows, focusedWindow: focused, landscape: landscape,
+                                                      gone: WindowBook.gone(Set(rows.windows.map(\.windowId))))
+        let commands = wanting.flatMap { $0.commands(for: event, in: state) }
+        guard !commands.isEmpty else { return false }
+        send(commands, first: nil)
+        return true
+    }
+
+    /// The hook commands in the requests they travel in, riskell's own `first` command in front. Only the last request carries the
+    /// queries and only its answer is read, applied like any refresh; an earlier one is sent for its effect alone. `expected` is the one
+    /// arrival riskell caused itself, which it announced to the hooks before sending.
+    private func send(_ commands: [ManagerCommand], first: [String]?, expecting expected: (window: Int, workspace: String)? = nil) {
+        let queries = [RiskellWM.AeroSpace.workspaceQuery, RiskellWM.AeroSpace.windowQuery]
+        let requests = RiskellWM.AeroSpace.hookRequests(commands, queries: queries, first: first)
+        for (i, request) in requests.enumerated() {
+            guard let answer = run(request.args, window: request.window, quiet: i < requests.count - 1) else { continue }
+            if i == requests.count - 1 { refreshed(answer.stdout, expecting: expected) }
+        }
+    }
+
+    /// A query answer that came with a command riskell or a hook sent: the rows and the bar, and one arrival riskell itself caused. No
+    /// arrival pass otherwise: an answer to a hook's request shows what the hook just did, and comparing it would let one hook round start
+    /// another.
+    private func refreshed(_ stdout: String, expecting expected: (window: Int, workspace: String)?) {
+        guard let next = RiskellWM.AeroSpace.parse(refresh: stdout, seed: false) else { return }
+        let before = rows
+        rows = next.rows
+        stale = false
+        publish(next.rows)
+        if let expected { arrivals(from: before, ignoring: expected) }
+    }
+
+    /// The windows this answer shows as having arrived, handed to the hooks that asked for that event. They are sent at once, so the
+    /// manager lays the windows out once for both the arrival and the queries that read it.
+    private func arrivals(from before: RiskellWM.AeroSpace.Rows?, ignoring expected: (window: Int, workspace: String)? = nil) {
+        guard let before, let after = rows, hooksWant(ManagerEvent.windowArrived) else { return }
+        for event in RiskellWM.AeroSpace.arrivals(from: before, to: after, ignoring: expected) { _ = runHooks(event) }
+    }
+
+    /// The bar shows the parse of `rows`, whether they came from a query or were edited by an event.
+    private func publish(_ rows: RiskellWM.AeroSpace.Rows, force: Bool = false) {
+        let next = RiskellWM.AeroSpace.parse(rows: rows)
         DispatchQueue.main.async { [weak self] in
             guard let self, self.started else { return }
-            if seed { self.focusedWindow = focused }
             self.apply(next, force: force)
         }
     }
@@ -212,17 +382,26 @@ final class AeroSpace: WindowManager {
     private func rememberShown() { WindowBook.shared.remember(ids: Set(items.filter { visibleSpaces.contains($0.space) }.map(\.id))) }
 
     // MARK: commands
-    /// The Store first (the rail moves at once), then AeroSpace; its event confirms it.
+    /// One request: the command, then the queries that say what it left.
+    private func command(_ args: [String]) { io.async { [weak self] in self?.refresh([args]) } }
+
+    /// The Store first (the rail moves at once), then AeroSpace; its answer confirms it.
     func focus(space: Int) {
-        intent = (space, CACurrentMediaTime() + 1.0)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) { [weak self] in self?.requestRefresh() }      // if AeroSpace never went there, the rail returns to the real workspace
+        let until = CACurrentMediaTime() + 1.0
+        intent = (space, until)
+        // If AeroSpace never went there, the rail returns to the real workspace. Only while this switch is still unconfirmed: once an
+        // answer confirmed it, or another switch replaced it, the timer has nothing to ask.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) { [weak self] in
+            guard let self, let it = self.intent, it.space == space, it.until == until else { return }
+            self.requestRefresh()
+        }
         store.focusNow(space: space)
         rememberShown()
-        io.async { [weak self] in self?.run(["workspace", String(space)]) }
+        command(["workspace", String(space)])
     }
     func focus(window id: Int) {
         rememberShown()
-        io.async { [weak self] in self?.run(["focus", "--window-id", String(id)]) }
+        command(["focus", "--window-id", String(id)])
     }
     func close(window id: Int) {
         io.async { [weak self] in
@@ -232,11 +411,29 @@ final class AeroSpace: WindowManager {
     }
     func move(window id: Int, toSpace space: Int) {
         rememberShown()
-        io.async { [weak self] in
-            self?.run(["move-node-to-workspace", "--window-id", String(id), String(space)])
-            self?.schedule(after: 0.04)
-        }
+        io.async { [weak self] in self?.moveNow(window: id, toSpace: space) }
     }
+
+    /// The move, with the hooks' answer to the arrival in the same `eval`: the window arrives on the target workspace as far as they are
+    /// concerned, so they can join it there. The rows are left as they are until the answer says what the move did: if AeroSpace refused
+    /// it (a native-fullscreen window, say), nothing claims the window arrived, and the one arrival the answer may still show for the move
+    /// is dropped because the hooks were already told about it. The state they see counts the window on neither workspace, because it is
+    /// on neither for as long as the move runs.
+    private func moveNow(window id: Int, toSpace space: Int) {
+        let move = ["move-node-to-workspace", "--window-id", String(id), String(space)]
+        var commands: [ManagerCommand] = []
+        var expected: (window: Int, workspace: String)?
+        if let rows, hooksWant(ManagerEvent.windowArrived) {
+            let state = RiskellWM.AeroSpace.without(id, in: RiskellWM.AeroSpace.managerState(
+                rows: rows, focusedWindow: focused, landscape: landscape,
+                gone: WindowBook.gone(Set(rows.windows.map(\.windowId)))))
+            let event = ManagerEvent(name: ManagerEvent.windowArrived, fields: ["windowId": String(id), "workspace": String(space)])
+            commands = hooks.filter { $0.events.contains(ManagerEvent.windowArrived) }.flatMap { $0.commands(for: event, in: state) }
+            expected = (id, String(space))
+        }
+        send(commands, first: move, expecting: expected)
+    }
+
     /// AeroSpace creates workspaces on demand, so the one after the last shown is simply named `count + 1`.
     func moveToNewSpace(window id: Int, after count: Int) { move(window: id, toSpace: count + 1) }
 

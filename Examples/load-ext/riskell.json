@@ -4,7 +4,7 @@
   "kind": "atom",
   "name": "Load average",
   "version": "1.0.0",
-  "kit": "^0.6",
+  "kit": "^0.7",
   "license": "Apache-2.0",
   "summary": "The 1, 5 and 15 minute load averages, as a reading atom and as a hand-drawn gauge.",
   "module": "LoadExt",

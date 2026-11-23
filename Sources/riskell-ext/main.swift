@@ -82,7 +82,7 @@ func validateManifest(_ dir: String) -> [String: Any]? {
     if let s = str("summary"), s.count > 140 { report("manifest.summary", "riskell.json", nil, "summary is \(s.count) characters (140 at most)", fix: "shorten it") }
     if let k = str("kind"), compiled.contains(k) {
         for f in ["kit", "module", "entry"] where str(f)?.isEmpty != false { report("manifest.required", "riskell.json", nil, "\"\(f)\" is required for kind \(k)", fix: "add \"\(f)\"") }
-        if let kit = str("kit"), !matches(kit, #"^\^?\d+\.\d+(\.\d+)?$"#) { report("manifest.kit", "riskell.json", nil, "kit \"\(kit)\" must be a SemVer range such as ^0.6", fix: "write ^MAJOR.MINOR") }
+        if let kit = str("kit"), !matches(kit, #"^\^?\d+\.\d+(\.\d+)?$"#) { report("manifest.kit", "riskell.json", nil, "kit \"\(kit)\" must be a SemVer range such as ^0.7", fix: "write ^MAJOR.MINOR") }
         if !fm.fileExists(atPath: dir + "/Package.swift") { report("package.missing", "Package.swift", nil, "a compiled extension is a Swift package", fix: "add a Package.swift with a library product named after \"module\"") }
     }
     if let k = str("kind"), ["pill", "theme", "preset"].contains(k) {
@@ -333,13 +333,13 @@ func scaffold(_ kind: String, _ name: String) {
             name: "\(name)",
             platforms: [.macOS(.v14)],
             products: [.library(name: "\(module)", targets: ["\(module)"])],
-            dependencies: [.package(url: "https://github.com/rish139/riskell-kit", .upToNextMinor(from: "0.6.0"))],
+            dependencies: [.package(url: "https://github.com/rish139/riskell-kit", .upToNextMinor(from: "0.7.0"))],
             targets: [.target(name: "\(module)", dependencies: [.product(name: "RiskellKit", package: "riskell-kit")])]
         )
 
         """
     }
-    let compiledExtra = ",\n  \"kit\": \"^0.6\",\n  \"module\": \"\(module)\",\n  \"entry\": \"\(type)Package\",\n  \"atoms\": [\"\(name)\"]"
+    let compiledExtra = ",\n  \"kit\": \"^0.7\",\n  \"module\": \"\(module)\",\n  \"entry\": \"\(type)Package\",\n  \"atoms\": [\"\(name)\"]"
     switch kind {
     case "reading":
         write(manifest("reading", compiledExtra), dir + "/riskell.json"); write(package(), dir + "/Package.swift")
@@ -397,6 +397,8 @@ func scaffold(_ kind: String, _ name: String) {
             yaml += "base0" + String(i, radix: 16, uppercase: true) + ": \"" + hex + hex + hex + "\"\n"
         }
         write(yaml, dir + "/\(name).yaml")
+    case "behaviour":
+        fail("risk ext: new behaviour is closed: a background capability runs with your user's rights, so a package of that kind needs a review policy first (docs/EXTENSION-KIT.md)")
     default: fail("risk ext: new <reading|atom|pill|theme> <name>")
     }
     printAll(Terminal.tty().checks([(.ok, name, "created · \(kind)", (cmd: "risk ext validate \(name)", note: "edit it, then check the rules"))]))
