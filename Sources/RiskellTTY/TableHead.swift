@@ -1,6 +1,6 @@
 import Foundation
 
-// The readers task's additions to the kit: a header with a dim detail beside its title, and pretty JSON in the theme's tokens.
+// A table header with a dim detail beside its title, and pretty JSON in the theme's tokens.
 // Nothing here is a colour of its own: every token comes from the palette, and every line is the kit's two-space screen margin.
 
 extension Tty {

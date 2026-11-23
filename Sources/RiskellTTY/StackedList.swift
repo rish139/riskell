@@ -3,7 +3,7 @@
 
 import Foundation
 
-// The setup task's addition to the kit: the list for entries whose names are long (a flag and its values), so a narrow terminal still has
+// A list for entries whose names are long (a flag and its values), so a narrow terminal still has
 // room for words. Nothing here is a colour, a glyph or a width of its own: every line is the kit's tokens and the kit's two-space margin.
 
 extension Tty {

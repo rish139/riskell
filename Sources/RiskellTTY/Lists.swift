@@ -4,7 +4,7 @@ import Foundation
 
 // The second half of the command line's screens: the lists, tables, logs, plans, prompts and progress a working command prints.
 //
-// Like Kit.swift, every method here returns styled `[String]` and prints nothing, so the caller decides where they go. `Progress` is the
+// Like Screens.swift, every method here returns styled `[String]` and prints nothing, so the caller decides where they go. `Progress` is the
 // one exception: it owns a line of the terminal while it runs and prints the steps it finishes. Widths are counted in characters, so the
 // escapes of a coloured line are not counted and the plain one lines up with it. A line that is one thing (a hint, a log line) is left
 // whole rather than cut, but a table and a plan fit what room there is.

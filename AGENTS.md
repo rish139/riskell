@@ -57,4 +57,6 @@ reaching around it.
 - `scripts/scrub-check.sh` must pass: no personal data in tracked files.
 - The kit is a separate repository ([riskell-kit](https://github.com/rish139/riskell-kit)). A change to its public API needs a new version tag there
   and an updated `from:` requirement here; use `swift package edit riskell-kit --path ../riskell-kit` to work on both at once.
+- Comments, docs, commit messages and file names say what the code does and why. They never say who or what wrote it, which task or step it
+  belonged to, or what a spec or brief asked for, and no file is named after a task. `scripts/scrub-check.sh` fails on it.
 - Keep it plain: the author prefers a simple rule to a clever one.

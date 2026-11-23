@@ -6,7 +6,7 @@ import RiskellTTY
 
 /// `riskell-ext gallery`: every screen the kit draws, side by side, from fixed data.
 ///
-/// The screens a `risk` command prints are the kit's (Sources/RiskellTTY/Kit.swift and Kit2.swift): this command is how they are looked at and
+/// The screens a `risk` command prints are the kit's (Sources/RiskellTTY/Screens.swift and Lists.swift): this command is how they are looked at and
 /// recorded. Nothing here reads the clock, a process or a file, and the palette is the Gruvbox dark tokens as data, so the same build prints
 /// the same bytes on every machine and in every theme. `Tests/cli/golden/gallery-*.txt` are the recordings.
 ///
@@ -275,7 +275,7 @@ enum Gallery {
     }
 
     /// The keys are one column wide on a screen, not on a section: the longest key plus one, measured over every row of that screen, so
-    /// the sections line up with each other the way the mockup draws them.
+    /// the sections line up with each other the way the design draws them.
     private static func width(of rows: [Row]) -> Int {
         (rows.map(\.1.count).max() ?? 0) + 1
     }

@@ -3,7 +3,7 @@
 
 import Foundation
 
-// The task's addition to the kit: the terminal every `risk` command writes through, in the theme in force.
+// The terminal every `risk` command writes through, in the theme in force.
 //
 // The theme is not something this side can work out: only the built `riskell` resolves a scheme, applies its floors and knows which one is
 // active, so it is asked with `--palette --format json` and the answer is the palette. Nothing here invents a colour: with no built binary

@@ -1,7 +1,7 @@
 import Foundation
 
 // The guided installer's rows: the small shapes the step screens need beside the kits' checks, plans and hints. They follow the
-// same rules as Kit.swift and Kit2.swift: every width counts characters, every colour is a palette token, and a row is returned
+// same rules as Screens.swift and Lists.swift: every width counts characters, every colour is a palette token, and a row is returned
 // as styled text so the caller decides where it goes.
 
 extension Tty {

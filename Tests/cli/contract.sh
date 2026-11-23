@@ -658,7 +658,7 @@ else
   skip gestures 'the gestures screens: .build/release/riskell is not built'
 fi
 
-# --- status: the compact screen is the default, --all is the full list (DoctorScreen.swift, Kit-status.swift) -------------------
+# --- status: the compact screen is the default, --all is the full list (DoctorScreen.swift, KeyLine.swift) -------------------
 # The installer's self-test compares both screens with Tests/cli/golden (status-screen* and status-compact*); these checks are the flag's
 # contract, read from the same scratch home twice: --all is only more text, --json is the same report either way, and the compact screen
 # names --all so the long list can be found.

@@ -209,7 +209,7 @@ extension Tty {
 
     // MARK: fitting text
 
-    // The helpers below are the kit's own, shared by the screens in Kit.swift and Kit2.swift: not API, so not public.
+    // The helpers below are the kit's own, shared by the screens in Screens.swift and Lists.swift: not API, so not public.
 
     func ink(_ text: String, _ token: Palette.Token, bold: Bool = false) -> String {
         styling(text, Style(fg: palette.color(token, mode), bold: bold))

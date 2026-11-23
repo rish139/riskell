@@ -95,7 +95,7 @@ Two things have no schema and no recording, so they are checked against their so
 `Package.resolved` and the entries in `extensions.lock.json`. Both forms are read from the same three files, so a release bump moves the
 command and the check together; the plain form stays the one line `riskell 0.2.1`.
 
-The theme a command draws in is the built `riskell`'s answer (`Tty.themed()`, `Sources/RiskellTTY/Kit-theme.swift`). A scratch checkout
+The theme a command draws in is the built `riskell`'s answer (`Tty.themed()`, `Sources/RiskellTTY/ThemedTty.swift`). A scratch checkout
 with a stub in `.build/release/riskell` shows both directions through `script(1)`, which is the only way a shell command gets a tty: the
 stub's tokens reach the screen, and with no stub at all the screen is plain text rather than a guessed palette. `RISKELL_ROOT` picks the
 checkout the binary is looked for in; a pipe is plain either way, which is why a tty is needed for the check.
