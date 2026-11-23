@@ -73,15 +73,32 @@ final class LiveCapture: NSObject, SCStreamOutput {
     private var byWindow: [Int: (stream: SCStream, k: CGFloat, size: CGSize, fps: Int)] = [:]
     private var busy: Set<Int> = []
     private var held: [Int: CVPixelBuffer] = [:]   // main queue: the buffer behind each window's frame on screen           // a frame still on its way to the main queue: drop newer ones until it lands
+    // Every start and stop takes a new number. The launch task of a start keeps its own number and stops any stream it made once
+    // the number has moved on, so a stop that arrives while the task is still starting streams cannot leave one running.
+    private let lock = NSLock()
+    private var generation = 0
+
+    private func advance() -> Int {
+        lock.lock(); defer { lock.unlock() }
+        generation += 1
+        return generation
+    }
+
+    private func isCurrent(_ g: Int) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return g == generation
+    }
 
     /// `want`: CGWindowID -> pixels per point. `fps` frames per second at most (a window that does not change sends none).
     func start(_ want: [Int: CGFloat], fps: Int, onFrame: @escaping (Int, CGImage) -> Void) {
-        stop()
+        let g = advance()
+        teardown()
         queue.async { self.onFrame = onFrame }      // after the queued stop, in order
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let content = try? await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false) else { return }
             for w in content.windows {
-                guard let self, let k = want[Int(w.windowID)] else { continue }
+                guard let self, self.isCurrent(g) else { return }
+                guard let k = want[Int(w.windowID)] else { continue }
                 let cfg = SCStreamConfiguration()
                 cfg.width = max(2, Int(w.frame.width * k)); cfg.height = max(2, Int(w.frame.height * k))
                 cfg.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(fps))
@@ -93,10 +110,14 @@ final class LiveCapture: NSObject, SCStreamOutput {
                 do {
                     try s.addStreamOutput(self, type: .screen, sampleHandlerQueue: self.queue)
                     try await s.startCapture()
-                    self.queue.sync {
+                    // checked on the queue, where stop's teardown is ordered: a newer generation means this stream must go
+                    let kept = self.queue.sync { () -> Bool in
+                        guard self.isCurrent(g) else { return false }
                         self.ids[ObjectIdentifier(s)] = Int(w.windowID); self.streams.append(s)
                         self.byWindow[Int(w.windowID)] = (s, k, w.frame.size, fps)
+                        return true
                     }
+                    if !kept { try? await s.stopCapture(); return }
                 } catch { print("live: \(w.windowID) did not start: \(error.localizedDescription)") }
             }
         }
@@ -119,6 +140,11 @@ final class LiveCapture: NSObject, SCStreamOutput {
     }
 
     func stop() {
+        _ = advance()
+        teardown()
+    }
+
+    private func teardown() {
         held = [:]
         // async: a frame may be mid-conversion on the queue, and the main thread (a closing morph) must not wait for it
         queue.async {
@@ -128,8 +154,9 @@ final class LiveCapture: NSObject, SCStreamOutput {
     }
 
     func stream(_ stream: SCStream, didOutputSampleBuffer sb: CMSampleBuffer, of type: SCStreamOutputType) {
-        guard type == .screen, sb.isValid, let id = ids[ObjectIdentifier(stream)], !busy.contains(id), let pb = sb.imageBuffer,
-              let cb = onFrame else { return }
+        // no handler: the frame is dropped before any conversion
+        guard let cb = onFrame, type == .screen, sb.isValid, let id = ids[ObjectIdentifier(stream)], !busy.contains(id),
+              let pb = sb.imageBuffer else { return }
         if let info = (CMSampleBufferGetSampleAttachmentsArray(sb, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]])?.first,
            let raw = info[.status] as? Int, let st = SCFrameStatus(rawValue: raw), st != .complete { return }   // idle/blank: keep the last frame
         // no copy: the image wraps the frame's buffer, and that buffer is held until the next frame of this window is on screen, so
