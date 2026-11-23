@@ -31,12 +31,15 @@ Run `yabai -m query --windows` with at least one minimized window and one window
 ## AeroSpace
 
 ```
-aerospace list-workspaces --all --json  > Tests/RiskellWMTests/fixtures/aerospace-workspaces.json
-aerospace list-windows --all --json     > Tests/RiskellWMTests/fixtures/aerospace-windows.json
-aerospace list-windows --focused --json > Tests/RiskellWMTests/fixtures/aerospace-focused-window.json
+aerospace list-workspaces --all --json --format '%{workspace}%{workspace-is-focused}%{workspace-is-visible}' > Tests/RiskellWMTests/fixtures/aerospace-workspaces.json
+aerospace list-windows --all --json --format '%{window-id}%{window-title}%{app-name}%{app-pid}%{app-bundle-id}%{workspace}' > Tests/RiskellWMTests/fixtures/aerospace-windows.json
+aerospace list-windows --focused --json --format '%{window-id}' > Tests/RiskellWMTests/fixtures/aerospace-focused-window.json
 aerospace list-workspaces --focused     > Tests/RiskellWMTests/fixtures/aerospace-focused-workspaces.txt
 aerospace list-workspaces --visible     > Tests/RiskellWMTests/fixtures/aerospace-visible-workspaces.txt
 ```
+
+The `--format` strings are the ones riskell's query sends (`Sources/RiskellWM/AeroSpaceSocket.swift`). Without them the JSON leaves out the
+workspace and the process id, which the parser needs. Record the five files from the same moment.
 
 - `aerospace-workspaces.json` proves the `{"workspace": "..."}` shape and that a non-numeric name (`T`, `mail`, a named workspace) is not
   a rail entry.

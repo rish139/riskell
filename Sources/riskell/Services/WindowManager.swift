@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import RiskellKit
 
@@ -9,6 +10,8 @@ protocol WindowManager: AnyObject {
     func stop()
     /// Something outside the WM's own feed suggests the state changed (a system Space change); a WM that pushes its state may ignore it.
     func requestRefresh()
+    /// The state is needed now (the overview is opening); a WM that pushes every change has nothing to do.
+    func refreshNow()
     func focus(space: Int)
     func focus(window id: Int)
     func close(window id: Int)
@@ -26,6 +29,7 @@ protocol WindowManager: AnyObject {
 }
 
 extension WindowManager {
+    func refreshNow() {}
     func windowFrames() -> [Int: WinFrame] { [:] }
     var ownsSwipe: Bool { false }
     func reserve(_ config: Config) {}
@@ -47,7 +51,13 @@ enum WM {
         case "aerospace": return AeroSpace(store: store)      // experimental, unverified
         case "none": return NoWM(store: store)
         case "command": return CommandWM(store: store)      // idle (one log line) until wmCommand.state is set, which config reload picks up
-        case "auto": return Compat.omniwmNow() != nil ? Omni(store: store) : NoWM(store: store)
+        case "auto":
+            // the one that is running; with neither running, the installed one (OmniWM first); with neither installed, none
+            func running(_ id: String) -> Bool { !NSRunningApplication.runningApplications(withBundleIdentifier: id).isEmpty }
+            let omni = Compat.omniwmNow() != nil, aero = Compat.aerospaceNow() != nil
+            if aero, running("bobko.aerospace"), !running("com.barut.OmniWM") { return AeroSpace(store: store) }
+            if omni { return Omni(store: store) }
+            return aero ? AeroSpace(store: store) : NoWM(store: store)
         default:
             print("wm: no backend for \"\(choice)\" yet, running without a window manager"); fflush(stdout)
             return NoWM(store: store)

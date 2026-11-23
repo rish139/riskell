@@ -3,11 +3,12 @@ import SwiftUI
 import RiskellKit
 
 /// The version tracker. riskell leans on things it does not own: private macOS APIs (SkyLight, MultitouchSupport, MediaRemote), OmniWM's
-/// IPC and the OmniWM settings it was tuned against. Any of them can change under an update and break riskell quietly. This compares what
+/// IPC and the OmniWM settings it was tuned against, and AeroSpace's socket and config. Any of them can change under an update and break riskell quietly. This compares what
 /// is running now with what riskell was last VERIFIED against (`Verified`, below) and shows a pill in the top bar's left zone while
 /// anything differs. The pill is the reminder to re-run the checklist in docs/COMPATIBILITY.md and then bump `Verified`.
 ///
-/// Checked at launch, whenever OmniWM (re)connects (an OmniWM update restarts it) and whenever its settings file changes. No timer.
+/// Checked at launch, whenever the window manager in use (re)connects (an update restarts it) and, for OmniWM, whenever its settings file
+/// changes. Only the manager in use is checked. No timer.
 final class Compat: ObservableObject {
     static let shared = Compat()
 
@@ -15,6 +16,7 @@ final class Compat: ObservableObject {
     enum Verified {
         static let macOS = "27.2 (26B123)"        // ProductVersion (BuildVersion)
         static let omniwm = "0.8.0"               // CFBundleShortVersionString of OmniWM.app
+        static let aerospace = "0.21.3-Beta"      // CFBundleShortVersionString of AeroSpace.app
         /// OmniWM settings riskell depends on: "section.key" -> the value riskell needs. A mismatch is a FIX, not an update.
         static let omniwmSettings: [(key: String, want: String, why: String)] = [
             ("gestures.workspaceSwipeEnabled", "false", "riskell's Touch owns the 3-finger swipe; OmniWM's own would fight it"),
@@ -31,7 +33,7 @@ final class Compat: ObservableObject {
 
     /// What needs attention, most important first. Empty = the pill is hidden.
     @Published private(set) var notes: [String] = []
-    private(set) var running = (macOS: "", omniwm: "")
+    private(set) var running = (macOS: "", omniwm: "", aerospace: "")
 
     static let settingsPath = NSHomeDirectory() + "/.config/omniwm/settings.toml"
     static var fake = false                      // --fake-compat: show the pill without a real mismatch (snapshots)
@@ -53,6 +55,11 @@ final class Compat: ObservableObject {
 
     static func omniwmNow() -> String? {
         let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.barut.OmniWM") ?? URL(fileURLWithPath: "/Applications/OmniWM.app")
+        return Bundle(url: url)?.infoDictionary?["CFBundleShortVersionString"] as? String
+    }
+
+    static func aerospaceNow() -> String? {
+        let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "bobko.aerospace") ?? URL(fileURLWithPath: "/Applications/AeroSpace.app")
         return Bundle(url: url)?.infoDictionary?["CFBundleShortVersionString"] as? String
     }
 
@@ -81,6 +88,13 @@ final class Compat: ObservableObject {
         if omni, let om = Self.omniwmNow() {
             running.omniwm = om
             if om != Verified.omniwm { n.append("UPDATE DUE · OmniWM \(om)") }
+        }
+        if WM.shared?.name == "aerospace" {             // the AeroSpace checks apply only when AeroSpace is the manager in use
+            if let a = Self.aerospaceNow() {
+                running.aerospace = a
+                if a != Verified.aerospace { n.append("UPDATE DUE · AeroSpace \(a)") }
+            }
+            for d in AeroGaps.drift(Config.shared) { n.append("FIX · \(d)") }
         }
         // while gestures are riskell's, the two gesture keys are shown as gesture conflicts below, not as OmniWM FIX pills (no duplicate)
         let riskellGestures = AppConfig.shared.gestures == "riskell"
@@ -124,7 +138,7 @@ final class Compat: ObservableObject {
     }
 
     var report: String {
-        "compat: macOS \(running.macOS) (verified \(Verified.macOS)) | OmniWM \(running.omniwm) (verified \(Verified.omniwm)) | " + (notes.isEmpty ? "all as verified" : notes.joined(separator: "; "))
+        "compat: macOS \(running.macOS) (verified \(Verified.macOS)) | OmniWM \(running.omniwm) (verified \(Verified.omniwm)) | AeroSpace \(running.aerospace) (verified \(Verified.aerospace)) | " + (notes.isEmpty ? "all as verified" : notes.joined(separator: "; "))
     }
 }
 

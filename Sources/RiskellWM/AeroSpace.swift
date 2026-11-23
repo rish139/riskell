@@ -34,8 +34,9 @@ public enum AeroSpace {
         // workspaces: only numeric names are rail entries (riskell's rail shows numbers); the number is the id
         var count: [String: Int] = [:]
         for w in allWins { count[w.workspace, default: 0] += 1 }
+        let used = railUsed(windowSpaces: allWins.compactMap { Int($0.workspace) }, focused: focusedName.flatMap { Int($0) })
         let numbered = allWS.compactMap { ws -> (name: String, n: Int)? in Int(ws.workspace).map { (ws.workspace, $0) } }
-            .sorted { $0.n < $1.n }
+            .filter { $0.n <= alwaysShown || used.contains($0.n) }.sorted { $0.n < $1.n }
         let rail = numbered.map {
             SpaceInfo(id: $0.n, sid: 0, focused: $0.name == focusedName, visible: visible.contains($0.name) || $0.name == focusedName,
                       windows: count[$0.name] ?? 0, fullscreen: false)
@@ -46,6 +47,19 @@ public enum AeroSpace {
                            focused: w.windowId == focusedWin)
         }
         return Snapshot(spaces: rail, windows: info)
+    }
+
+    /// Workspaces the rail always shows; AeroSpace keeps nine persistent ones, so later ones show only while in use.
+    public static let alwaysShown = 5
+
+    /// The workspaces on the rail: the first `alwaysShown`, those holding a window, the focused one, and one empty workspace after the
+    /// last when all the others are in use.
+    static func railUsed(windowSpaces: [Int], focused: Int?) -> Set<Int> {
+        let busy = Set(windowSpaces)
+        var shown = busy.union(focused.map { [$0] } ?? []).union(1...alwaysShown)
+        // every workspace on the rail holds a window: the next one, empty, is offered too (a swipe or a drop can reach it)
+        if shown.allSatisfy({ busy.contains($0) }), let top = shown.max(), top < 9 { shown.insert(top + 1) }
+        return shown
     }
 
     /// The non-empty lines of a plain-text call (`list-workspaces --focused` prints names, not JSON). nil when the output is not UTF-8.

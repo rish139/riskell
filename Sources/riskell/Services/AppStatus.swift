@@ -15,6 +15,7 @@ enum AppStatus {
 
     static func json() -> String {
         let omni = WM.shared?.name == "omniwm"
+        let aero = WM.shared?.name == "aerospace"
         var o: [String: Any] = [
             "schema": schema,
             "pid": Int(getpid()),
@@ -23,7 +24,7 @@ enum AppStatus {
             "macOS": Compat.macOSNow(),
             "verifiedMacOS": Compat.Verified.macOS,
             "wm": WM.shared?.name ?? "none",
-            "wmSubscribed": omni ? ((WM.shared as? Omni)?.subscribed ?? false) : false,
+            "wmSubscribed": omni ? ((WM.shared as? Omni)?.subscribed ?? false) : aero ? ((WM.shared as? AeroSpace)?.subscribed ?? false) : false,
             "gestures": AppConfig.shared.gestures ?? "system",
             "accessibility": AXIsProcessTrusted(),
             "location": locationState,
@@ -36,6 +37,8 @@ enum AppStatus {
             "gestureConflicts": GestureConflicts.current(),
         ]
         if omni { o["wmProtocol"] = Omni.protocolVersion }
+        // AeroSpace's gaps live in its own aerospace.toml: the lines that differ from what riskell needs, empty when none do
+        if aero { o["aerospaceGapDrift"] = AeroGaps.drift(Config.shared); o["verifiedAerospace"] = Compat.Verified.aerospace }
         // the settings riskell needs, and the outer gaps it writes itself (Services/Gaps.swift): what they are now, what they must be
         if let s = Compat.omniwmSettings() {
             o["settings"] = Compat.Verified.omniwmSettings.map { ["key": $0.key, "want": $0.want, "actual": s[$0.key] ?? ""] }

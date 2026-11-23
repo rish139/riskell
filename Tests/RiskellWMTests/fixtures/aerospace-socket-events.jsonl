@@ -1,0 +1,6 @@
+{"_event":"focused-workspace-changed","prevWorkspace":"5","workspace":"2"}
+{"_event":"focus-changed","windowId":1008,"workspace":"2"}
+{"_event":"window-detected","appBundleId":"com.example.terminal","appName":"Terminal","windowId":1012,"workspace":"2"}
+{"_event":"focused-monitor-changed"}
+{"_event":"mode-changed","mode":"main"}
+{"_event":"focus-changed"}
