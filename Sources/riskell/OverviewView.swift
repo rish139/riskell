@@ -354,3 +354,9 @@ private struct TileRing: View {
             .animation(.easeOut(duration: 0.12), value: current)
     }
 }
+
+/// The overview's hosting view takes the first click even when its panel is not key, so a click after the window server moved focus
+/// to another app still reaches the tiles.
+final class OverviewHost: NSHostingView<AnyView> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}

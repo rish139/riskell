@@ -365,6 +365,7 @@ final class Overview: ObservableObject {
                 drag = d; predictMove(d.win, to: t); drag = nil         // predictions read the carried window's state
                 WM.shared?.move(window: d.win.id, toSpace: t)
             }
+            panel?.makeKey()                                            // the move can hand key focus to the window that landed
             return
         }
         switch hit(start) {
@@ -515,6 +516,7 @@ final class Overview: ObservableObject {
         p.ignoresMouseEvents = false
         NSAnimationContext.runAnimationGroup { c in c.duration = 0; p.animator().alphaValue = 1 }
         p.alphaValue = 1
+        p.makeKey()      // the window server may have moved key focus to another app while the overview was away
     }
 
     /// `quick`: you chose something and the WM is already switching underneath, so the morph is short.
@@ -643,6 +645,24 @@ final class Overview: ObservableObject {
             if e.buttonNumber == 2, let self, let id = self.hoverWin { WM.shared?.close(window: id); return nil }
             return e
         } as Any)
+        monitors.append(NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] e in
+            self?.logPress(e)
+            return e
+        } as Any)
+    }
+
+    /// One log line per press on the overview: whether its panel was key as the press arrived, and what the press landed on.
+    private func logPress(_ e: NSEvent) {
+        guard let p = panel, e.window === p, let content = p.contentView else { return }
+        let pt = content.convert(e.locationInWindow, from: nil)
+        let kind: String
+        switch hit(pt) {
+        case .window(let w): kind = "window \(w.id)"
+        case .tile(let n): kind = "tile \(n)"
+        case .slot: kind = "slot"
+        case .nothing: kind = "nothing"
+        }
+        tlog("overview press: key=\(p.isKeyWindow) hit=\(kind)")
     }
 
     private func makePanel() -> OverviewPanel {
@@ -653,7 +673,7 @@ final class Overview: ObservableObject {
         p.collectionBehavior = [.ignoresCycle]
         p.isReleasedWhenClosed = false
         p.acceptsMouseMovedEvents = true
-        p.contentView = NSHostingView(rootView: AnyView(ThemeRoot(content: OverviewView().environmentObject(store))))
+        p.contentView = OverviewHost(rootView: AnyView(ThemeRoot(content: OverviewView().environmentObject(store))))
         p.setFrame(f, display: false)
         Sky.pin([p])
         return p
@@ -697,6 +717,11 @@ final class OverviewPointer: ObservableObject {
 
 final class OverviewPanel: NSPanel {
     override var canBecomeKey: Bool { true }      // the keyboard, without activating riskell
+    override func sendEvent(_ e: NSEvent) {
+        // A press while another app holds key focus makes the overview key first, so hover and drag work from the first click.
+        if e.type == .leftMouseDown, isVisible, !isKeyWindow { makeKey() }
+        super.sendEvent(e)
+    }
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
     override func keyDown(with e: NSEvent) { if !Overview.shared.key(e) { super.keyDown(with: e) } }
 }
