@@ -170,7 +170,8 @@ reload() {
 ext_tool() {
   local tool=$root/.build/release/riskell-ext
   # Built when missing and again when its sources are newer, so `risk dev` never runs a tool older than the checkout it is rebuilding.
-  if [[ ! -x $tool || -n $(find $root/Sources/riskell-ext $root/Sources/RiskellTTY $root/Package.swift -newer $tool -print -quit 2>/dev/null) ]]; then
+  # Only in a git checkout: an installed copy (Homebrew's keg) has no .git, is not rebuilt, and must never write into itself.
+  if [[ ! -x $tool || ( -e $root/.git && -n $(find $root/Sources/riskell-ext $root/Sources/RiskellTTY $root/Package.swift -newer $tool -print -quit 2>/dev/null) ) ]]; then
     swift build -c release --product riskell-ext --package-path $root >/dev/null 2>&1 || return 1
   fi
   print -r -- $tool
@@ -212,7 +213,7 @@ lifecycle() {
 
 setup_tool() {
   local tool=$root/.build/release/riskell-setup
-  if [[ ! -x $tool || -n $(find $root/Sources/riskell-setup $root/Sources/RiskellTTY $root/Package.swift -newer $tool -print -quit 2>/dev/null) ]]; then
+  if [[ ! -x $tool || ( -e $root/.git && -n $(find $root/Sources/riskell-setup $root/Sources/RiskellTTY $root/Package.swift -newer $tool -print -quit 2>/dev/null) ) ]]; then
     swift build -c release --product riskell-setup --package-path $root >/dev/null 2>&1 || return 1
   fi
   print -r -- $tool
