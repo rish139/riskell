@@ -3,40 +3,22 @@
 What is built is in `docs/ARCHITECTURE.md` and `docs/EXTENSION-KIT.md` (which has a status table); this is what is next, in the order it will be
 taken. Nothing here is promised. riskell supports Apple silicon only.
 
-## Next: `risk`
+## Next: bringing other setups here, Omarchy first
 
-`risk` is how everything else is delivered — the importers, the port survey, the store client and the picture renderer all live in it — and,
-with [AGENTS.md](../AGENTS.md), the manifest schema and the validator, it is also the interface a coding agent uses. So it is treated as a
-product surface: `--json` on reads, documented exit codes (`10` rebuild needed, `2` usage, `1` failure), `--dry-run` where something writes,
-non-interactive off a TTY, `--yes` for destructive work, idempotent, and nothing that updates itself.
+A setup written somewhere else should be bringable here, and what comes across should be checked rather than approximated. No second
+runtime: no Qt, no QML, no web view. Ports are mechanical or algorithmic first; a coding agent handles the residual and is never a gate.
 
-| Command | What it does |
-|---|---|
-| `risk status [--json] [--bundle]` (`doctor` is an alias) | binary and signature, launch agent, font, socket, window-manager connection and protocol, gap drift, gesture conflicts, macOS and WM versions against the verified record, permissions; the rows only the running app knows come from the app; `--bundle` writes one redacted report |
-| `risk log [N] [--follow] [--json]` · `risk ctl <settings\|overview\|bar-right-on\|workspace-3\|…>` · `risk completions` | the log, the socket words and the shell completions as commands, so scripting does not start with `tail` or `printf \| nc -U` |
-| `risk snap` | the picture flags (`--snap`, `--theme all`, `--bar`, `--scale`, `-o`) as one command |
-| `risk bench [--json]` | reproduce the numbers in [`EFFICIENCY.md`](EFFICIENCY.md) on this machine |
-| `risk config get\|set\|path\|edit` · `risk wm status\|doctor\|backends` | settings and the window manager without hand-edited JSON |
-| `risk help` · completions | stable and experimental commands, declared; zsh, fish and bash |
+1. **Omarchy widgets and themes.** Its bar is Waybar, so this is the Waybar importer (`exec`, `interval`, streaming, `format`,
+   `tooltip-format`, `on-click`, `format-icons`) and, harder, carrying the look across: the CSS styling of a module has to land on
+   native pills and readings through the theme's tokens (`Pal`, `T`, `G`) and nothing else. That mapping is the design problem, so it is
+   worked out on a few real widgets before any importer is written.
+2. **BitBar/SwiftBar import** (`"format": "bitbar"` on a pill): line one on the bar, the rest in the card.
+3. **One `risk port <repo>` command**, once a porting path works end to end. It says plainly what it could not carry over.
+4. **Presets as a file**: layout, config, pills, theme and extension locks in one file that can be shared and applied.
+5. **Themes**: `risk theme` (list, check, import) exists as a developer command; fetching and exporting schemes waits until themes are
+   taken up again.
 
-## Then: import, and portability from other shells
-
-A setup written somewhere else should be bringable here, and what comes across should be checked rather than approximated. No second runtime:
-no Qt, no QML, no web view. Ports are mechanical or algorithmic first; a coding agent handles the residual and is never a gate.
-
-1. **Themes.** `risk theme fetch <slug>` from [tinted-theming/schemes](https://github.com/tinted-theming/schemes), `risk theme import
-   colors.toml`, `risk theme export --omarchy`. Import only is a converter; publishing to a format is what makes a format central.
-2. **`docs/IMPORT.md`**: one page, from → command, for Omarchy themes, Waybar modules, SwiftBar/BitBar plugins and Quickshell widgets.
-3. **BitBar/SwiftBar import** (`"format": "bitbar"` on a pill): line one on the bar, the rest in the card.
-4. **Waybar import** (`risk pill import waybar`): `exec`, `interval`, streaming, `format`, `tooltip-format`, `on-click` and `format-icons`.
-5. **`derivedFrom`** in the manifest schema and a validator rule — `repo`, `rev`, `license`, `authors` — with "Ported from …" on the listing.
-6. **`risk port survey <repo> --json`**: the capability, data-source and paint gates over Omarchy's registry, with the measured yield and how
-   many survivors actually run on macOS.
-7. **A data-only emitter** and a `map` state table on the pill spec, once the survey says it is worth it.
-8. **Presets as artefacts** (`risk preset export|apply`): layout, config, pills, theme, extension locks and a rendered picture.
-
-Before the tests, the gallery and any verification tier: a **test target and `Tests/wm` fixture conformance**, so a window-manager parser can be
-run against payloads recorded from a real install, on a CI runner, without the maintainer owning that Mac.
+`derivedFrom` provenance is already enforced by `risk ext validate`: a port that does not say where it came from is refused.
 
 ## Before a wider release
 
@@ -70,6 +52,11 @@ run against payloads recorded from a real install, on a CI runner, without the m
 
 ## Done
 
+- `risk` is one command line in one terminal style: thirteen commands, a screen per command drawn from the theme in force, an error form
+  that says what is wrong and what to try, `--json` on reads, documented exit codes, `--dry-run` where something writes, and no output
+  that is not meant for a person when it is piped. The commands are in [`CLI.md`](CLI.md); `risk status` is one screen and `risk status
+  --all` is every check. `snap`, `bench`, `theme`, `fit` and `self-test` run as developer commands and are not listed.
+- A test target for the window-manager parsers with recorded payloads (`Tests/RiskellWMTests`), and a contract test for the command line.
 - Every atom is a package: clock, weather, AI usage, battery, CPU, fans, volume, network, workspaces and the application icon all live in
   `Packages/` on the same kit extensions use, are listed in `listings/` ([`scripts/listings-check.sh`](../scripts/listings-check.sh) keeps the
   two in step), and start nothing until they are on a showing bar. The kit grew for it: `PopState`, `env.config`, `env.cache`, `Demo`,

@@ -437,9 +437,9 @@ MultitouchSupport (the swipe) and MediaRemote (now playing, read through the sys
 Nothing here is a commitment and the order is not fixed; [docs/ROADMAP.md](docs/ROADMAP.md) has the reasoning.
 
 **Next**
-- [ ] `risk` as a product surface: `risk doctor`, `risk ctl`, `risk snap`, `risk bench`, `risk config`, `risk wm`, and completions
+- [x] `risk` as a product surface: thirteen commands in one terminal style ([docs/CLI.md](docs/CLI.md)).
+- [ ] Bringing other setups here, Omarchy widgets and themes first, then BitBar/SwiftBar; `derivedFrom` provenance is already enforced
   ([docs/ROADMAP.md](docs/ROADMAP.md)).
-- [ ] Import and portability: BitBar/SwiftBar and Waybar import, Omarchy themes and bar widgets, `derivedFrom` provenance.
 
 **Before a wider release**
 - [ ] Testing on other Apple-silicon Macs and macOS versions (14 and 15), and with yabai and AeroSpace.
