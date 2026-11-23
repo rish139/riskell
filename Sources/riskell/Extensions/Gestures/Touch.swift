@@ -247,9 +247,20 @@ final class Touch {
         fourDown = false
         let up = fourY - fourStartY, held = CACurrentMediaTime() - fourDownAt
         Self.glog(String(format: "4 fingers lifted: moved %.3f after %.0f ms", up, held * 1000))
-        guard !fourFired, up > fourTravel, held < fourQuick else { return }
+        guard !fourFired, abs(up) > fourTravel, held < fourQuick else { return }
         fourFired = true
-        Self.openMissionControl()
+        if up > 0 { Self.openMissionControl() } else if Self.missionOpen { Self.closeMissionControl() }
+    }
+
+    /// Mission Control was opened by this gesture and not closed since: a swipe down then closes it. (A Mission Control opened any other
+    /// way is left alone, so a swipe down never sends an Escape into an app.)
+    private static var missionOpen = false
+
+    /// Closes Mission Control with Escape, the key it closes on.
+    private static func closeMissionControl() {
+        glog("4 fingers down: closing Mission Control")
+        missionOpen = false
+        for down in [true, false] { CGEvent(keyboardEventSource: nil, virtualKey: 53, keyDown: down)?.post(tap: .cghidEventTap) }
     }
 
     /// Every finger is up: the bars drop back after the same 0.6 s settle as a 3-finger swipe.
@@ -263,6 +274,7 @@ final class Touch {
     /// Opens Mission Control through `open`, on a background queue. Nothing waits for it and nothing polls it.
     private static func openMissionControl() {
         glog("4 fingers up: opening Mission Control")
+        missionOpen = true
         DispatchQueue.global(qos: .userInitiated).async {
             let p = Process()
             p.executableURL = URL(fileURLWithPath: "/usr/bin/open")

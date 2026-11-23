@@ -167,14 +167,6 @@ let right = panel(CGRect(x: f.maxX - Real.strip - Real.r, y: f.minY, width: Real
 let top = panel(CGRect(x: f.minX, y: f.maxY - display.topInset - Real.band - Real.r, width: f.width, height: Real.band + Real.r), topHost, above: -2)
 let bottom = panel(CGRect(x: f.minX, y: f.minY, width: f.width, height: Real.band + Real.r), bottomHost)
 var inFullscreen = false
-/// How far the top bar is pushed down (real points) while the auto-hidden menu bar is shown over the top edge: the part of the menu bar that
-/// the bar's own inset does not already clear. Only the frame reads it (`topFrame`), so the animation and applyGeometry agree.
-var topShiftY: CGFloat = 0
-func topFrame() -> CGRect {
-    let c = Config.shared, lw = c.leftW, rw = c.rightW
-    return CGRect(x: f.minX + lw, y: f.maxY - Display.current.topInset - Real.band - Real.r - topShiftY, width: f.width - lw - rw, height: Real.band + Real.r)
-}
-
 /// The strips' panels are full height, and a window takes every click inside its frame, so the gaps between islands would hold the Dock and
 /// the apps beneath. macOS has no per-pixel click-through: a window that ignores the mouse passes the whole of it on. So a floating strip
 /// ignores the mouse while the pointer is over a gap and takes it over an island; a hugged strip (a solid fill) and the edit mode take it
@@ -193,7 +185,7 @@ func passStripPointer() {
 /// Fits the panels to the bars that are on: the top and bottom bars run between the strips, a bar that is off is invisible and takes no mouse.
 func applyGeometry() {
     let c = Config.shared, lw = c.leftW, rw = c.rightW
-    top.setFrame(topFrame(), display: true)
+    top.setFrame(CGRect(x: f.minX + lw, y: f.maxY - Display.current.topInset - Real.band - Real.r, width: f.width - lw - rw, height: Real.band + Real.r), display: true)
     top.contentView?.useDesignUnits()
     bottom.setFrame(CGRect(x: f.minX + lw, y: f.minY, width: f.width - lw - rw, height: Real.band + Real.r), display: true)
     bottom.contentView?.useDesignUnits()
@@ -273,31 +265,24 @@ events.commands["wm"] = { wm.requestRefresh() }      // a script says the manage
 // The top bar rides above MenuBarAgent's layer-25 window (it eats hover below that). Touching the top screen edge reveals the auto-hidden
 // menu bar, so the bar steps down under it until the pointer leaves the menu bar's strip.
 var barLevel = top.level      // the top bar's level away from the menu bar's strip (higher while lifted for a swipe)
-/// The top bar's hold-off after the pointer leaves the menu bar's strip: cancelled if the pointer comes back, so the bar does not bounce.
-var menuHold: DispatchWorkItem?
 let underMenu = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.mainMenuWindow)) - 1)
-/// Moves the top bar to `y` below its rest, animated. While it is shifted the bar sits under the menu bar's level (`menuEdge`), so the
-/// app menus that open below the menu bar are drawn over it.
-func setTopShift(_ y: CGFloat) {
-    guard topShiftY != y else { return }
-    topShiftY = y
-    NSAnimationContext.runAnimationGroup { ctx in
-        ctx.duration = 0.18
-        top.animator().setFrame(topFrame(), display: true)
-    }
-}
+/// The pointer touched the top edge, so the auto-hidden menu bar is out: the top bar sits under it (the menu bar overlays it exactly) and the
+/// strips' top widgets step down clear of it. This holds until the pointer leaves the menu bar's stripe (the notch's height), then a short
+/// hold-off lets the menu bar slide away before the top bar comes back on top. Without a touch of the edge nothing here ever changes.
+var menuOut = false
+var menuHold: DispatchWorkItem?
 func menuEdge(_ e: NSEvent?) {
     passStripPointer()
-    let y = NSEvent.mouseLocation.y, bar = Display.current.menuBar
+    let y = NSEvent.mouseLocation.y, d = Display.current, stripe = max(d.menuBar, d.notchH)
     if y >= f.maxY - 1.5 {
         menuHold?.cancel(); menuHold = nil
-        setTopShift(max(0, bar - Display.current.topInset))      // the menu bar is shown: step the top bar down clear of it
-    } else if y < f.maxY - bar, topShiftY != 0, menuHold == nil {      // pointer left the menu bar's strip: wait, then step back up
-        let w = DispatchWorkItem { menuHold = nil; setTopShift(0); menuEdge(nil) }
+        if !menuOut { menuOut = true; Config.shared.menuDrop = max(0, d.menuBar / Real.k - G.sideMargin + 6) }
+    } else if menuOut, y < f.maxY - stripe, menuHold == nil {
+        let w = DispatchWorkItem { menuHold = nil; menuOut = false; Config.shared.menuDrop = 0; menuEdge(nil) }
         menuHold = w
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: w)
-    }
-    let want = topShiftY != 0 ? underMenu : pipOver.contains(top) && !barsLifted ? pipLevel : barLevel
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: w)
+    } else if menuOut, y >= f.maxY - stripe { menuHold?.cancel(); menuHold = nil }
+    let want = menuOut ? underMenu : pipOver.contains(top) && !barsLifted ? pipLevel : barLevel
     if top.level != want { top.level = want }
 }
 /// A Picture-in-Picture window (layer 19) sits under the bars (layer 23+). A bar it overlaps drops to just under it, so the PiP floats over

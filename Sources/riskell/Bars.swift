@@ -100,7 +100,7 @@ struct VBar: View {
     var body: some View {
         let spec = cfg.spec(bar)
         VStack(spacing: cfg.gap) {
-            Color.clear.frame(height: G.sideMargin)
+            Color.clear.frame(height: G.sideMargin + cfg.menuDrop)
             ForEach(spec.start) { if cfg.editing || !Registry.blank($0, store) { island($0, pad: 10) } }
             Spacer(minLength: 0)
             ForEach(spec.end) { if cfg.editing || !Registry.blank($0, store) { island($0, pad: 20) } }
@@ -108,6 +108,7 @@ struct VBar: View {
         }
         .font(.system(size: 11, weight: .semibold, design: .monospaced))
         .foregroundStyle(Pal.text1)
+        .animation(.easeOut(duration: 0.18), value: cfg.menuDrop)
         .frame(width: G.strip)
         .overlay { HintView(bar: bar) }
         .overlay { if cfg.editing && cfg.isEmpty(bar) { EmptyBarHint().frame(width: G.pill, height: 120) } }

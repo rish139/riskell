@@ -62,6 +62,8 @@ final class Config: ObservableObject {
 
     @Published private(set) var specs: [BarKey: BarSpec] = Config.defaults { didSet { if ready { Needs.apply() } } }
     @Published private(set) var hug: [BarKey: Bool] = Config.defaultHug
+    /// How far the strips' top widgets sit lower (design units) while the auto-hidden menu bar is out, so it does not cover them.
+    @Published var menuDrop: CGFloat = 0
     @Published private(set) var spillStyle: [BarKey: Spill] = [:]
     @Published private(set) var gap: CGFloat = 8
     @Published private(set) var enabled: [BarKey: Bool] = Config.defaultOn { didSet { if ready { Needs.apply() } } }

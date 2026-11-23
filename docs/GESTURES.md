@@ -26,6 +26,8 @@ or `off`, and turning it on logs `trackpad attached` and `scroll guard: active`.
   overview returns to where it was. Until every finger lifts, the touches are not read as a 3-finger swipe.
 - **Four fingers swipe up and lift:** Mission Control opens (`open -a "Mission Control"`). It needs at least 0.06 pad heights of upward
   travel, lifted within 0.7 s of landing, and opens once per contact (the next one needs every finger up first).
+- **Four fingers swipe down and lift:** closes the Mission Control that this gesture opened (an Escape key press). A Mission Control
+  opened another way is left alone.
 - Up is fingers moving up, the same direction as the 3-finger overview. Natural scrolling does not flip it, as the overview does not.
 - The bars rise and scroll guard blocks scrolls while four fingers are down, as for three.
 - macOS's own 4-finger swipes stay off (see the conflict pills below).
