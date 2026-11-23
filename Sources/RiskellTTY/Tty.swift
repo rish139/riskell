@@ -35,15 +35,20 @@ public struct Tty: Equatable {
     public let mode: Mode
     public let width: Int
     public let palette: Palette
+    /// The marks this terminal can show: Unicode, or the plain set (Glyphs.swift).
+    public let glyphs: Glyphs
+    /// Whether standard output is a terminal a program may drive: a spinner, a rewritten line, a question. A pipe or a file is not.
+    public let isInteractive: Bool
 
-    public init(mode: Mode, width: Int = 80, palette: Palette) {
+    public init(mode: Mode, width: Int = 80, palette: Palette, glyphs: Glyphs = Glyphs.detect(), isInteractive: Bool = false) {
         self.mode = mode
         self.width = max(1, width)
         self.palette = palette
+        self.glyphs = glyphs
+        self.isInteractive = isInteractive
     }
 
-    /// The terminal this process writes to: the mode from the environment, the width from COLUMNS.
-    /// The terminal this process writes to: the mode from the environment, the width from COLUMNS.
+    /// The terminal this process writes to: the mode from the environment, the width from COLUMNS, the glyphs from the locale.
     public static func detect(palette: Palette, env: [String: String] = ProcessInfo.processInfo.environment) -> Tty {
         make(palette: palette, env: env, isTTY: isatty(1) == 1)
     }
@@ -55,7 +60,9 @@ public struct Tty: Equatable {
 
     private static func make(palette: Palette, env: [String: String], isTTY: Bool) -> Tty {
         let columns = Int(env["COLUMNS"] ?? "") ?? 80
-        return Tty(mode: Mode.detect(env: env, isTTY: isTTY), width: columns > 0 ? columns : 80, palette: palette)
+        // An explicit --format asks for escapes down a pipe, but only a real terminal can be animated and questioned.
+        return Tty(mode: Mode.detect(env: env, isTTY: isTTY), width: columns > 0 ? columns : 80, palette: palette,
+                   glyphs: Glyphs.detect(env: env), isInteractive: isatty(1) == 1)
     }
 
     // MARK: styling
