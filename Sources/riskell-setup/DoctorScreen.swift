@@ -31,7 +31,7 @@ struct Report {
     let macOS: String?
     let chip: String
     let windowManager: String?
-    let state: State
+    let state: MastheadState
     let sections: [ScreenSection]
 
     /// The counts the summary shows, over every row of every section.

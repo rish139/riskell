@@ -89,7 +89,7 @@ enum HelpScreen {
     /// but will not say. Cheap and never waiting on riskell: a live event socket answers with its peer pid at once (no word is written), the
     /// plist is a stat, and only an agent that is installed but silent costs one local `launchctl print`. riskell itself is never run, and a
     /// missing `launchctl` costs only the line.
-    private static func agentState() -> State {
+    private static func agentState() -> MastheadState {
         let socket = cacheDir() + "/ev.sock"
         if let pid = peerPid(at: socket) { return .running("running · pid \(pid)") }
         let home = ProcessInfo.processInfo.environment["HOME"] ?? homePath()

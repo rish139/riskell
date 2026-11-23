@@ -9,7 +9,7 @@ extension App {
             facts.arch == "arm64" ? "Apple silicon" : facts.arch,
             facts.detectedWM ?? "no window manager",
         ].joined(separator: " · ")
-        let state: State = facts.agentLoaded ? .running("running") : .unknown("not installed")
+        let state: MastheadState = facts.agentLoaded ? .running("running") : .unknown("not installed")
         var out = tty.masthead(version: "setup \(riskellVersion)", lines: [identity], state: state)
         out.append("")
         out += tty.paragraph("The guided installer asks eight short questions: your window manager, the bars, a theme, a weather "

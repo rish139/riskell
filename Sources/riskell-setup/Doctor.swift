@@ -742,7 +742,7 @@ enum Doctor {
     }
 
     /// What the masthead says the agent is doing: running with its pid and how long it has been up, stopped, or no answer at all.
-    private static func state(_ c: Context) -> State {
+    private static func state(_ c: Context) -> MastheadState {
         if let pid = c.pid {
             let up = uptime(pid).map { " · up \($0)" } ?? ""
             return .running("running · pid \(pid)\(up)")

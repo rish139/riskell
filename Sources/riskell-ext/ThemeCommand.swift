@@ -170,13 +170,21 @@ enum ThemeCommand {
 
         if json {
             let rows = picked.map { scheme -> String in
-                let ratios = scheme.ratios.map { "\(jsonQuoted($0.token)): {\"ratio\": \($0.value), \"below\": \($0.below)}" }
-                return "    {\"id\": \(jsonQuoted(scheme.id)), \"variant\": \(jsonQuoted(scheme.variant)), \"belowFloor\": \(scheme.belowFloor), " +
-                       "\"ratios\": {" + ratios.joined(separator: ", ") + "}}"
+                let ratios: [String] = scheme.ratios.map { r -> String in
+                    jsonQuoted(r.token) + ": {\"ratio\": " + String(describing: r.value) + ", \"below\": " + String(r.below) + "}"
+                }
+                var row: String = "    {\"id\": " + jsonQuoted(scheme.id) + ", \"variant\": " + jsonQuoted(scheme.variant)
+                row += ", \"belowFloor\": " + String(scheme.belowFloor) + ", "
+                row += "\"ratios\": {" + ratios.joined(separator: ", ") + "}}"
+                return row
             }
-            print("{\n  \"schema\": \(jsonQuoted(schema)),\n  \"action\": \"check\",\n  \"schemes\": [" +
-                  (rows.isEmpty ? "]" : "\n" + rows.joined(separator: ",\n") + "\n  ]") + ",\n  \"below\": ["
-                  + below.map(jsonQuoted).joined(separator: ", ") + "]}")
+            // Built in pieces: one long interpolated concatenation is more than some compilers will type-check in reasonable time.
+            let schemaText: String = jsonQuoted(schema)
+            let rowsText: String = rows.isEmpty ? "]" : "\n" + rows.joined(separator: ",\n") + "\n  ]"
+            let belowText: String = below.map(jsonQuoted).joined(separator: ", ")
+            var document: String = "{\n  \"schema\": " + schemaText + ",\n  \"action\": \"check\",\n"
+            document += "  \"schemes\": [" + rowsText + ",\n  \"below\": [" + belowText + "]}"
+            print(document)
             return below.isEmpty ? 0 : 1
         }
 

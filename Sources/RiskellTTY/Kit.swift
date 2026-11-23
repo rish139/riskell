@@ -6,7 +6,7 @@ public enum Tone: Equatable, CaseIterable {
 }
 
 /// What the bar behind a command is doing: running, stopped, or no answer at all. The string is the dim text printed after the dot.
-public enum State: Equatable {
+public enum MastheadState: Equatable {
     case running(String)
     case stopped(String)
     case unknown(String)
@@ -60,7 +60,7 @@ extension Tty {
     /// The three rows at the top of a screen: the logo, what this machine is, and what the agent is doing.
     ///
     /// Narrower than 56 columns the logo does not fit beside the words, so it is dropped and one line says the same thing.
-    public func masthead(version: String, lines: [String], state: State) -> [String] {
+    public func masthead(version: String, lines: [String], state: MastheadState) -> [String] {
         let mark: Palette.Token
         switch state {
         case .running: mark = .ok
