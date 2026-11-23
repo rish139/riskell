@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/rish139/riskell/main/schemas/riskell-extension.schema.json",
+  "id": "dwindle",
+  "kind": "behaviour",
+  "name": "Dwindle",
+  "version": "1.0.0",
+  "kit": "^0.7",
+  "license": "FSL-1.1-MIT",
+  "summary": "Binary tiling for AeroSpace: a new window splits the focused one in half, and the split directions alternate.",
+  "module": "DwindleExt",
+  "entry": "DwindlePackage"
+}
