@@ -44,18 +44,8 @@ struct OverviewView: View {
                 .offset(x: Config.shared.leftW + (o.screen.width - Config.shared.leftW - Config.shared.rightW) / 2 - FindField.width / 2, y: (L.tiles.first?.maxY ?? 0) + 64 * u)
                 .opacity(fade)
                 .zIndex(10)
-            ForEach(o.chipRects(), id: \.app.id) { c in
-                HStack(spacing: 6 * u) {
-                    if let icon = Apps.info(pid: c.app.pid, fallback: c.app.name).icon { Image(nsImage: icon).resizable().frame(width: 14 * u, height: 14 * u) }
-                    Text(c.app.name).font(Pal.font(11.5 * u, .medium)).foregroundStyle(Pal.text1).lineLimit(1)
-                }
-                .padding(.horizontal, 9 * u)
-                .frame(width: c.rect.width, height: c.rect.height)
-                .background(Capsule().fill(Pal.cardSolid))
-                .overlay(Capsule().strokeBorder(Pal.line, lineWidth: 1))
-                .offset(x: c.rect.minX, y: c.rect.minY)
-                .opacity(fade)
-                .allowsHitTesting(false)
+            ForEach(o.fullscreenTiles(), id: \.app.id) { t in
+                FullscreenTile(app: t.app, rect: t.rect).opacity(fade)
             }
             // hover ring and title, the carried window and its target: above every tile (the morphing one included)
             PointerLayer(layout: L).zIndex(10)
@@ -123,6 +113,44 @@ struct OverviewTile: View {
             .background { shape.fill(Color.black).shadow(color: .black.opacity(0.45 * Double(progress)), radius: 22 * u, y: 12 * u) }      // the shadow of a plain shape, not of the whole miniature
             .offset(x: rect.minX, y: rect.minY)
             .allowsHitTesting(false)
+    }
+}
+
+/// A native full-screen app's window as a tile of its own: its picture (or the app icon until there is one), its name under it.
+private struct FullscreenTile: View {
+    @ObservedObject private var o = Overview.shared
+    @ObservedObject private var pointer = Overview.shared.pointer
+    let app: Overview.FullApp
+    let rect: CGRect
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 12 * u, style: .continuous)
+        let info = Apps.info(pid: app.pid, fallback: app.name)
+        let hot = pointer.hoverFull == app.pid
+        ZStack {
+            Pal.tile
+            if let img = o.thumbs[Int(app.wid)] {
+                Image(nsImage: img).resizable().interpolation(.high)
+            } else if let icon = info.icon {
+                Image(nsImage: icon).resizable().scaledToFit().frame(width: rect.height * 0.4, height: rect.height * 0.4)
+            }
+            if hot { Pal.text1.opacity(0.08) }
+        }
+        .frame(width: rect.width, height: rect.height)
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(hot ? Pal.text1.opacity(0.9) : Pal.line, lineWidth: hot ? 2 * u : 1))
+        .background { shape.fill(Color.black).shadow(color: .black.opacity(0.45), radius: 22 * u, y: 12 * u) }
+        .offset(x: rect.minX, y: rect.minY)
+        HStack(spacing: 6 * u) {
+            if let icon = info.icon { Image(nsImage: icon).resizable().frame(width: 14 * u, height: 14 * u) }
+            Text(app.name).font(Pal.font(11.5 * u, .medium)).foregroundStyle(Pal.text1).lineLimit(1)
+        }
+        .padding(.leading, 6 * u).padding(.trailing, 9 * u).padding(.vertical, 4 * u)
+        .background(Capsule().fill(Pal.cardSolid))
+        .overlay(Capsule().strokeBorder(Pal.line, lineWidth: 1))
+        .fixedSize()
+        .frame(width: rect.width)
+        .offset(x: rect.minX, y: rect.maxY + 9 * u)
     }
 }
 

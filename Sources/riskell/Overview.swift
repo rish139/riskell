@@ -262,14 +262,21 @@ final class Overview: ObservableObject {
         return out
     }
 
-    /// The chips for those apps, in one row centred under the find field. Drawing and hit-testing both use these rects.
-    func chipRects() -> [(app: FullApp, rect: CGRect)] {
-        let cw = 150 * Real.k, ch = 26 * Real.k, gap = 8 * Real.k
-        let total = CGFloat(fullscreenApps.count) * (cw + gap) - gap
-        let cx = Config.shared.leftW + (screen.width - Config.shared.leftW - Config.shared.rightW) / 2
-        let y = (layout.tiles.first?.maxY ?? 0) + 64 * Real.k + 44 * Real.k + 14 * Real.k
+    /// The window tiles for those apps: 0.7 of a workspace tile, one centred row under the find field, shrunk to fit the screen's
+    /// bottom (room kept for the name below) and its width. Drawing and hit-testing both use these rects.
+    func fullscreenTiles() -> [(app: FullApp, rect: CGRect)] {
+        guard !fullscreenApps.isEmpty, let first = layout.tiles.first else { return [] }
+        let k = Real.k, gap = 16 * k, n = CGFloat(fullscreenApps.count)
+        let y = first.maxY + 64 * k + 44 * k + 20 * k
+        let aspect = screen.height / screen.width
+        let bottom = screen.height - 12 * k - 33 * k              // the name capsule sits 9 below the tile and is 24 high
+        let mid = Config.shared.leftW + (screen.width - Config.shared.leftW - Config.shared.rightW) / 2
+        var w = first.width * 0.7
+        w = min(w, (bottom - y) / aspect, (screen.width - 2 * gap - (n - 1) * gap) / n)
+        guard w > 0 else { return [] }
+        let h = w * aspect, total = n * (w + gap) - gap
         return fullscreenApps.enumerated().map { i, a in
-            (a, CGRect(x: cx - total / 2 + CGFloat(i) * (cw + gap), y: y, width: cw, height: ch))
+            (a, CGRect(x: mid - total / 2 + CGFloat(i) * (w + gap), y: y, width: w, height: h))
         }
     }
 
@@ -348,7 +355,7 @@ final class Overview: ObservableObject {
     var layout: OverviewLayout { OverviewLayout(count: store.spaces.count, screen: screen) }
 
     func hit(_ pt: CGPoint) -> Hit {
-        if let c = chipRects().first(where: { $0.rect.contains(pt) }) { return .fullscreen(c.app.pid) }
+        if let c = fullscreenTiles().first(where: { $0.rect.contains(pt) }) { return .fullscreen(c.app.pid) }
         let L = layout
         for (i, sp) in store.spaces.enumerated() where i < L.tiles.count && L.tiles[i].contains(pt) {
             let t = L.tiles[i], k = L.scale
@@ -370,9 +377,12 @@ final class Overview: ObservableObject {
 
     func pointerMoved(_ pt: CGPoint?) {
         guard drag == nil else { return }
-        var id: Int? = nil
-        if let pt, case .window(let w) = hit(pt) { id = w.id }
+        var id: Int? = nil, full: Int? = nil
+        if let pt {
+            switch hit(pt) { case .window(let w): id = w.id; case .fullscreen(let p): full = p; default: break }
+        }
         if hoverWin != id { hoverWin = id }
+        if pointer.hoverFull != full { pointer.hoverFull = full }
     }
 
     /// A press that travels 6 pt from a window picks it up; then it follows the pointer and the tile under it is the target.
@@ -613,7 +623,7 @@ final class Overview: ObservableObject {
             self.panel?.alphaValue = 1
             self.stopVideo()
             self.liveRects = [:]
-            self.thumbs = [:]; self.bars = []; self.hoverWin = nil; self.drag = nil
+            self.thumbs = [:]; self.bars = []; self.hoverWin = nil; self.pointer.hoverFull = nil; self.drag = nil
             self.feeds = [:]; self.stills = [:]; self.held = [:]; self.moving = false
         }
     }
@@ -626,8 +636,10 @@ final class Overview: ObservableObject {
         let small = min(1, OverviewLayout(count: store.spaces.count, screen: screen).scale * 2.4)
         var want: [Int: CGFloat] = [:]
         for w in store.windows { want[w.id] = sharp && w.space == origin ? 1.0 : small }
+        for a in fullscreenApps { want[Int(a.wid)] = small }
         Capture.windows(want) { [weak self] id, img in
             guard let self, self.live else { return }
+            if self.fullscreenApps.contains(where: { Int($0.wid) == id }) { self.thumbs[id] = NSImage(cgImage: img, size: .zero); return }
             let k = want[id] ?? small
             self.cache[id] = k > small ? Overview.scaled(img, by: small / k) : NSImage(cgImage: img, size: .zero)
             let shot = NSImage(cgImage: img, size: .zero)
@@ -756,6 +768,7 @@ final class LiveFeed: ObservableObject {
 
 final class OverviewPointer: ObservableObject {
     @Published var hoverWin: Int? = nil
+    @Published var hoverFull: Int? = nil
     @Published var drag: Overview.Drag? = nil
 }
 
