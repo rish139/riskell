@@ -4,6 +4,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+- AeroSpace backend is a native socket client. One connection receives focus, workspace and window events, another sends commands, and
+  no process starts per event, so the `exec-on-workspace-change` and `on-focus-changed` callbacks are no longer needed. Gestures under
+  AeroSpace work too: AeroSpace has no swipe, so riskell sends the workspace switch and holds it until AeroSpace confirms.
+- AeroSpace frame layer: AeroSpace reports no window frames, so riskell remembers each window's frame while it is on screen and works out
+  an equal split for the rest. `aerospace.gaps` in `config.json` chooses who
+  writes the outer gaps: `"riskell"` (the default) rewrites them in `aerospace.toml` and reloads AeroSpace, `"manual"` only reports drift.
+- `risk wm use <omniwm|aerospace|none>` switches the window manager without touching either manager's own settings. It prints the plan
+  unless `--yes` is given.
+
+### Changed
+- `risk status` follows the window manager that `wm` selects, not only OmniWM.
+
 ## [0.3.1] - 2026-11-23
 
 Fixes from a week of daily use, and full-screen apps in the overview.

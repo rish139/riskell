@@ -23,10 +23,12 @@ zone** (between the hug strip and the notch) while anything differs. Nothing is 
 |---|---|---|
 | `UPDATE DUE · macOS 27.3` | macOS version or build differs from `Verified.macOS` | walk section 6, then bump the constant |
 | `UPDATE DUE · OmniWM 0.9.0` | installed OmniWM.app version differs from `Verified.omniwm` | walk section 6, then bump the constant |
+| `UPDATE DUE · AeroSpace 0.22.0` | installed AeroSpace.app version differs from `Verified.aerospace` (only while `wm` is `aerospace`) | walk section 6, then bump the constant |
+| `FIX · AeroSpace gaps.outer.top is 56, riskell needs 8` | a `gaps.outer.*` line in `aerospace.toml` differs from what riskell needs (section 3; only while `wm` is `aerospace`) | let riskell write it (`aerospace.gaps` `"riskell"`) or put the value back |
 | `FIX · OmniWM workspaceSwipeEnabled = true` | an OmniWM setting riskell needs has the wrong value (section 3) | put the value back in `~/.config/omniwm/settings.toml` (an OmniWM update or a settings reset can undo it) |
 | `+N` after the text | more than one thing needs attention | `printf compat \| nc -U ~/.cache/riskell/ev.sock` lists all of them in the log |
 
-When it checks: at launch, every time OmniWM (re)connects (an OmniWM update restarts it), and whenever `settings.toml` changes (a file
+When it checks: at launch, every time the window manager in use (OmniWM or AeroSpace) (re)connects (an update restarts it), and, for OmniWM, whenever `settings.toml` changes (a file
 watch, re-armed after each change because editors replace the file). No timer. The settings it enforces are the table `Verified.omniwmSettings`.
 Debug: `printf compat | nc -U -w1 ~/.cache/riskell/ev.sock` prints running vs verified; `--fake-compat` shows the pill with no real mismatch
 (use it with `--snap` to look at the pill without touching the live bar).
@@ -44,6 +46,7 @@ version", not "install an update".
 | CGEvent tap (needs Accessibility permission) | `ScrollGuard` drops trackpad scroll events while 3 fingers are down so the window under the pointer does not scroll | `Extensions/Gestures/ScrollGuard.swift` | windows scroll during a swipe |
 | OmniWM IPC (`~/Library/Application Support/com.barut.OmniWM/ipc.sock` + `.secret`, newline-delimited JSON, protocol **22**) | workspaces, windows, focus in; `switch-workspace` and window commands out | `Omni.swift`, `Omni.protocolVersion` | rail empty / commands ignored; the log shows `omniwm: ... error` lines. `omniwmctl version` prints the protocol |
 | OmniWM settings file `~/.config/omniwm/settings.toml` | read-only by riskell (the tracker); see section 3 | `Compat.swift` | see the `FIX` pill |
+| AeroSpace socket `/tmp/bobko.aerospace-<user>.sock` (protocol version 1: a 4-byte little-endian handshake, then 4-byte length-prefixed JSON frames). One subscription connection (`focus-changed`, `focused-workspace-changed`, `window-detected`, `focused-monitor-changed`) and one command connection | workspaces, windows, focus in; workspace switch and window commands out | `Services/AeroSpace.swift`, `RiskellWM/AeroSpaceSocket.swift` | rail stale or empty; the handshake is refused when the peer's protocol version is not 1 |
 | CoreAudio, IOKit/SMC, CoreWLAN, host statistics | volume, battery/fans/temps, Wi-Fi, CPU | `Services/*` | the matching atom goes blank or stale |
 | Location permission, login keychain item "Always Allow", local `riskell-dev` signing certificate | Wi-Fi names; stable code identity so permissions survive rebuilds | `scripts/risk`, README | a permission prompt reappears after a rebuild |
 
@@ -84,8 +87,38 @@ first, before riskell touched anything), `settings.toml.bak-sens8` (sensitivity 
 | Location permission for riskell | granted | Wi-Fi network names |
 | Other bars / tiling WMs | not installed or not running | the backend is chosen by `wm` in `~/.config/riskell/config.json` (`WM.make`): `auto` (default) is OmniWM when it is installed, otherwise `none`; `omniwm` always talks to OmniWM (it reconnects while the socket is down); `none` runs on plain macOS (no rail, app icon follows the frontmost app, no gap reservation). Other names fall back to `none` until their backend exists. `risk wm omniwm|export|import` are OmniWM-only helpers |
 | yabai backend (`Services/Yabai.swift`, selected by `wm: "yabai"`) | **experimental and unverified**: yabai running; the scripting addition is NOT needed for what riskell uses (queries, focus, move, close, padding) | not tested by the maintainer; written against yabai's CLI and never run against a live yabai. Not the default |
-| aerospace backend (`Services/AeroSpace.swift`, selected by `wm: "aerospace"`) | **experimental and unverified**: needs the two callbacks in `aerospace.toml` (`exec-on-workspace-change` and `on-focus-changed`, both writing `aerospace` to `~/.cache/riskell/ev.sock`; riskell never edits that file) and the matching `[gaps] outer.*` values, which riskell logs at start | not tested by the maintainer; written against AeroSpace's CLI and never run against a live AeroSpace. Not the default |
+| AeroSpace backend (`Services/AeroSpace.swift`, selected by `wm: "aerospace"`; wire format in `RiskellWM/AeroSpaceSocket.swift`) | **verified on one install**: AeroSpace 0.21.3-Beta on macOS 27.2. riskell is a native socket client, so no AeroSpace config callbacks are needed; the outer gaps follow `aerospace.gaps` (section 3) | several monitors, floating z-order and workspace names that are not numbers are not tested (docs/UNVERIFIED.md). Not the default |
 | command backend (`Services/CommandWM.swift`, selected by `wm: "command"`, `wmCommand` in config.json) | **user-defined**: riskell runs the user's `state` command (one line of JSON) and action commands; nothing manager-specific in riskell | the riskell side is tested with scratch scripts (`docs/WM-COMMAND.md`); what the scripts do is the user's. Not the default |
+
+### AeroSpace, `aerospace.toml` outer gaps (`aerospace.gaps`)
+
+`config.json` key `aerospace.gaps` decides who writes the outer gaps:
+
+- `"riskell"` (default): riskell rewrites the four `gaps.outer.*` lines in `aerospace.toml`, keeps a one-time backup named
+  `aerospace.toml.bak-riskell-gaps`, and runs `aerospace reload-config --no-gui`.
+- `"manual"`: riskell only reports when the values in the file differ from its own.
+
+AeroSpace measures gaps from the visible frame, which starts below the notch strip. So the top value written to the file is riskell's top gap
+minus the menu bar or notch inset: with riskell's top gap at 56 and a 48 pt strip, the file gets 8.
+
+`aerospace list-windows --json` only includes the workspace and the process id when `--format` asks for them; riskell passes both. The
+`window-id` equals the window server's CGWindowID.
+
+### Switching the window manager: `risk wm use`
+
+`risk wm use <omniwm|aerospace|none>` is the safe way to change `wm`. Without `--yes` it prints what it would do and changes nothing. With
+`--yes` it sets `wm` in `~/.config/riskell/config.json` (the code `risk config set` uses), quits the other manager if it is running
+(`osascript`, the way a person quits it) and opens the chosen one; `none` quits both and opens neither. It then says to run `risk restart`, or does
+it with `--restart`. Run twice, the second run says it is already on that backend and exits 0.
+
+It never reads or writes OmniWM's or AeroSpace's own settings or config files (`~/.config/omniwm/settings.toml`, `aerospace.toml`). Whatever
+each one held when it was quit is what it holds when it is opened again, so switching back always works. The settings in section 3 still
+apply to OmniWM. The AeroSpace backend needs no hand edit to `aerospace.toml`: with `aerospace.gaps` at its default, riskell writes the outer gaps itself (section 3).
+
+Which app starts at login is separate: riskell's own agent (`~/Library/LaunchAgents/com.rish.wm.plist`) opens one app at login. `risk wm use`
+prints which one, and leaves it alone unless `--login` is given (it then points the agent at the chosen app, or removes it for `none`).
+`--json` prints one object (`wm`, `was`, `changed`, `dryRun`, `already`, `restarted`, `login`, `loginChanged`, `errors`). Exit codes: `0` done, planned
+or already on it; `1` a step failed; `2` bad usage. It never asks a question, so it runs the same off a terminal.
 
 ## 4. The 3-finger workspace swipe: what was measured and what was decided
 

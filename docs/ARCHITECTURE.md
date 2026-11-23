@@ -11,7 +11,7 @@ next is `docs/ROADMAP.md`; what has not been tested on real hardware is `docs/UN
   `WingFit.swift` (one scale factor, the screen/notch model, top-bar fitting), `Spacing.swift`, `Overview.swift` (the workspace overview),
   `Wings.swift` (notch wings), `PillAtom.swift` (script pills and extension readings), `ExtensionHost.swift` (the app's side of the kit).
 - `Services/`: data and system access. `AppConfig.swift` (`~/.config/riskell/config.json`), `ConfigWatcher.swift` (live reload of config, pill
-  files, theme files), window-manager backends (`Omni`, `Yabai`, `AeroSpace`, `CommandWM`, `NoWM` behind `WindowManager`), `Pills.swift`,
+  files, theme files), window-manager backends (`Omni`, `Yabai`, `AeroSpace` (a socket client; its wire format is in `RiskellWM/AeroSpaceSocket.swift`), `CommandWM`, `NoWM` behind `WindowManager`), `AeroGaps` with `WindowBook` for AeroSpace's frames and outer gaps, `Pills.swift`,
   `Sys` (battery and volume, for the feeds), `NowPlaying`, `Compat.swift` (version pill and checks).
 - `Packages/`: the atoms that have moved out of the app, each a package on the kit and installed by `extensions.lock.json`: `clock`, `weather`, `usage`, `system` (battery, CPU and fans, one package because their cards read each other's numbers), `volume`, `network` and `windows` (workspaces and the app icon). No atom is built into the application.
 - `Extensions/`: optional behaviours with a start/stop lifecycle. `Gestures/` (Touch, ScrollGuard) is off by default and starts nothing when off.
