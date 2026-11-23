@@ -76,8 +76,8 @@ final class UsageService {
                     if let r {
                         self.state.set(claude: r)
                         self.save(r, to: self.limitsURL)
-                    } else if var kept = self.state.claude, kept.limited {
-                        // Keep the last real percentages: the local summary has none, so it would show tokens on the bar.
+                    } else if var kept = self.state.claude, kept.limited, Date().timeIntervalSince1970 - kept.fetched < 6 * 3600 {
+                        // Keep the last real percentages while they are under 6 hours old: the local summary has none, so it would show tokens on the bar.
                         kept.stale = true
                         self.state.set(claude: kept)
                     } else {

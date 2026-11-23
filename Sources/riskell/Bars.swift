@@ -115,7 +115,7 @@ struct VBar: View {
         .environment(\.popEdge, bar.edge)
         .coordinateSpace(name: "bar")
         .onPreferenceChange(FrameKey.self) { cfg.frames[bar] = $0 }
-        .onPreferenceChange(StripIslandKey.self) { stripIslands[bar] = $0 }
+        .onPreferenceChange(StripIslandKey.self) { cfg.stripIslands[bar] = $0; refreshStripPointer() }
     }
 
     private func island(_ isl: Island, pad: CGFloat) -> some View {
@@ -150,7 +150,6 @@ struct StripIslandKey: PreferenceKey {
     static var defaultValue: [CGRect] = []
     static func reduce(value: inout [CGRect], nextValue: () -> [CGRect]) { value += nextValue() }
 }
-var stripIslands: [BarKey: [CGRect]] = [:]
 
 /// An empty bar while editing: a dashed slot, so there is something to drop a pill on.
 struct EmptyBarHint: View {

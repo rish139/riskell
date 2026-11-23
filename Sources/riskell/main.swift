@@ -170,16 +170,34 @@ var inFullscreen = false
 /// The strips' panels are full height, and a window takes every click inside its frame, so the gaps between islands would hold the Dock and
 /// the apps beneath. macOS has no per-pixel click-through: a window that ignores the mouse passes the whole of it on. So a floating strip
 /// ignores the mouse while the pointer is over a gap and takes it over an island; a hugged strip (a solid fill) and the edit mode take it
-/// over the whole column. Runs from the mouse-move monitors and from applyGeometry; nothing polls.
+/// over the whole column. The island rectangles are kept already converted to screen coordinates (`stripHit`), so a mouse move costs a few
+/// `contains` tests and no allocation; `refreshStripPointer` rebuilds them when the islands, the panel frame, the drop or the hug change.
+var stripHit: [BarKey: [CGRect]] = [:]
+var stripDropWork: DispatchWorkItem?
+func refreshStripPointer() {
+    for (bar, w, view, host) in [(BarKey.left, left, strip, leftHost), (BarKey.right, right, rightStrip, rightHost)] {
+        // the host is scaled by useDesignUnits and sits inside the panel; convert handles its scale, flip and origin
+        let design = view.hug || Config.shared.editing ? [host.bounds] : (Config.shared.stripIslands[bar] ?? [])
+        stripHit[bar] = design.map { w.convertToScreen(host.convert($0, to: nil)) }
+    }
+    passStripPointer()
+}
 func passStripPointer() {
     let p = NSEvent.mouseLocation
-    for (bar, w, view, host) in [(BarKey.left, left, strip, leftHost), (BarKey.right, right, rightStrip, rightHost)] {
-        guard Config.shared.on(bar) && !inFullscreen else { continue }      // an off strip is hidden and already ignores the mouse
-        let whole = view.hug || Config.shared.editing
-        let rects = whole ? [host.bounds] : (stripIslands[bar] ?? [])
-        let hit = rects.contains { w.convertToScreen(host.convert($0, to: nil)).contains(p) }
-        if w.ignoresMouseEvents == hit { w.ignoresMouseEvents = !hit }
-    }
+    gate(.left, left, p); gate(.right, right, p)
+}
+private func gate(_ bar: BarKey, _ w: NSPanel, _ p: CGPoint) {
+    guard Config.shared.on(bar) && !inFullscreen else { return }      // an off strip is hidden and already ignores the mouse
+    var hit = false
+    if let rects = stripHit[bar] { for r in rects where r.contains(p) { hit = true; break } }
+    if w.ignoresMouseEvents == hit { w.ignoresMouseEvents = !hit }
+}
+/// The islands move while the top inset animates (0.18 s): measure once more when it has settled.
+func refreshStripPointerAfterDrop() {
+    stripDropWork?.cancel()
+    let w = DispatchWorkItem { refreshStripPointer() }
+    stripDropWork = w
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: w)
 }
 
 /// Fits the panels to the bars that are on: the top and bottom bars run between the strips, a bar that is off is invisible and takes no mouse.
@@ -196,7 +214,7 @@ func applyGeometry() {
         BarActivity.shared.update(k, shown: show)
     }
     BarActivity.shared.update(.top, shown: !inFullscreen)
-    passStripPointer()
+    refreshStripPointer()
 }
 applyGeometry()
 let writeGaps = !args.contains("--no-reserve") && !args.contains("--dump")      // a second instance (snapshots) must never touch OmniWM's gaps
@@ -232,7 +250,9 @@ NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenPar
 if args.contains("--fake-media") { store.set(media: MediaReading(bundle: "app.zen-browser.zen", playing: args.contains("--fake-playing"))) } else { nowPlaying.start() }
 print("pinned in private space:", Sky.pin([left, right, top, bottom]))
 Config.shared.windows = [.left: left, .right: right, .top: top, .bottom: bottom]
-let hugWatch = Publishers.CombineLatest3(Config.shared.$hug, Popout.shared.$open, Popout.shared.$chat).sink { strip.hug = ($0[.left] ?? true) || ($1 && !$2); rightStrip.hug = ($0[.right] ?? true) || ($1 && !$2) }      // the strip is an NSView, not SwiftUI; a flush card fills it in, a chat card leaves it alone
+let hugWatch = Publishers.CombineLatest3(Config.shared.$hug, Popout.shared.$open, Popout.shared.$chat).sink { strip.hug = ($0[.left] ?? true) || ($1 && !$2); rightStrip.hug = ($0[.right] ?? true) || ($1 && !$2); refreshStripPointer() }      // the strip is an NSView, not SwiftUI; a flush card fills it in, a chat card leaves it alone
+let editWatch = Config.shared.$editing.dropFirst().sink { _ in DispatchQueue.main.async { refreshStripPointer() } }      // @Published fires before the value lands
+let dropWatch = Config.shared.$menuDrop.dropFirst().sink { _ in refreshStripPointerAfterDrop() }
 HotKey.register(key: kVK_ANSI_Comma, mods: controlKey | optionKey) { SettingsPanel.shared.toggle() }     // ctrl-alt-, : bar settings + edit mode
 EditBackdrop.shared.start()      // the veil over the screen while editing (Sources/riskell/EditBackdrop.swift)
 if args.contains("--edit") { Config.shared.editing = true }      // snapshots: edit mode on
@@ -271,17 +291,24 @@ let underMenu = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.mainMenuWindow
 /// hold-off lets the menu bar slide away before the top bar comes back on top. Without a touch of the edge nothing here ever changes.
 var menuOut = false
 var menuHold: DispatchWorkItem?
+/// Whether the menu bar hides itself (System Settings > Control Center > Automatically hide and show the menu bar). Read when the pointer
+/// first touches the top edge: one preferences lookup, and it follows a change of the setting.
+func menuBarAutoHides() -> Bool {
+    CFPreferencesAppSynchronize(kCFPreferencesAnyApplication)
+    return CFPreferencesCopyValue("_HIHideMenuBar" as CFString, kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost) as? Bool ?? false
+}
 func menuEdge(_ e: NSEvent?) {
     passStripPointer()
-    let y = NSEvent.mouseLocation.y, d = Display.current, stripe = max(d.menuBar, d.notchH)
-    if y >= f.maxY - 1.5 {
+    let p = NSEvent.mouseLocation, y = p.y, d = Display.current, stripe = max(d.menuBar, d.notchH)
+    let here = p.x >= f.minX && p.x < f.maxX      // only the bars' own display has the menu bar the bars sit under
+    if here, y >= f.maxY - 1.5, menuOut || menuBarAutoHides() {
         menuHold?.cancel(); menuHold = nil
         if !menuOut { menuOut = true; Config.shared.menuDrop = max(0, stripe / Real.k - G.sideMargin + 10) }
-    } else if menuOut, y < f.maxY - stripe, menuHold == nil {
+    } else if menuOut, y < f.maxY - stripe || !here, menuHold == nil {
         let w = DispatchWorkItem { menuHold = nil; menuOut = false; Config.shared.menuDrop = 0; menuEdge(nil) }
         menuHold = w
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: w)
-    } else if menuOut, y >= f.maxY - stripe { menuHold?.cancel(); menuHold = nil }
+    } else if menuOut, here, y >= f.maxY - stripe { menuHold?.cancel(); menuHold = nil }
     let want = menuOut ? underMenu : pipOver.contains(top) && !barsLifted ? pipLevel : barLevel
     if top.level != want { top.level = want }
 }
@@ -331,8 +358,8 @@ NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { _ in pipKick() }
 for n in [NSWorkspace.didActivateApplicationNotification, NSWorkspace.didLaunchApplicationNotification, NSWorkspace.activeSpaceDidChangeNotification] {
     NSWorkspace.shared.notificationCenter.addObserver(forName: n, object: nil, queue: .main) { _ in pipKick() }
 }
-NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { menuEdge($0) }
-NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { menuEdge($0); return $0 }
+NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { menuEdge($0) }
+NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { menuEdge($0); return $0 }
 /// Lift the bars over OmniWM's slide overlay while three fingers are down, and put them back under the menu bar's level after.
 var barsLifted = false
 func liftBars(_ on: Bool) {

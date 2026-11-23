@@ -64,6 +64,8 @@ final class Config: ObservableObject {
     @Published private(set) var hug: [BarKey: Bool] = Config.defaultHug
     /// How far the strips' top widgets sit lower (design units) while the auto-hidden menu bar is out, so it does not cover them.
     @Published var menuDrop: CGFloat = 0
+    /// The drawn island rectangles of each strip (design units, the strip host's top-left origin), written by the strips' preference and read by the window's pointer gate (main.swift). Plain storage: nothing observes it, and both sides run on the main thread.
+    var stripIslands: [BarKey: [CGRect]] = [:]
     @Published private(set) var spillStyle: [BarKey: Spill] = [:]
     @Published private(set) var gap: CGFloat = 8
     @Published private(set) var enabled: [BarKey: Bool] = Config.defaultOn { didSet { if ready { Needs.apply() } } }

@@ -135,7 +135,7 @@ final class Touch {
         }
         if let pstop = dlsym(h, "MTDeviceStop") { for d in devices { unsafeBitCast(pstop, to: Stop.self)(d) } }
         devices = []
-        if active { active = false; onFingers?(false) }          // a gesture cannot survive its device being replaced
+        if active || blocked { active = false; onFingers?(false) }          // a gesture cannot survive its device being replaced
         blocked = false; fourDown = false; fourFired = false
         guard let list = unsafeBitCast(pl, to: CreateList.self)()?.takeRetainedValue() else { print("touch: no device list"); return }
         deviceList = list
@@ -236,6 +236,7 @@ final class Touch {
                 store.swipeRelease(commit: 0)
                 if axis == .vertical { Overview.shared.gestureEnded(dy: 0, held: 0) }
             }
+            revert?.cancel()
         }
         if !fourDown && !fourFired { fourDown = true; fourStartY = cy; fourDownAt = CACurrentMediaTime() }
         if fourDown { fourY = cy }
@@ -249,23 +250,34 @@ final class Touch {
         Self.glog(String(format: "4 fingers lifted: moved %.3f after %.0f ms", up, held * 1000))
         guard !fourFired, abs(up) > fourTravel, held < fourQuick else { return }
         fourFired = true
-        if up > 0 { Self.openMissionControl() } else if Self.missionOpen { Self.closeMissionControl() }
+        if up > 0 { Self.openMissionControl() } else if Self.missionShowing() { Self.closeMissionControl() }
     }
 
-    /// Mission Control was opened by this gesture and not closed since: a swipe down then closes it. (A Mission Control opened any other
-    /// way is left alone, so a swipe down never sends an Escape into an app.)
-    private static var missionOpen = false
+    /// Mission Control is showing when the Dock owns an on-screen window above the normal layer that covers the main display. Checked
+    /// only at the moment of a swipe down, so nothing runs otherwise. When unsure it answers no, so an Escape never reaches an app.
+    private static func missionShowing() -> Bool {
+        guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] else { return false }
+        let main = CGDisplayBounds(CGMainDisplayID())
+        for w in list {
+            guard (w[kCGWindowOwnerName as String] as? String) == "Dock",
+                  (w[kCGWindowLayer as String] as? Int ?? 0) > 0,
+                  let d = w[kCGWindowBounds as String] as? NSDictionary,
+                  let r = CGRect(dictionaryRepresentation: d) else { continue }
+            if r.width >= main.width * 0.95, r.height >= main.height * 0.95 { return true }
+        }
+        return false
+    }
 
     /// Closes Mission Control with Escape, the key it closes on.
     private static func closeMissionControl() {
         glog("4 fingers down: closing Mission Control")
-        missionOpen = false
         for down in [true, false] { CGEvent(keyboardEventSource: nil, virtualKey: 53, keyDown: down)?.post(tap: .cghidEventTap) }
     }
 
     /// Every finger is up: the bars drop back after the same 0.6 s settle as a 3-finger swipe.
     private func endBlocked() {
         blocked = false; fourDown = false; fourFired = false
+        revert?.cancel()
         let s = DispatchWorkItem { [weak self] in self?.onFingers?(false) }
         settle?.cancel(); settle = s
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: s)
@@ -274,7 +286,6 @@ final class Touch {
     /// Opens Mission Control through `open`, on a background queue. Nothing waits for it and nothing polls it.
     private static func openMissionControl() {
         glog("4 fingers up: opening Mission Control")
-        missionOpen = true
         DispatchQueue.global(qos: .userInitiated).async {
             let p = Process()
             p.executableURL = URL(fileURLWithPath: "/usr/bin/open")
