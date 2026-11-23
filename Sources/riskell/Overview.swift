@@ -246,19 +246,19 @@ final class Overview: ObservableObject {
     private func findFullscreenApps() -> [FullApp] {
         guard let list = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]] else { return [] }
         let me = Int(ProcessInfo.processInfo.processIdentifier)
-        let known = Set(store.windows.map(\.pid))
         let size = CGDisplayBounds(CGMainDisplayID()).size
         var seen = Set<Int>(), out: [FullApp] = []
         for w in list {
             guard (w[kCGWindowLayer as String] as? Int) == 0, (w[kCGWindowAlpha as String] as? Double ?? 0) > 0,
-                  let pid = w[kCGWindowOwnerPID as String] as? Int, pid != me, !known.contains(pid), !seen.contains(pid),
+                  let pid = w[kCGWindowOwnerPID as String] as? Int, pid != me, !seen.contains(pid),
                   let wid = w[kCGWindowNumber as String] as? UInt32,
                   let b = w[kCGWindowBounds as String] as? NSDictionary, let r = CGRect(dictionaryRepresentation: b),
-                  abs(r.width - size.width) <= 2, abs(r.height - size.height) <= 2,
+                  abs(r.width - size.width) <= 2, r.height <= size.height + 2, r.height >= size.height - 80,      // a full-screen window sits below the notch, so it can be shorter than the display
                   Sky.windowSpaces(wid).contains(where: Sky.isFullscreen) else { continue }
             seen.insert(pid)
             out.append(FullApp(pid: pid, name: w[kCGWindowOwnerName as String] as? String ?? Apps.info(pid: pid, fallback: "").name, wid: wid))
         }
+        print("overview: \(out.count) full-screen app(s)"); fflush(stdout)
         return out
     }
 
@@ -329,7 +329,8 @@ final class Overview: ObservableObject {
         let geo = WM.shared?.windowFrames() ?? [:]      // live: a drop shows in its new workspace at once
         let shown = store.spaces.first { $0.id == n }?.focused ?? false
         var known: [Placed] = [], unknown: [(WinInfo, CGSize, Bool)] = []
-        for w in windows where w.space == n {
+        let away = Set(fullscreenApps.map { Int($0.wid) })      // a full-screen window has its own tile row, not a place in a workspace
+        for w in windows where w.space == n && !away.contains(w.id) {
             let g = geo[w.id]
             if shown, let r = liveRects[w.id] { known.append(Placed(win: w, rect: r, floating: g?.floating ?? false)) }
             else if !shown, let p = pending[w.id], p.space == n { known.append(Placed(win: w, rect: p.rect, floating: g?.floating ?? false, settled: false)) }
