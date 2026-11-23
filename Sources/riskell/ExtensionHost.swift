@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import RiskellKit
+import RiskellTTY
 
 /// The app's side of RiskellKit (docs/EXTENSION-KIT.md): the hooks the kit calls, the feeds it offers, and the atoms of installed packages
 /// registered like any other. Nothing here runs when no package is installed.
@@ -269,9 +270,19 @@ enum PackageAtoms {
 enum ExtSelfTest {
     static func run() -> Never {
         var bad = 0
-        func check(_ name: String, _ ok: Bool) { print((ok ? "PASS " : "FAIL ") + name); if !ok { bad += 1 } }
+        let tty = terminal()
+        print(tty.header("self-test extensions", detail: "the preferences card's writes and the live rebuild"))
+        print("")
+        // The word stays first, as in the installer's self-test: these lines are read by eye and by a `^PASS` grep.
+        func check(_ name: String, _ ok: Bool) {
+            print(tty.tone(ok ? "PASS" : "FAIL", ok ? .ok : .crit) + " " + tty.tone(name, .text1))
+            if !ok { bad += 1 }
+        }
         guard let s = installedSettings.first(where: { if case .number = $0.kind { return true } else { return false } }), case let .number(lo, hi, step, def) = s.kind else {
-            print("no extension with a number setting is installed (risk ext add Examples/load-ext)"); exit(2)
+            let lines = tty.errorBlock(title: "no extension with a number setting is installed", detail: nil,
+                                       tries: [("risk ext add Examples/load-ext", "install the working example")])
+            FileHandle.standardError.write(Data((lines.joined(separator: "\n") + "\n").utf8))
+            exit(2)
         }
         let before = Registry.byID.keys.filter { $0.hasPrefix("ext:") }.count
         check("snap: below the range", ExtensionsCard.snap(lo - 1000, lo, hi, step) == lo)
@@ -285,6 +296,9 @@ enum ExtSelfTest {
         ExtPrefs.set(s.ext, "other", "x")
         check("a second key keeps the first", ExtPrefs.number(s, def: def) == target && ExtPrefs.json(s.ext)["other"] as? String == "x")
         try? FileManager.default.removeItem(at: ExtPrefs.file(s.ext))
+        print("")
+        print(tty.check(bad == 0 ? .ok : .crit, "result", bad == 0 ? "all checks passed" : "\(bad) check(s) failed",
+                        keyWidth: 7).joined(separator: "\n"))
         exit(bad == 0 ? 0 : 1)
     }
 }

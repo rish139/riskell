@@ -5,9 +5,9 @@ import Foundation
 import RiskellKit
 
 /// `riskell --weather-selftest`: builds a forecast like Open-Meteo's (390 hours, 108 days, every column the app reads), parses it with the current
-/// parser and with the first version, checks both give the same result, and prints the time of each. Exits 0 on a match.
+/// parser and with the first version, checks both give the same result, and reports the time of each. The app draws the cases.
 public enum WeatherSelfTest {
-    public static func run() -> Never {
+    public static func cases() -> [(name: String, ok: Bool, detail: String?)] {
         let hours = 390, days = 108
         func col(_ n: Int, _ f: (Int) -> Any) -> [Any] { (0..<n).map(f) }
         var hourly: [String: Any] = ["time": col(hours) { "2026-11-\(String(format: "%02d", $0 / 24 % 28 + 1))T\(String(format: "%02d", $0 % 24)):00" }]
@@ -20,13 +20,13 @@ public enum WeatherSelfTest {
             daily[k] = col(days) { Double($0 % 23) * 1.3 }
         }
         let json: [String: Any] = ["current": ["time": "2026-11-16T14:00", "temperature_2m": 12.3, "apparent_temperature": 8.9, "is_day": 1, "weather_code": 3, "relative_humidity_2m": 70.0], "hourly": hourly, "daily": daily]
-        guard let data = try? JSONSerialization.data(withJSONObject: json) else { print("FAIL: could not build the sample"); exit(1) }
+        guard let data = try? JSONSerialization.data(withJSONObject: json) else { return [("build the sample forecast", false, nil)] }
         func time(_ f: (Data) -> WX?) -> (WX?, Double) { let t = DispatchTime.now().uptimeNanoseconds; let r = f(data); return (r, Double(DispatchTime.now().uptimeNanoseconds - t) / 1e6) }
         _ = time(WeatherService.parse)      // warm up
         let (a, ta) = time(WeatherService.parse), (b, tb) = time(WeatherService.parseReference)
-        print("fast parse:      \(String(format: "%.1f", ta)) ms, \(a?.hours.count ?? 0) hours, \(a?.days.count ?? 0) days")
-        print("reference parse: \(String(format: "%.1f", tb)) ms")
         let same = a != nil && a == b
-        print(same ? "PASS: identical results" : "FAIL: results differ"); exit(same ? 0 : 1)
+        return [("fast parse", a != nil, "\(String(format: "%.1f", ta)) ms, \(a?.hours.count ?? 0) hours, \(a?.days.count ?? 0) days"),
+                ("reference parse", b != nil, "\(String(format: "%.1f", tb)) ms"),
+                ("identical results", same, nil)]
     }
 }

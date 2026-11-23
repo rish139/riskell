@@ -4,16 +4,13 @@
 import Foundation
 
 /// `riskell --usage-selftest`: the Claude window arithmetic, the log parsing, and the parsing and validation of the two providers, on
-/// synthetic input only (no file, keychain or network). Prints PASS or FAIL per case.
+/// synthetic input only (no file, keychain or network). Returns one case per check; the app draws them.
 public enum UsageSelfTest {
-    public static func run() -> Never {
+    public static func cases() -> [(name: String, ok: Bool, detail: String?)] {
         let now = 1_800_000_000.0
         let h = 3600.0
-        var failed = 0
-        func check(_ name: String, _ ok: Bool) {
-            print((ok ? "PASS " : "FAIL ") + name)
-            if !ok { failed += 1 }
-        }
+        var results: [(name: String, ok: Bool, detail: String?)] = []
+        func check(_ name: String, _ ok: Bool) { results.append((name, ok, nil)) }
 
         // 1. no events: nothing used, limits fall back to 1 (no peak)
         let none = ClaudeLogs.summarize(events: [], now: now, fiveLimit: nil, sevenLimit: nil)
@@ -121,8 +118,7 @@ public enum UsageSelfTest {
         check("path outside home rejected",
               !UsageConfig.inside("/etc", home: "/hm/ab") && !UsageConfig.inside("/hm/ab2/x", home: "/hm/ab"))
 
-        if failed > 0 { print("\(failed) FAIL") } else { print("all passed") }
-        exit(failed > 0 ? 1 : 0)
+        return results
     }
 
     private static func line(_ t: Double, id: String, req: String, input: Int, output: Int, creation: Int, read: Int) -> String {

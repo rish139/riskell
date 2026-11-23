@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import RiskellKit
+import RiskellTTY
 
 /// A Base16 colour scheme as published by tinted-theming/schemes (the 16 slots base00...base0F). riskell never uses the slots raw: `Theme.resolve`
 /// derives its own tokens from them and enforces contrast, because Base16's dim greys are comment tones, not readable text.
@@ -90,7 +91,10 @@ extension Theme {
         for f in ((try? fm.contentsOfDirectory(atPath: userDirectory.path)) ?? []).sorted() where f.hasSuffix(".yaml") || f.hasSuffix(".yml") {
             let id = (f as NSString).deletingPathExtension
             guard let t = try? String(contentsOf: userDirectory.appendingPathComponent(f), encoding: .utf8), let s = parseBase16(t, id: id) else {
-                print("theme: \(f) is not a Base16 scheme (needs base00 ... base0F)"); fflush(stdout); continue
+                // A file that is not a scheme is said once, on stderr: --list-themes prints JSON, and a warning on stdout would break it.
+                let line = terminal().check(.warn, f, "is not a Base16 scheme (needs base00 ... base0F)", keyWidth: f.count + 1).joined(separator: "\n")
+                FileHandle.standardError.write(Data((line + "\n").utf8))
+                continue
             }
             if let i = out.firstIndex(where: { $0.id == id }) { out[i] = s } else { out.append(s) }
         }
@@ -143,15 +147,40 @@ extension Theme {
         }
     }
 
+    /// `riskell --check-themes`: every scheme's contrast ratios, one row each, a ratio below its floor followed by `*`. The ratios are one
+    /// value so they wrap under the scheme instead of being dropped: a grid this wide has more columns than a terminal has in a row.
     static func check() {
-        print("scheme                      var   t1    t2    t3    t4    acc   ok    warn  crit   (WCAG ratio vs surface; * = below its floor)")
+        // `--rows` is the seam `risk theme check` reads: one fixed-width row per scheme, as before the screen was drawn for people.
+        if CommandLine.arguments.contains("--rows") {
+            print("scheme                      var   t1    t2    t3    t4    acc   ok    warn  crit   (WCAG ratio vs surface; * = below its floor)")
+            for s in catalog() {
+                let t = resolve(s)
+                func r(_ c: RGB, _ f: Double) -> String { let v = RGB.contrast(c, t.bg); return String(format: "%5.2f", v) + (v + 0.005 < f ? "*" : " ") }
+                print(s.id.padding(toLength: 27, withPad: " ", startingAt: 0), (t.dark ? "dark " : "light"),
+                      r(t.text1, Floor.text1), r(t.text2, Floor.text2), r(t.text3, Floor.text3), r(t.text4, Floor.text4),
+                      r(t.accent, Floor.accent), r(t.ok, Floor.accent), r(t.warn, Floor.accent), r(t.crit, Floor.accent))
+            }
+            return
+        }
+        let tty = terminal()
+        var rows: [(RiskellTTY.Tone, String, String, (cmd: String, note: String?)?)] = []
         for s in catalog() {
             let t = resolve(s)
-            func r(_ c: RGB, _ f: Double) -> String { let v = RGB.contrast(c, t.bg); return String(format: "%5.2f", v) + (v + 0.005 < f ? "*" : " ") }
-            print(s.id.padding(toLength: 27, withPad: " ", startingAt: 0), (t.dark ? "dark " : "light"),
-                  r(t.text1, Floor.text1), r(t.text2, Floor.text2), r(t.text3, Floor.text3), r(t.text4, Floor.text4),
-                  r(t.accent, Floor.accent), r(t.ok, Floor.accent), r(t.warn, Floor.accent), r(t.crit, Floor.accent))
+            func r(_ name: String, _ c: RGB, _ f: Double) -> String {
+                let v = RGB.contrast(c, t.bg)
+                return name + " " + String(format: "%.2f", v) + (v + 0.005 < f ? "*" : "")
+            }
+            let ratios = [r("t1", t.text1, Floor.text1), r("t2", t.text2, Floor.text2), r("t3", t.text3, Floor.text3),
+                          r("t4", t.text4, Floor.text4), r("acc", t.accent, Floor.accent), r("ok", t.ok, Floor.accent),
+                          r("warn", t.warn, Floor.accent), r("crit", t.crit, Floor.accent)]
+            let ok = !ratios.contains { $0.hasSuffix("*") }
+            rows.append((ok ? .ok : .warn, s.id, (t.dark ? "dark" : "light") + " · " + ratios.joined(separator: " "), nil))
         }
+        print(tty.header("check-themes"))
+        print("")
+        print(tty.paragraph("A ratio is that tone's WCAG contrast against the scheme's surface; one followed by * is below its floor.").joined(separator: "\n"))
+        print("")
+        print(tty.checks(rows).joined(separator: "\n"))
     }
 }
 

@@ -3,6 +3,7 @@ import Carbon.HIToolbox
 import SwiftUI
 import Combine
 import RiskellKit
+import RiskellTTY
 import WeatherExt
 import UsageExt
 import SystemExt
@@ -26,6 +27,25 @@ KitHost.app = AppBridge.shared
 KitHost.windows = WindowBridge.shared
 KitHost.screenHeight = { Display.current.frame.height }
 KitHost.feeds = FeedBridge.shared
+
+/// The kit's terminal for the app's command-line reports. This binary owns the theme, so the tokens come from `Theme.current` rather than
+/// from asking itself; a pipe, NO_COLOR and a non-UTF-8 locale stay the kit's rules, and nothing here invents a colour.
+func terminal() -> Tty {
+    let theme = Theme.current
+    func hex(_ c: RGB) -> String { RGB8(UInt8((c.r * 255).rounded()), UInt8((c.g * 255).rounded()), UInt8((c.b * 255).rounded())).hex }
+    let palette = Palette(hex: ["bg": hex(theme.bg), "tile": hex(theme.tile), "canvas": hex(theme.canvas),
+                                "text1": hex(theme.text1), "text2": hex(theme.text2), "text3": hex(theme.text3), "text4": hex(theme.text4),
+                                "accent": hex(theme.accent), "ok": hex(theme.ok), "warn": hex(theme.warn), "crit": hex(theme.crit),
+                                "info": hex(theme.info), "critInk": hex(theme.critInk), "prov": hex(theme.prov), "amberDim": hex(theme.amberDim)])
+    return Tty.detect(palette: palette)
+}
+
+/// A command-line check that failed: the kit's error block on stderr, the same shape every command prints. The caller decides the status.
+func failBlock(_ title: String, detail: String? = nil, tries: [(cmd: String, note: String)] = [("risk help", "every command")]) {
+    let lines = terminal().errorBlock(title: title, detail: detail, tries: tries)
+    FileHandle.standardError.write(Data((lines.joined(separator: "\n") + "\n").utf8))
+}
+
 InstanceLock.selfTest(args)      // --lock-test hold|try <file>: the lock logic alone
 if args.contains("--check-fit") { CheckFit.run() }      // the wings on each fake display, PASS / FAIL, exit 1 on FAIL (WingFit.swift)
 if args.contains("--key-test") { exit(SettingsPanel.keyTest() ? 0 : 1) }      // the editor's close keys, PASS / FAIL per case, then exit
@@ -36,11 +56,12 @@ if args.contains("--list-atoms") {      // JSON: each built-in atom with its car
     print(String(decoding: (try? JSONSerialization.data(withJSONObject: rows, options: [.sortedKeys])) ?? Data(), as: UTF8.self)); exit(0)
 }
 if args.contains("--ext-selftest") { ExtSelfTest.run() }      // the preferences card's writes and the live rebuild (needs RISKELL_CONFIG at a scratch config)
-if args.contains("--usage-selftest") { UsageExt.UsageSelfTest.run() }      // the Claude log windows on synthetic events
-if args.contains("--weather-selftest") { WeatherExt.WeatherSelfTest.run() }      // the fast forecast parser against the first version, on synthetic data
+if args.contains("--usage-selftest") { SelfTestScreen.show("usage", UsageExt.UsageSelfTest.cases()) }      // the Claude log windows on synthetic events
+if args.contains("--weather-selftest") { SelfTestScreen.show("weather", WeatherExt.WeatherSelfTest.cases()) }      // the fast forecast parser against the first version, on synthetic data
 if args.contains("--list-themes") { print(Theme.listJSON()); exit(0) }      // JSON of every scheme with its resolved tokens (the installer previews them)
 if args.contains("--check-themes") { if args.contains("tokens") { Theme.dumpTokens() } else { Theme.check() }; exit(0) }      // contrast of every scheme against its floors, then exit
 if args.contains("--palette") { exit(PaletteCommand.run(args)) }      // the theme in force as tokens: hex, json or ansi (PaletteCommand.swift)
+if args.contains("--gestures-test") { GestureConflicts.testScreen(); exit(0) }      // every gestures screen from fixed data, before anything may write
 if GestureConflicts.runCommand(args) { exit(0) }      // --gestures-fix / --gestures-restore (--yes writes): the consented trackpad and Dock writes, then exit
 func opt(_ name: String) -> String? { args.firstIndex(of: name).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } }
 InstanceLock.acquireOrExit(args)      // one riskell runs the bars; a second full instance would fight it over the window manager's gaps, the socket and the trackpad
@@ -116,6 +137,7 @@ func shutdown() { nowPlaying.stop(); wm.stop(); events.stop(); Extensions.stopAl
 
 if args.contains("--dump") {
     DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+        print(terminal().header("dump", detail: "what the providers read"))
         print(store.dump()); print("services:", Needs.active.joined(separator: " ")); print("tray:", Config.shared.tray.joined(separator: " ")); if args.contains("--smc") { print(SystemDiagnostics.smc()) }; shutdown(); exit(0)
     }
     app.run()

@@ -1,6 +1,7 @@
 import CoreGraphics
 import SwiftUI
 import RiskellKit
+import RiskellTTY
 
 /// Each island's natural width, by island id (design units). Read by HBar only when an island draws; nothing is measured at rest.
 struct WingWidthKey: PreferenceKey {
@@ -88,14 +89,18 @@ enum CheckFit {
     ]
 
     static func run() -> Never {
+        let tty = terminal()
         guard let layout = ProcessInfo.processInfo.environment["RISKELL_LAYOUT"] else {
-            print("--check-fit needs RISKELL_LAYOUT=<a copy of layout.json>"); exit(2)
+            failBlock("there is no layout to check", detail: "RISKELL_LAYOUT=<a copy of layout.json>",
+                      tries: [("risk fit", "the wing and panel checks, without the environment")])
+            exit(2)
         }
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("riskell-check-fit-\(getpid())")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let exe = URL(fileURLWithPath: CommandLine.arguments[0])
         var failed = false
-        print("display          side     scale  notch  band   avail    natural  shrink   dropped                result")
+        var rows: [[Cell]] = []
+        var notes: [(RiskellTTY.Tone, String, String, (cmd: String, note: String?)?)] = []
         for (name, spec) in displays {
             let out = dir.appendingPathComponent("\(spec.replacingOccurrences(of: ":", with: "_")).txt")
             FileManager.default.createFile(atPath: out.path, contents: nil)
@@ -127,24 +132,41 @@ enum CheckFit {
             if notchH > 0 { bandOK = abs(band - notchH) < 0.5 }
             for side in ["start", "end"] {
                 guard let w = kv[side] else {
-                    if notchH > 0 { failed = true; print("\(name) \(side): not measured FAIL") }
+                    if notchH > 0 {
+                        failed = true
+                        notes.append((.crit, "\(name) \(side)", "not measured: FAIL", nil))
+                    }
                     continue
                 }
                 let avail = Double(w["available"] ?? "") ?? 0, natural = Double(w["natural"] ?? "") ?? 0, width = Double(w["width"] ?? "") ?? 0
                 let ok = w["overflow"] == "false" && width <= avail + 0.5
                 let dropped = (w["dropped"] ?? "").isEmpty ? "-" : (w["dropped"] ?? "")
                 let shrink = w["scale"] ?? "?"
-                print("\(name.padding(toLength: 16, withPad: " ", startingAt: 0)) \(side.padding(toLength: 8, withPad: " ", startingAt: 0))"
-                    + " \(scale.prefix(5).padding(toLength: 6, withPad: " ", startingAt: 0)) \(String(format: "%-6.0f", notchH)) \(String(format: "%-6.1f", band))"
-                    + " \(String(format: "%-8.1f", avail)) \(String(format: "%-8.1f", natural)) \(shrink.prefix(6).padding(toLength: 8, withPad: " ", startingAt: 0))"
-                    + " \(dropped.padding(toLength: 22, withPad: " ", startingAt: 0)) \(ok ? "PASS" : "FAIL")")
                 if !ok { failed = true }
+                rows.append([tty.statusDot(ok ? .ok : .crit), Cell(name), Cell(side),
+                             Cell(String(scale.prefix(5))), Cell(String(format: "%.0f", notchH), .right),
+                             Cell(String(format: "%.1f", band), .right), Cell(String(format: "%.1f", avail), .right),
+                             Cell(String(format: "%.1f", natural), .right), Cell(String(shrink.prefix(6))),
+                             Cell(dropped), Cell(ok ? "PASS" : "FAIL")])
             }
-            if !bandOK { failed = true; print("\(name): band \(band) != notch \(notchH) FAIL") }
-            if notchH == 0 && kv["start"] == nil && kv["end"] == nil { print("\(name): no notch, no wings to fit (PASS)") }
+            if !bandOK {
+                failed = true
+                notes.append((.crit, name, "band \(band) is not the notch \(notchH): FAIL", nil))
+            }
+            if notchH == 0 && kv["start"] == nil && kv["end"] == nil {
+                notes.append((.note, name, "no notch, no wings to fit (PASS)", nil))
+            }
         }
         try? FileManager.default.removeItem(at: dir)
-        print(failed ? "RESULT: FAIL" : "RESULT: PASS")
+        let columns = [Column(priority: 9), Column(priority: 8), Column(priority: 4), Column(priority: 2), Column(priority: 1),
+                       Column(priority: 7), Column(priority: 6), Column(priority: 3), Column(priority: 5), Column(priority: 9)]
+        print(tty.table(title: "check-fit", meta: "\(displays.count) displays (PASS or FAIL per wing)", columns: columns, rows: rows).joined(separator: "\n"))
+        if !notes.isEmpty {
+            print("")
+            print(tty.checks(notes).joined(separator: "\n"))
+        }
+        print("")
+        print(tty.check(failed ? .crit : .ok, "result", failed ? "FAIL" : "PASS", keyWidth: 7).joined(separator: "\n"))
         exit(failed ? 1 : 0)
     }
 }

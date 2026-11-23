@@ -1,4 +1,5 @@
 import Foundation
+import RiskellTTY
 import RiskellKit
 
 /// One riskell owns the bars, the event socket, the trackpad and the window manager's gaps. A second full instance (a double launch, a typo'd
@@ -16,8 +17,13 @@ enum InstanceLock {
         guard let i = args.firstIndex(of: "--lock-test"), i + 2 < args.count else { return }
         let f = open(args[i + 2], O_CREAT | O_RDWR, 0o600)
         let got = flock(f, LOCK_EX | LOCK_NB) == 0
-        if args[i + 1] == "hold" { print(got ? "hold: acquired" : "hold: FAILED"); fflush(stdout); if got { sleep(8) }; exit(got ? 0 : 1) }
-        print(got ? "try: acquired (nobody holds it)" : "try: refused (held by another process)"); exit(got ? 0 : 3)
+        let tty = terminal()
+        if args[i + 1] == "hold" {
+            print(tty.check(got ? .ok : .crit, "hold", got ? "acquired" : "FAILED", keyWidth: 5).joined(separator: "\n"))
+            fflush(stdout); if got { sleep(8) }; exit(got ? 0 : 1)
+        }
+        print(tty.check(got ? .ok : .note, "try", got ? "acquired (nobody holds it)" : "refused (held by another process)", keyWidth: 5).joined(separator: "\n"))
+        exit(got ? 0 : 3)
     }
 
     static func acquireOrExit(_ args: [String]) {
@@ -31,7 +37,9 @@ enum InstanceLock {
             if flock(f, LOCK_EX | LOCK_NB) == 0 { fd = f; return }
             if attempt < 29 { usleep(100_000) }
         }
-        print("riskell: another instance is already running (use `risk restart`); this one exits"); fflush(stdout)
+        print(terminal().check(.warn, "another instance", "is already running; this one exits",
+                               hint: (cmd: "risk restart", note: "replace it"), keyWidth: 17).joined(separator: "\n"))
+        fflush(stdout)
         exit(0)
     }
 }

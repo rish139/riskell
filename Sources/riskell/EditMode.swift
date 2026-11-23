@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import RiskellKit
+import RiskellTTY
 
 /// Rectangles measured while editing, in the bar's own coordinate space ("bar").
 struct FrameKey: PreferenceKey {
@@ -151,10 +152,9 @@ final class SettingsPanel {
         func natural(_ two: Bool) -> CGSize { NSHostingView(rootView: SettingsView(allOpen: true, forceTwoColumns: two)).fittingSize }
         let wide = natural(true), narrow = natural(false)
         let c = Config.shared
-        print(String(format: "window gaps (real points, scale %.2f): left %.1f right %.1f bottom %.1f top %.1f", Real.k, c.gapLeft, c.gapRight, c.gapBottom, Config.gapTop))
-        print("two columns \(Int(wide.width))x\(Int(wide.height)) design units; one column \(Int(narrow.width))x\(Int(narrow.height)) (all cards open)")
-        print("scale  screen      panel (real)   top-left      columns  on screen  done  scroll area  result")
+        let tty = terminal()
         var ok = true
+        var rows: [[Cell]] = []
         for (w, h) in [(1470, 956), (1512, 982), (1728, 1117), (2268, 1473), (1920, 1080)] {
             for k: CGFloat in [0.5, 0.75, 1, 1.25, 1.5, 2, 3] {
                 let v = CGRect(x: 0, y: 0, width: CGFloat(w), height: CGFloat(h) - 24)
@@ -167,12 +167,22 @@ final class SettingsPanel {
                 let scrollOK = !p.scrolls || scrollArea >= 300
                 let pass = inside && doneIn && scrollOK
                 ok = ok && pass
-                print(String(format: "%-6.2f %4dx%-5d %5.0fx%-5.0f  (%5.0f,%5.0f)  %@  %@  %@  %@  %@  %@",
-                             k, w, h, f.width, f.height, f.minX, f.maxY, two ? "two" : "one", inside ? "yes" : "NO", doneIn ? "yes" : "NO",
-                             p.scrolls ? "on, \(Int(scrollArea)) pt" : "off", scrollOK ? "" : "(under 300)", pass ? "PASS" : "FAIL"))
+                rows.append([tty.statusDot(pass ? .ok : .crit), Cell(String(format: "%.2f", k), .right),
+                             Cell("\(w)x\(h)"), Cell(String(format: "%.0fx%.0f", f.width, f.height)),
+                             Cell(String(format: "(%.0f,%.0f)", f.minX, f.maxY)), Cell(two ? "two" : "one"),
+                             Cell(inside ? "yes" : "NO"), Cell(doneIn ? "yes" : "NO"),
+                             Cell((p.scrolls ? "on, \(Int(scrollArea)) pt" : "off") + (scrollOK ? "" : " (under 300)")),
+                             Cell(pass ? "PASS" : "FAIL")])
             }
         }
-        print(ok ? "PASS" : "FAIL")
+        print(tty.paragraph(String(format: "window gaps (real points, scale %.2f): left %.1f right %.1f bottom %.1f top %.1f", Real.k, c.gapLeft, c.gapRight, c.gapBottom, Config.gapTop)).joined(separator: "\n"))
+        print(tty.paragraph("two columns \(Int(wide.width))x\(Int(wide.height)) design units; one column \(Int(narrow.width))x\(Int(narrow.height)) (all cards open)").joined(separator: "\n"))
+        print("")
+        let columns = [Column(priority: 9), Column(priority: 9), Column(priority: 6), Column(priority: 5), Column(priority: 6),
+                       Column(priority: 8), Column(priority: 8), Column(priority: 8), Column(priority: 9)]
+        print(tty.table(title: "check-panel", meta: "\(rows.count) cells at every scale", columns: columns, rows: rows).joined(separator: "\n"))
+        print("")
+        print(tty.check(ok ? .ok : .crit, "result", ok ? "PASS" : "FAIL", keyWidth: 7).joined(separator: "\n"))
         return ok
     }
 
@@ -238,7 +248,7 @@ final class SettingsPanel {
         }
     }
 
-    /// `riskell --key-test`: the close rule against its cases. Prints PASS or FAIL for each; true when all pass.
+    /// `riskell --key-test`: the close rule against its cases, one row each. Prints PASS or FAIL for each; true when all pass.
     static func keyTest() -> Bool {
         let cases: [(String, UInt16, NSEvent.ModifierFlags, Bool)] = [
             ("Escape", 53, [], true),
@@ -251,12 +261,19 @@ final class SettingsPanel {
             ("Return", 36, [], false),
             ("Space", 49, [], false),
         ]
+        let tty = terminal()
         var ok = true
+        var rows: [[Cell]] = []
         for (name, code, mods, want) in cases {
             let got = closesEditor(keyCode: code, modifiers: mods)
-            print(got == want ? "PASS" : "FAIL", name, got ? "closes" : "stays")
             ok = ok && got == want
+            rows.append([tty.statusDot(got == want ? .ok : .crit), Cell(name), Cell(got == want ? "PASS" : "FAIL"),
+                         Cell(got ? "closes" : "stays")])
         }
+        print(tty.table(title: "key-test", meta: "\(rows.count) cases",
+                        columns: [Column(priority: 9), Column(priority: 9), Column(priority: 8)], rows: rows).joined(separator: "\n"))
+        print("")
+        print(tty.check(ok ? .ok : .crit, "result", ok ? "PASS" : "FAIL", keyWidth: 7).joined(separator: "\n"))
         fflush(stdout)
         return ok
     }
