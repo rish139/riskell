@@ -481,7 +481,10 @@ enum Doctor {
 
     private static func windowManager(_ c: Context) -> ReportSection {
         var checks: [ReportCheck] = []
-        let found = c.facts.wms.filter { $0.installed || $0.running }
+        let configured = configuredWM(c)
+        if configured == "aerospace" { return aerospaceSection(c) }
+        // only the manager riskell is set up for is reported: AeroSpace's rows belong to `wm: "aerospace"`
+        let found = c.facts.wms.filter { $0.installed || $0.running }.filter { configured != "omniwm" || $0.name != "AeroSpace" }
         if found.isEmpty {
             checks.append(ReportCheck(id: "wm.manager", label: "manager", severity: .warn,
                                       detail: "none found: the bars float over your windows", source: .cli))
@@ -528,6 +531,79 @@ enum Doctor {
         checks.append(settingsRow(app, c.paths))
         checks.append(gapsRow(app, c.paths))
         return ReportSection(id: "wm", title: "window manager", checks: checks)
+    }
+
+    /// The `wm` of the running bars when they answer, else of config.json; lower case, empty when neither says.
+    private static func configuredWM(_ c: Context) -> String {
+        let name = str(c.app, "wm") ?? (c.facts.existing?["wm"] as? String) ?? ""
+        return name == "none" ? "" : name.lowercased()
+    }
+
+    /// The window manager rows when the backend is AeroSpace: installed, running, its socket, version, the live subscription and the gaps.
+    /// Everything is read, nothing is changed; the socket is connected to and closed, no command is sent.
+    private static func aerospaceSection(_ c: Context) -> ReportSection {
+        var checks: [ReportCheck] = []
+        let bundle = "/Applications/AeroSpace.app"
+        let installed = FileManager.default.fileExists(atPath: bundle)
+        let running = Detect.run("/usr/bin/pgrep", ["-x", "AeroSpace"], quiet: true) != nil
+        checks.append(ReportCheck(id: "wm.manager", label: "manager",
+                                  severity: installed && running ? .ok : installed ? .warn : .fail,
+                                  detail: !installed ? "AeroSpace is not installed" : running ? "AeroSpace running" : "AeroSpace installed, not running",
+                                  fix: !installed ? "brew install --cask nikitabobko/tap/aerospace" : running ? nil : "open -a AeroSpace", source: .cli))
+        let socket = "/tmp/bobko.aerospace-\(NSUserName()).sock"
+        let reachable = running && canConnect(socket)
+        checks.append(ReportCheck(id: "wm.socket", label: "socket",
+                                  severity: reachable ? .ok : running ? .warn : .info,
+                                  detail: reachable ? "\(socket) accepts connections"
+                                      : !running ? "no socket to check while AeroSpace is not running"
+                                      : FileManager.default.fileExists(atPath: socket) ? "\(socket) exists but refuses connections" : "\(socket) is missing",
+                                  fix: running && !reachable ? "open -a AeroSpace" : nil, source: .cli))
+        guard let app = c.app else {
+            return ReportSection(id: "wm", title: "window manager", checks: checks + [
+                noAnswer(c, "wm.subscription", "subscription"),
+                noAnswer(c, "wm.protocol", "protocol"),
+                noAnswer(c, "wm.gaps", "gaps"),
+            ])
+        }
+        if bool(app, "wmSubscribed") == true {
+            checks.append(ReportCheck(id: "wm.subscription", label: "subscription", severity: .ok,
+                                      detail: "aerospace is subscribed: its state reaches the bars live", source: .app))
+        } else {
+            checks.append(ReportCheck(id: "wm.subscription", label: "subscription", severity: .warn,
+                                      detail: "aerospace is not subscribed: riskell retries every 2 s while it is away", fix: "risk log 30", source: .app))
+        }
+        let verified = str(app, "verifiedAerospace") ?? ""
+        let version = Bundle(path: bundle)?.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        if version.isEmpty {
+            checks.append(ReportCheck(id: "wm.protocol", label: "protocol", severity: .warn,
+                                      detail: "aerospace's version is unknown: its app bundle is missing", source: .cli))
+        } else {
+            let same = version == verified
+            checks.append(ReportCheck(id: "wm.protocol", label: "protocol", severity: same ? .ok : .warn,
+                                      detail: same ? "aerospace \(version) is the verified version"
+                                                   : "UPDATE DUE: aerospace \(version), verified \(verified); walk docs/COMPATIBILITY.md",
+                                      source: .cli))
+        }
+        let drift = strings(app, "aerospaceGapDrift")
+        checks.append(drift.isEmpty
+            ? ReportCheck(id: "wm.gaps", label: "gaps", severity: .ok, detail: "aerospace.toml has the gaps riskell needs", source: .app)
+            : ReportCheck(id: "wm.gaps", label: "gaps", severity: .warn, detail: drift.joined(separator: "; "), fix: "risk dev", source: .app))
+        return ReportSection(id: "wm", title: "window manager", checks: checks)
+    }
+
+    /// Whether a connection to the unix socket at `path` is accepted; it is closed at once, nothing is written.
+    private static func canConnect(_ path: String) -> Bool {
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { return false }
+        defer { close(fd) }
+        var addr = sockaddr_un()
+        addr.sun_family = sa_family_t(AF_UNIX)
+        let bytes = Array(path.utf8CString)
+        guard bytes.count <= MemoryLayout.size(ofValue: addr.sun_path) else { return false }
+        withUnsafeMutableBytes(of: &addr.sun_path) { $0.copyBytes(from: bytes.map { UInt8(bitPattern: $0) }) }
+        return withUnsafePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) } == 0
+        }
     }
 
     /// The OmniWM settings riskell depends on: a mismatch is a breakage, not an update (Compat.Verified.omniwmSettings).
@@ -719,7 +795,8 @@ enum Doctor {
     /// The same report as the data the screen draws: the identity line, the agent's state, and every section but the verdict, whose row
     /// repeats the counts and the first problem the summary below the sections already shows.
     private static func report(_ sections: [ReportSection], _ c: Context) -> Report {
-        let wms = c.facts.wms.filter { $0.installed || $0.running }
+        let configured = configuredWM(c)
+        let wms = c.facts.wms.filter { $0.installed || $0.running }.filter { configured.isEmpty || $0.name.lowercased() == configured }
         let manager = (wms.first { $0.running } ?? wms.first)?.name
         let chip = c.facts.arch == "arm64" ? "Apple silicon" : c.facts.arch
         return Report(version: c.version ?? "?", macOS: c.facts.macos, chip: chip, windowManager: manager,

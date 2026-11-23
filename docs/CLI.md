@@ -96,6 +96,13 @@ put the saved key values back
 - example: `risk gestures restore`
 - replaces: `riskell --gestures-restore`, `riskell-setup --restore-gestures`
 
+### `risk wm use <omniwm|aerospace|none> [--yes] [--dry-run] [--restart] [--login] [--json]`
+
+switch the window manager riskell drives, and back
+
+- example: `risk wm use aerospace --yes --restart`
+- replaces: `editing wm in ~/.config/riskell/config.json`
+
 ### `risk ext <subcommand>`
 
 add, update, remove, validate and publish extensions

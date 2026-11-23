@@ -16,6 +16,7 @@
     config     read and change settings without editing JSON
     ctl        send one word to the running bar
     gestures   turn off the trackpad keys that fight riskell
+    wm         switch between omniwm, aerospace and none
 
   EXTEND
     ext        add, update, remove, validate and publish extensions

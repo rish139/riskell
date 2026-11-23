@@ -222,7 +222,20 @@ enum ConfigCommand {
 
     // MARK: set
 
-    private static func set(_ args: [String]) -> Int32 {
+    /// One top-level string setting as the file holds it; nil when the file, the key or a string value is not there.
+    static func string(_ key: String) -> String? {
+        guard let text = try? String(contentsOfFile: Paths().config, encoding: .utf8),
+              let root = ParsedJSON.parse(text).root,
+              case .string(let value, _)? = existing(root, [key]) else { return nil }
+        return value
+    }
+
+    /// `set <key> <value>` for another command: the same code and the same errors, without the change line (the caller says what changed).
+    static func store(_ key: String, _ value: String) -> Int32 {
+        set([key, value], quiet: true)
+    }
+
+    private static func set(_ args: [String], quiet: Bool = false) -> Int32 {
         var json = false, dryRun = false
         var positional: [String] = []
         for arg in args {
@@ -303,6 +316,7 @@ enum ConfigCommand {
                         tries: [(cmd: "risk config path", note: "check the folder it lives in")])
         }
 
+        if quiet { return 0 }
         if json {
             print("{\"schema\": \(jsonQuoted(schema)), \"key\": \(jsonQuoted(key)), \"value\": \(compact(value)), " +
                   "\"file\": \(jsonQuoted(shown(file))), \"changed\": \(changed)}")

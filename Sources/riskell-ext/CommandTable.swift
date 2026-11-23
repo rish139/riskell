@@ -124,6 +124,11 @@ let commandTable: [Command] = [
     Command("gestures restore [--dry-run] [--yes]", "put the saved key values back",
             example: "risk gestures restore", replaces: ["riskell --gestures-restore", "riskell-setup --restore-gestures"],
             group: "CHANGE"),
+    Command("wm use <omniwm|aerospace|none> [--yes] [--dry-run] [--restart] [--login] [--json]",
+            "switch the window manager riskell drives, and back",
+            example: "risk wm use aerospace --yes --restart",
+            replaces: ["editing wm in ~/.config/riskell/config.json"],
+            group: "CHANGE", front: "switch between omniwm, aerospace and none"),
     Command("ext <subcommand>", "add, update, remove, validate and publish extensions",
             example: "risk ext add load", replaces: ["riskell-ext"], children: [
                 Child("search", "search what the registry lists"),

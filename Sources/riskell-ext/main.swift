@@ -21,6 +21,7 @@ import RiskellTTY
 //   completions <zsh|fish|bash>        the table as a shell completion script, descriptions included
 //   docs                               docs/CLI.md: the table as markdown, for redirecting to the file
 //   config path|show|get|set|edit      riskell's settings file without hand-edited JSON
+//   wm use <omniwm|aerospace|none>     switch the window-manager backend: riskell's setting and the two apps, never their own settings
 //   theme list|check|import            the schemes, their contrast, and bringing one in from another shell
 //   ctl <word> [--json] [--dry-run]    one word to the running bar, or --list: the socket without `printf | nc -U`
 //   log [N] [--follow] [--json]        the last log lines, or a follower
@@ -413,6 +414,7 @@ case "completions":
     print(script)
 case "docs": print(Docs.markdown())
 case "config": exit(ConfigCommand.run(Array(a.dropFirst())))
+case "wm": exit(WMCommand.run(Array(a.dropFirst())))
 case "theme": exit(ThemeCommand.run(Array(a.dropFirst())))
 case "ctl": exit(Ctl.run(Array(a.dropFirst())))
 case "log": exit(LogCommand.run(Array(a.dropFirst())))

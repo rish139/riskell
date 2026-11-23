@@ -58,6 +58,9 @@ enum Completions {
         return out
     }
 
+    /// The values `risk wm use` takes, offered after it.
+    private static let backends = ["omniwm", "aerospace", "none"]
+
     private static var zsh: String {
         var out = """
         #compdef risk
@@ -88,6 +91,9 @@ enum Completions {
           if (( CURRENT == 3 )) && (( ${#sub} )); then
             _describe -t commands "risk $words[2]" sub
           fi
+          if (( CURRENT == 4 )) && [[ $words[2] == wm && $words[3] == use ]]; then
+            compadd \(backends.joined(separator: " "))
+          fi
         }
 
         _risk "$@"
@@ -106,6 +112,7 @@ enum Completions {
                 out += "complete -c risk -n \(quoted("__fish_seen_subcommand_from \(group.name)")) -a \(child.name) -d \(quoted(child.summary))\n"
             }
         }
+        out += "complete -c risk -n \(quoted("__fish_seen_subcommand_from use")) -a \(quoted(backends.joined(separator: " "))) -d 'window manager'\n"
         return out
     }
 
@@ -139,6 +146,9 @@ enum Completions {
           esac
           if [ "$COMP_CWORD" -eq 2 ] && [ -n "$sub" ]; then
             COMPREPLY=( $(compgen -W "$sub" -- "$cur") )
+          fi
+          if [ "$COMP_CWORD" -eq 3 ] && [ "${COMP_WORDS[1]}" = wm ] && [ "${COMP_WORDS[2]}" = use ]; then
+            COMPREPLY=( $(compgen -W "\(backends.joined(separator: " "))" -- "$cur") )
           fi
         }
 

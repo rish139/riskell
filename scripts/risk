@@ -327,7 +327,8 @@ case ${1:-} in
                    tool=$root/.build/release/riskell-setup   # the report, its sections and --json live in the installer's binary
                    [[ -x $tool ]] || swift build -c release --product riskell-setup --package-path $root >/dev/null || exit 1
                    exec $tool --doctor "${@:2}" ;;    # `--check` stays the installer's checklist; --doctor is the report
-  wm)       [[ $2 == omniwm || $2 == export || $2 == import ]] && ! -x ${JQ:-/nonexistent} && \
+  wm)       [[ ${2:-} == use ]] && with_ext "$@"   # riskell-ext switches the backend; the rest below are the OmniWM helpers
+            [[ $2 == omniwm || $2 == export || $2 == import ]] && ! -x ${JQ:-/nonexistent} && \
               fail "jq is not installed" "risk wm export and import read JSON with it" "brew install jq" "install it"
             case $2 in
               omniwm) start_wm ;;
@@ -343,10 +344,11 @@ case ${1:-} in
               kickstart) launchctl kickstart -k $dom/$label ;;
               stop)      launchctl bootout $dom/$label 2>/dev/null || true ;;
               unplist)   rm -f $plist ;;
+              wm-login)  app_agent ${3:-off} ;;   # the window manager the login agent opens: an app path, or off
               loaded)    launchctl print $dom/$label >/dev/null 2>&1 ;;
               bundled)   grep -qF "$app/Contents/MacOS/riskell" $plist 2>/dev/null ;;
               pid)       step_pid ;;
-              *)         print -u2 "risk: unknown step '${2:-}' (build, plist, reload, kickstart, stop, unplist, loaded, bundled, pid)"
+              *)         print -u2 "risk: unknown step '${2:-}' (build, plist, reload, kickstart, stop, unplist, loaded, bundled, pid, wm-login)"
                          exit 2 ;;
             esac
             exit $? ;;
