@@ -61,9 +61,12 @@ public enum UsageSelfTest {
               && lim?.seven?.pct == 41 && lim?.seven?.counted == true && lim?.sonnet?.pct == 12 && lim?.opus == nil
               && lim?.fetched == now && lim?.stale == false && lim?.rep == 62)
 
-        // 8. a response missing a window (no seven_day) gives no reading
+        // 8. a missing or null window is nil; a response with neither main window gives no reading
         let missing = ClaudeLimits.parse(["five_hour": ["utilization": 10.0]], now: now)
-        check("claude limits missing window", missing == nil)
+        let nullFive = ClaudeLimits.parse(["five_hour": NSNull(), "seven_day": ["utilization": 30.0]], now: now)
+        let noWindows = ClaudeLimits.parse(["five_hour": NSNull(), "seven_day": NSNull()], now: now)
+        check("claude limits missing window is nil",
+              missing?.seven == nil && missing?.rep == 10 && nullFive?.five == nil && nullFive?.rep == 30 && noWindows == nil)
 
         // 9. a keychain item with no token gives none; one with a token gives it
         let noToken = Data(#"{"claudeAiOauth":{"accessToken":"","refreshToken":"r"}}"#.utf8)

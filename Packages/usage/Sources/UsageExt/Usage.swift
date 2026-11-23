@@ -76,6 +76,10 @@ final class UsageService {
                     if let r {
                         self.state.set(claude: r)
                         self.save(r, to: self.limitsURL)
+                    } else if var kept = self.state.claude, kept.limited {
+                        // Keep the last real percentages: the local summary has none, so it would show tokens on the bar.
+                        kept.stale = true
+                        self.state.set(claude: kept)
                     } else {
                         var s = local
                         s.stale = true

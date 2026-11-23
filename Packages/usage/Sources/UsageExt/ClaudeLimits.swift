@@ -34,15 +34,17 @@ enum ClaudeCredential {
 enum ClaudeLimits {
     static let url = URL(string: "https://api.anthropic.com/api/oauth/usage")!
 
-    /// The reading from the endpoint's JSON: the 5-hour and 7-day windows (both required), and the Sonnet and Opus windows when present.
-    /// Every window is a real percentage (`limitSet`). nil when a required window is missing or a number is not usable.
+    /// The reading from the endpoint's JSON: the 5-hour and 7-day windows, and the Sonnet and Opus windows when present.
+    /// A window that is null or missing is nil (no window is running, for example); at least one of the 5-hour and 7-day windows must parse.
+    /// Every window is a real percentage (`limitSet`). nil when neither main window is usable.
     static func parse(_ json: [String: Any], now: Double) -> ClaudeUse? {
         func win(_ key: String) -> UsageWin? {
             guard let o = json[key] as? [String: Any], let u = (o["utilization"] as? NSNumber)?.doubleValue, u.isFinite else { return nil }
             let pct = Int(min(max(u.rounded(), 0), 1000))
             return UsageWin(pct: pct, resets: UsageDate.epoch(o["resets_at"]), limitSet: true)
         }
-        guard let five = win("five_hour"), let seven = win("seven_day") else { return nil }
+        let five = win("five_hour"), seven = win("seven_day")
+        guard five != nil || seven != nil else { return nil }
         return ClaudeUse(five: five, seven: seven, sonnet: win("seven_day_sonnet"), opus: win("seven_day_opus"), fetched: now, stale: false)
     }
 }
