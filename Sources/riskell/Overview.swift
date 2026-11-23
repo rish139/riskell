@@ -90,9 +90,16 @@ final class Overview: ObservableObject {
     @Published var query = ""
     /// Apps in native full-screen Spaces, which the window manager does not list; found once when the overview opens.
     struct FullApp: Identifiable { let pid: Int; let name: String; let wid: UInt32; var id: Int { pid } }
-    @Published private(set) var fullscreenApps: [FullApp] = []
+    @Published private(set) var fullscreenApps: [FullApp] = [] {
+        didSet { fullIDs = Set(fullscreenApps.map { Int($0.wid) }); fullTiles = nil }
+    }
+    private var fullIDs = Set<Int>()
+    private var fullTiles: (key: FullKey, tiles: [(app: FullApp, rect: CGRect)])?
+    private struct FullKey: Equatable { let spaces: Int; let screen: CGSize; let left: CGFloat; let right: CGFloat }
     @Published private(set) var thumbs: [Int: NSImage] = [:]
     @Published private(set) var bars: [BarShot] = []
+    /// The bars' pictures, taken once the overview has closed (rendering them takes about 30 ms, which an opening animation cannot spare).
+    private var barCache: [BarShot]?
     private(set) var wallpaper: NSImage?
     private var wallpaperStamp = ""      // the desktop picture's path and modification date: decoded again only when it changes
     /// main.swift: snapshots of the three bars (no Screen Recording needed for our own views).
@@ -104,7 +111,7 @@ final class Overview: ObservableObject {
     func displayChanged() {
         let new = Display.current.frame.size
         guard new != screen else { return }
-        screen = new
+        screen = new; barCache = nil
         if !live, let p = panel { p.orderOut(nil); panel = nil }
     }
 
@@ -243,10 +250,9 @@ final class Overview: ObservableObject {
     }
 
     /// Windows of apps the window manager does not list that fill the main display inside a native full-screen Space, one per app.
-    private func findFullscreenApps() -> [FullApp] {
+    private static func findFullscreenApps(size: CGSize) -> [FullApp] {
         guard let list = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]] else { return [] }
         let me = Int(ProcessInfo.processInfo.processIdentifier)
-        let size = CGDisplayBounds(CGMainDisplayID()).size
         var seen = Set<Int>(), out: [FullApp] = []
         for w in list {
             guard (w[kCGWindowLayer as String] as? Int) == 0, (w[kCGWindowAlpha as String] as? Double ?? 0) > 0,
@@ -258,14 +264,24 @@ final class Overview: ObservableObject {
             seen.insert(pid)
             out.append(FullApp(pid: pid, name: w[kCGWindowOwnerName as String] as? String ?? Apps.info(pid: pid, fallback: "").name, wid: wid))
         }
-        print("overview: \(out.count) full-screen app(s)"); fflush(stdout)
+        tlog("overview: \(out.count) full-screen app(s)")
         return out
     }
 
     /// The window tiles for those apps: 0.7 of a workspace tile, one centred row under the find field, shrunk to fit the screen's
-    /// bottom (room kept for the name below) and its width. Drawing and hit-testing both use these rects.
+    /// bottom (room kept for the name below) and its width. Drawing and hit-testing both use these rects, kept until the apps,
+    /// the number of workspaces, the screen or the side panels change.
     func fullscreenTiles() -> [(app: FullApp, rect: CGRect)] {
-        guard !fullscreenApps.isEmpty, let first = layout.tiles.first else { return [] }
+        guard !fullscreenApps.isEmpty else { return [] }
+        let key = FullKey(spaces: store.spaces.count, screen: screen, left: Config.shared.leftW, right: Config.shared.rightW)
+        if let c = fullTiles, c.key == key { return c.tiles }
+        let tiles = makeFullscreenTiles()
+        fullTiles = (key, tiles)
+        return tiles
+    }
+
+    private func makeFullscreenTiles() -> [(app: FullApp, rect: CGRect)] {
+        guard let first = layout.tiles.first else { return [] }
         let k = Real.k, gap = 16 * k, n = CGFloat(fullscreenApps.count)
         let y = first.maxY + 64 * k + 44 * k + 20 * k
         let aspect = screen.height / screen.width
@@ -329,7 +345,7 @@ final class Overview: ObservableObject {
         let geo = WM.shared?.windowFrames() ?? [:]      // live: a drop shows in its new workspace at once
         let shown = store.spaces.first { $0.id == n }?.focused ?? false
         var known: [Placed] = [], unknown: [(WinInfo, CGSize, Bool)] = []
-        let away = Set(fullscreenApps.map { Int($0.wid) })      // a full-screen window has its own tile row, not a place in a workspace
+        let away = fullIDs      // a full-screen window has its own tile row, not a place in a workspace
         for w in windows where w.space == n && !away.contains(w.id) {
             let g = geo[w.id]
             if shown, let r = liveRects[w.id] { known.append(Placed(win: w, rect: r, floating: g?.floating ?? false)) }
@@ -497,17 +513,20 @@ final class Overview: ObservableObject {
 
     private func prepare() {
         guard !live else { return }
+        WM.shared?.refreshNow()
         origin = store.spaces.first { $0.focused }?.id ?? store.spaces.first?.id ?? 1
-        bars = snapshotBars?() ?? []
-        fullscreenApps = findFullscreenApps()
+        bars = barCache ?? snapshotBars?() ?? []
+        let size = Display.current.frame.size
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let found = Overview.findFullscreenApps(size: size)
+            DispatchQueue.main.async { self?.foundFullscreen(found) }
+        }
         Overview.refreshWallpaper(&wallpaper, stamp: &wallpaperStamp)
         let p = panel ?? makePanel()
         panel = p
         p.alphaValue = 1; p.ignoresMouseEvents = false
         p.orderFrontRegardless()
         p.makeKey()
-        let ids = Set(store.windows.map(\.id))
-        cache = cache.filter { ids.contains($0.key) }
         thumbs = cache
         live = true
         arm()
@@ -523,10 +542,12 @@ final class Overview: ObservableObject {
         let shown = Set(store.spaces.filter(\.focused).map(\.id))
         let ids = Set(store.windows.filter { shown.contains($0.space) }.map(\.id))
         var r: [Int: CGRect] = [:]
-        if !ids.isEmpty, let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] {
+        // only the shown workspace's windows are asked for, by id: listing every window on screen costs several times as much
+        var raw = ids.map { UnsafeRawPointer(bitPattern: UInt($0)) }
+        if !raw.isEmpty, let arr = CFArrayCreate(nil, &raw, raw.count, nil), let list = CGWindowListCreateDescriptionFromArray(arr) as? [[String: Any]] {
             for w in list {
-                guard let id = w[kCGWindowNumber as String] as? Int, ids.contains(id), let b = w[kCGWindowBounds as String] as? NSDictionary,
-                      let rect = CGRect(dictionaryRepresentation: b as CFDictionary) else { continue }
+                guard let id = w[kCGWindowNumber as String] as? Int, let b = w[kCGWindowBounds as String] as? NSDictionary,
+                      let rect = CGRect(dictionaryRepresentation: b as CFDictionary), CGRect(x: 0, y: 0, width: screen.width, height: screen.height).intersects(rect) else { continue }
                 r[id] = rect
             }
         }
@@ -612,6 +633,17 @@ final class Overview: ObservableObject {
         if t == 0, progress == 0 { teardown() }
     }
 
+    /// The full-screen apps arrive after the overview has opened: their small pictures from the last opening are shown at once and
+    /// their windows captured; the cache is pruned to the windows that still exist.
+    private func foundFullscreen(_ found: [FullApp]) {
+        guard live else { return }
+        fullscreenApps = found
+        let ids = Set(store.windows.map(\.id)).union(fullIDs)
+        cache = cache.filter { ids.contains($0.key) }
+        for id in fullIDs { if let img = cache[id] { thumbs[id] = img } }
+        capture(sharp: false, only: fullIDs)
+    }
+
     private func teardown() {
         panel?.alphaValue = 0          // gone at once; the window itself is taken off the screen a turn later
         live = false
@@ -625,24 +657,38 @@ final class Overview: ObservableObject {
             self.stopVideo()
             self.liveRects = [:]
             self.thumbs = [:]; self.bars = []; self.hoverWin = nil; self.pointer.hoverFull = nil; self.drag = nil
+            self.fullscreenApps = []
             self.feeds = [:]; self.stills = [:]; self.held = [:]; self.moving = false
+            self.barCache = self.snapshotBars?()
         }
     }
 
     /// Every window at about twice its tile size; with `sharp`, the current workspace's at half Retina instead (they fill the screen at
     /// the start of the morph). Each arrival also refreshes the small copy kept for the next opening.
-    private func capture(sharp: Bool) {
+    private func capture(sharp: Bool, only: Set<Int>? = nil) {
         guard live else { return }
         guard Capture.allowed else { Capture.askOnce(); return }
         let small = min(1, OverviewLayout(count: store.spaces.count, screen: screen).scale * 2.4)
         var want: [Int: CGFloat] = [:]
-        for w in store.windows { want[w.id] = sharp && w.space == origin ? 1.0 : small }
-        for a in fullscreenApps { want[Int(a.wid)] = small }
+        if let only { for id in only { want[id] = small } }
+        else {
+            for w in store.windows { want[w.id] = sharp && w.space == origin ? 1.0 : small }
+            for id in fullIDs { want[id] = small }
+        }
         Capture.windows(want) { [weak self] id, img in
             guard let self, self.live else { return }
-            if self.fullscreenApps.contains(where: { Int($0.wid) == id }) { self.thumbs[id] = NSImage(cgImage: img, size: .zero); return }
+            if self.fullIDs.contains(id) {
+                let pic = NSImage(cgImage: img, size: .zero)
+                self.cache[id] = pic; self.thumbs[id] = pic
+                return
+            }
             let k = want[id] ?? small
-            self.cache[id] = k > small ? Overview.scaled(img, by: small / k) : NSImage(cgImage: img, size: .zero)
+            if k > small {      // the downscale is off the main thread: it is the open animation's thread
+                DispatchQueue.global(qos: .utility).async {
+                    let s = Overview.scaled(img, by: small / k)
+                    DispatchQueue.main.async { [weak self] in self?.cache[id] = s }
+                }
+            } else { self.cache[id] = NSImage(cgImage: img, size: .zero) }
             let shot = NSImage(cgImage: img, size: .zero)
             // while the morph runs only the morphing workspace's pictures are drawn at once; the rest wait for it to land (a publish
             // redraws every tile, and the tiles are still moving)
@@ -709,14 +755,14 @@ final class Overview: ObservableObject {
 
     /// One log line per press on the overview: whether its panel was key as the press arrived, and what the press landed on.
     private func logPress(_ e: NSEvent) {
-        guard let p = panel, e.window === p, let content = p.contentView else { return }
+        guard tracing, let p = panel, e.window === p, let content = p.contentView else { return }
         let pt = content.convert(e.locationInWindow, from: nil)
         let kind: String
         switch hit(pt) {
         case .window(let w): kind = "window \(w.id)"
         case .tile(let n): kind = "tile \(n)"
         case .slot: kind = "slot"
-        case .fullscreen(let p): kind = "fullscreen \(p)"
+        case .fullscreen(let pid): kind = "fullscreen \(pid)"
         case .nothing: kind = "nothing"
         }
         tlog("overview press: key=\(p.isKeyWindow) hit=\(kind)")

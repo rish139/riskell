@@ -294,9 +294,10 @@ struct PointerLayer: View {
     }
 
     @ViewBuilder private func hovered(_ id: Int) -> some View {
-        if let w = s.windows.first(where: { $0.id == id }), let r = o.screenRect(of: id),
+        if let w = s.windows.first(where: { $0.id == id }), let full = o.screenRect(of: id),
            let i = s.spaces.firstIndex(where: { $0.id == w.space }), i < layout.tiles.count {
             let tile = layout.tiles[i]
+            let r = full.intersection(tile)      // a window wider than the screen (an app's minimum size) must not draw its ring outside its tile
             RoundedRectangle(cornerRadius: 4 * u, style: .continuous).fill(Pal.text1.opacity(0.08))
                 .overlay(RoundedRectangle(cornerRadius: 4 * u, style: .continuous).strokeBorder(Pal.text1.opacity(0.9), lineWidth: 2 * u))
                 .frame(width: r.width, height: r.height).offset(x: r.minX, y: r.minY)
