@@ -20,6 +20,16 @@ the overview, and trackpad scrolls are dropped while three fingers are down so t
 Switching is live: edit the file and the extension starts or stops within a second, no restart. Each change logs `extensions: gestures on`
 or `off`, and turning it on logs `trackpad attached` and `scroll guard: active`.
 
+## Four fingers
+
+- **Four fingers land during a 3-finger swipe:** that swipe is cancelled without committing. The Space capsule springs back and the
+  overview returns to where it was. Until every finger lifts, the touches are not read as a 3-finger swipe.
+- **Four fingers swipe up and lift:** Mission Control opens (`open -a "Mission Control"`). It needs at least 0.06 pad heights of upward
+  travel, lifted within 0.7 s of landing, and opens once per contact (the next one needs every finger up first).
+- Up is fingers moving up, the same direction as the 3-finger overview. Natural scrolling does not flip it, as the overview does not.
+- The bars rise and scroll guard blocks scrolls while four fingers are down, as for three.
+- macOS's own 4-finger swipes stay off (see the conflict pills below).
+
 ## Direction
 Which way a swipe goes follows System Settings > Trackpad > Scroll & Zoom > Natural scrolling, read at every swipe (so toggling it applies at once). riskell does
 not guess it: the trackpad reports raw finger positions, and the setting is what says whether fingers moving right means the previous or the next workspace.

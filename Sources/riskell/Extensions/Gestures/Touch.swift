@@ -38,6 +38,15 @@ final class Touch {
     private let minTravel: Float = 0.03   // ...if it moved at least this much (pad widths)
     private let longSwipe: Float = 0.2    // a slower swipe commits only past this travel
     private let span: Float = 0.30        // pad widths of travel for one full slot of capsule movement; tuned from --trace
+    /// Four fingers: a contact that has shown four fingers is "blocked" until every finger lifts, so the 3-finger logic never sees it.
+    private var blocked = false
+    private var fourDown = false          // four fingers are down and have not yet been judged (a finger has not lifted from them)
+    private var fourFired = false         // Mission Control was opened for this contact; cleared when every finger lifts
+    private var fourStartY: Float = 0
+    private var fourY: Float = 0
+    private var fourDownAt = 0.0
+    private let fourTravel: Float = 0.06  // pad heights the four fingers must move up before they lift
+    private let fourQuick = 0.7           // s: from landing to lift, the four-finger swipe must be quicker than this
 
     private typealias Callback = @convention(c) (UnsafeMutableRawPointer?, UnsafeMutableRawPointer?, Int32, Double, Int32) -> Int32
     private typealias CreateList = @convention(c) () -> Unmanaged<CFArray>?
@@ -99,7 +108,7 @@ final class Touch {
         for o in observers { o.center.removeObserver(o.token) }
         observers = []
         revert?.cancel(); settle?.cancel()
-        active = false
+        active = false; blocked = false; fourDown = false; fourFired = false
         onFingers?(false)
         onFingers = nil
         if let h = dlopen(Self.framework, RTLD_LAZY) {
@@ -127,6 +136,7 @@ final class Touch {
         if let pstop = dlsym(h, "MTDeviceStop") { for d in devices { unsafeBitCast(pstop, to: Stop.self)(d) } }
         devices = []
         if active { active = false; onFingers?(false) }          // a gesture cannot survive its device being replaced
+        blocked = false; fourDown = false; fourFired = false
         guard let list = unsafeBitCast(pl, to: CreateList.self)()?.takeRetainedValue() else { print("touch: no device list"); return }
         deviceList = list
         let register = unsafeBitCast(pr, to: Register.self), startDev = unsafeBitCast(ps, to: Start.self)
@@ -147,6 +157,13 @@ final class Touch {
 
     private func frame(count: Int, cx: Float, cy: Float) {
         Self.frames += 1; Self.lastFrame = CACurrentMediaTime(); if count == 3 { Self.threeFrames += 1 }
+        if count == 4 { fourFingers(cy: cy); return }
+        if blocked {
+            // the rest of a four-finger contact: nothing here is a 3-finger swipe until every finger is up
+            if count < 4, fourDown { leaveFour() }
+            if count == 0 { endBlocked() }
+            return
+        }
         if count == 3 {
             if !active {
                 active = true; startX = cx; dx = 0; startY = cy; dy = 0; axis = .undecided
@@ -204,6 +221,53 @@ final class Touch {
             let s = DispatchWorkItem { [weak self] in self?.onFingers?(false) }
             settle = s
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: s)
+        }
+    }
+
+    /// Four fingers landing. If a 3-finger swipe is under way, it is cancelled without committing (the Space springs back, the overview
+    /// goes back to where it was) because a fourth finger means the gesture is not riskell's.
+    private func fourFingers(cy: Float) {
+        if !blocked {
+            blocked = true
+            settle?.cancel(); onFingers?(true)
+            if active {
+                active = false
+                Self.glog("4th finger landed: the 3-finger gesture is cancelled")
+                store.swipeRelease(commit: 0)
+                if axis == .vertical { Overview.shared.gestureEnded(dy: 0, held: 0) }
+            }
+        }
+        if !fourDown && !fourFired { fourDown = true; fourStartY = cy; fourDownAt = CACurrentMediaTime() }
+        if fourDown { fourY = cy }
+    }
+
+    /// A finger lifted from the four: if they moved up far enough and quickly, Mission Control opens (once per contact).
+    /// Up is the direction the 3-finger overview uses (fingers moving up, y grows upward on the pad); natural scrolling does not flip it.
+    private func leaveFour() {
+        fourDown = false
+        let up = fourY - fourStartY, held = CACurrentMediaTime() - fourDownAt
+        Self.glog(String(format: "4 fingers lifted: moved %.3f after %.0f ms", up, held * 1000))
+        guard !fourFired, up > fourTravel, held < fourQuick else { return }
+        fourFired = true
+        Self.openMissionControl()
+    }
+
+    /// Every finger is up: the bars drop back after the same 0.6 s settle as a 3-finger swipe.
+    private func endBlocked() {
+        blocked = false; fourDown = false; fourFired = false
+        let s = DispatchWorkItem { [weak self] in self?.onFingers?(false) }
+        settle?.cancel(); settle = s
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: s)
+    }
+
+    /// Opens Mission Control through `open`, on a background queue. Nothing waits for it and nothing polls it.
+    private static func openMissionControl() {
+        glog("4 fingers up: opening Mission Control")
+        DispatchQueue.global(qos: .userInitiated).async {
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            p.arguments = ["-a", "Mission Control"]
+            try? p.run()
         }
     }
 
