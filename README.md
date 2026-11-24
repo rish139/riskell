@@ -20,7 +20,7 @@ with an extension kit: four ways to add your own, checked by a validator.
 <a href="#what-is-tested">What's tested</a> ·
 <a href="#documentation">Docs</a>
 
-<sub><code>v0.3.1</code> &nbsp;·&nbsp; early release, in daily use on one Mac &nbsp;·&nbsp; macOS 14+ &nbsp;·&nbsp; Apple silicon &nbsp;·&nbsp; FSL-1.1-MIT</sub>
+<sub><code>v0.4.0</code> &nbsp;·&nbsp; early release, in daily use on one Mac &nbsp;·&nbsp; macOS 14+ &nbsp;·&nbsp; Apple silicon &nbsp;·&nbsp; FSL-1.1-MIT</sub>
 
 </div>
 

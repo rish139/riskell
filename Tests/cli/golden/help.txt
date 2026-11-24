@@ -1,4 +1,4 @@
-  ▐▌ ▄▄▄▄▄▄▄▄▄▄   riskell 0.3.1
+  ▐▌ ▄▄▄▄▄▄▄▄▄▄   riskell 0.4.0
   ▐▌              a desktop shell for macOS: bars, cards and extensions
   ▐▌ ▀▀▀▀▀▀▀▀▀▀   ● stopped
 

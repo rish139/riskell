@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-24
+
+riskell runs on AeroSpace, with dwindle-aerospace as its first extension, and the top bar waits for the menu bar's menus.
+
 ### Added
 - `risk ext add --ship` and `risk ext remove --ship` write the tracked `extensions.lock.json`: the way a maintainer adds a package that ships
   with riskell, or takes one out.

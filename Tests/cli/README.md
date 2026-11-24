@@ -93,7 +93,7 @@ Two things have no schema and no recording, so they are checked against their so
 
 `risk version --json` prints one object — `riskell`, `kit`, `lock` — and the check compares it with `VERSION`, the `riskell-kit` pin in
 `Package.resolved` and the entries in `extensions.lock.json` plus the ones in `extensions.local.json` when that file is there. Both forms are
-read from the same files, so a release bump moves the command and the check together; the plain form stays the one line `riskell 0.3.1`.
+read from the same files, so a release bump moves the command and the check together; the plain form stays the one line `riskell 0.4.0`.
 
 The theme a command draws in is the built `riskell`'s answer (`Tty.themed()`, `Sources/RiskellTTY/ThemedTty.swift`). A scratch checkout
 with a stub in `.build/release/riskell` shows both directions through `script(1)`, which is the only way a shell command gets a tty: the
