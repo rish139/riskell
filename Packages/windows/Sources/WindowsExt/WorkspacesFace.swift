@@ -18,6 +18,9 @@ struct WorkspacesFace: View {
 
     static let pitch: CGFloat = 36          // one space's slot; the capsule (26) sits in it with 5 px each side
     static let cardDY: CGFloat = -6         // the card's top relative to the rail's top (Popout places it)
+    /// The spring the capsule follows the focus with. The beads of a space that joins or leaves use it too; the island around the rail is
+    /// given the same spring by the bar (Bars.swift), where its size is decided.
+    static let growth = Animation.spring(duration: 0.26, bounce: 0.14)
     static let hPitch: CGFloat = 28         // horizontal: one space's slot along the 36 pt pill (the beads stay 9 pt, as on the rail)
 
     private func zone(_ i: Int) -> CGFloat { Self.pitch }
@@ -52,16 +55,18 @@ struct WorkspacesFace: View {
                     .contentShape(Rectangle())
                     .onTapGesture { KitHost.windows?.focus(space: sp.id) }
                     .offset(x: CGFloat(i) * Self.hPitch)
+                    .transition(.opacity)
             }
             if let capX {
                 Capsule().fill(Pal.accent).frame(width: 22, height: 11)
                     .scaleEffect(x: 1 + 0.1 * hv, y: 1 + 0.2 * hv)
                     .offset(x: capX - 11)
-                    .animation(rail.live ? nil : .spring(duration: 0.26, bounce: 0.14), value: pos)    // fingers down: 1:1, no easing
+                    .animation(rail.live ? nil : Self.growth, value: pos)    // fingers down: 1:1, no easing
                     .allowsHitTesting(false)
             }
         }
         .frame(width: total, height: G.pill, alignment: .leading)
+        .animation(Self.growth, value: n)      // the beads of a space that joins or leaves, on the capsule's own spring
         .animation(.spring(duration: 0.26, bounce: 0.18), value: hot)
         .popout("workspaces", edge: .right, hot: $hot)
     }
@@ -101,17 +106,19 @@ struct WorkspacesFace: View {
                 }
                 .offset(y: tops[i] + (floated ? lift(i) : 0))
                 .animation(.spring(duration: 0.30, bounce: 0.05).delay(floated ? 0.035 * Double(i) : 0.02 * Double(n - 1 - i)), value: floated)
+                .transition(.opacity)
             }
             if let capY {
                 Capsule().fill(Pal.accent).frame(width: 11, height: 26)
                     .scaleEffect(x: 1 + 0.2 * hv, y: 1 + 0.1 * hv)
                     .frame(width: G.strip).offset(y: capY - 13)
-                    .animation(rail.live ? nil : .spring(duration: 0.26, bounce: 0.14), value: pos)    // fingers down: 1:1, no easing
+                    .animation(rail.live ? nil : Self.growth, value: pos)    // fingers down: 1:1, no easing
                     .animation(.spring(duration: 0.30, bounce: 0.05), value: floated)
                     .allowsHitTesting(false)
             }
         }
         .frame(width: G.strip, height: total, alignment: .top)
+        .animation(Self.growth, value: n)      // the beads of a space that joins or leaves, on the capsule's own spring
         .animation(.spring(duration: 0.26, bounce: 0.18), value: hot)
         .popout("workspaces", edge: .right, hot: $hot)
     }

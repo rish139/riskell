@@ -35,6 +35,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   lists every window on the system for each focus event: a call costs 1.1 ms instead of 3.2 ms here, and 20 focus events took 30 ms of waiting
   instead of 91. A binding of `resize`, `balance-sizes` or `fullscreen` no longer makes riskell query AeroSpace afterwards (a held resize key
   sent 19 requests a second, each making AeroSpace lay out the windows, for rows that hold neither sizes nor the fullscreen flag).
+- The AeroSpace workspace rail is contiguous, as OmniWM's was: it runs from 1 to the five that always show, the highest workspace with a window, or the
+  focused one, whichever is furthest, with the empty ones in between as dim beads. It used to skip workspaces (`1 2 3 4 5 8` with the focus on
+  eight), so the capsule jumped instead of stepping through the empty ones. The beads of a workspace that joins or leaves fade on the capsule's own spring, and the
+  island around a vertical rail is given that spring for a change in the number of spaces. SwiftUI animates each view's size with the animation in
+  force at that view, so the rail's own animation never reached the island: it jumped to its new size at once and, on the way back in, cut across
+  the capsule that was still moving.
 - `risk status` follows the window manager that `wm` selects, not only OmniWM.
 - AeroSpace backend asks it less. A refresh is one request instead of two, a command and the queries that read back what it did are one
   request too, and an event that already names what changed (a focus change, a workspace switch, a navigation keybinding, a volume or

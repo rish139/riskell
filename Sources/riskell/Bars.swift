@@ -135,6 +135,11 @@ struct VBar: View {
         .modifier(IslandAnchor())
         .background(RoundedRectangle(cornerRadius: G.radius).fill(lit ? Color.clear : solid ? Pal.cardSolid : Pal.surface))
         .overlay(RoundedRectangle(cornerRadius: G.radius).stroke(lit ? Color.clear : Pal.hairline, lineWidth: 1))
+        // A workspace joining or leaving the rail changes the size of its island. SwiftUI animates the size of each view with the animation in
+        // force at that view, so the animation of the rail's own view never reaches the island's surface or the clip that hosts the atom: they
+        // jumped to the new size at once, and on the way back in the surface cut across the capsule that was still moving. The island is given
+        // the capsule's own spring (WorkspacesFace.growth) for a change in the number of spaces, so its edge and the capsule move on one curve.
+        .animation(.spring(duration: 0.26, bounce: 0.14), value: store.spaces.count)
         .animation(.easeOut(duration: 0.18), value: lit)
         .modifier(EditSwell(on: cfg.editing))
         .reportFrame("isl:" + isl.id, cfg.editing)

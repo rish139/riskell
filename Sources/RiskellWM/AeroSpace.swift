@@ -49,17 +49,18 @@ public enum AeroSpace {
         return Snapshot(spaces: rail, windows: info)
     }
 
-    /// Workspaces the rail always shows; AeroSpace keeps nine persistent ones, so later ones show only while in use.
+    /// Workspaces the rail always shows; AeroSpace keeps nine persistent ones, so later ones show only while the rail reaches them.
     public static let alwaysShown = 5
 
-    /// The workspaces on the rail: the first `alwaysShown`, those holding a window, the focused one, and one empty workspace after the
-    /// last when all the others are in use.
+    /// The workspaces on the rail: 1 up to the five that always show, the highest one that holds a window, or the focused one, whichever is
+    /// furthest, with the empty ones between them as dim beads, as OmniWM's rail was. The rail never skips a workspace, so the capsule that
+    /// marks the focus goes one bead at a time as the focus goes through them, empty or not. When every workspace on the rail holds a window
+    /// the next one, empty, is offered too (a swipe or a drop can reach it).
     static func railUsed(windowSpaces: [Int], focused: Int?) -> Set<Int> {
         let busy = Set(windowSpaces)
-        var shown = busy.union(focused.map { [$0] } ?? []).union(1...alwaysShown)
-        // every workspace on the rail holds a window: the next one, empty, is offered too (a swipe or a drop can reach it)
-        if shown.allSatisfy({ busy.contains($0) }), let top = shown.max(), top < 9 { shown.insert(top + 1) }
-        return shown
+        var top = max(alwaysShown, busy.max() ?? 0, focused ?? 0)
+        if top < 9, (1...top).allSatisfy(busy.contains) { top += 1 }
+        return Set(1...top)
     }
 
     /// The non-empty lines of a plain-text call (`list-workspaces --focused` prints names, not JSON). nil when the output is not UTF-8.

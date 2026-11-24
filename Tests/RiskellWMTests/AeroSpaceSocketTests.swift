@@ -119,12 +119,39 @@ final class AeroSpaceSocketTests: XCTestCase {
         XCTAssertEqual(st.spaces.map(\.id), Array(1...6))
     }
 
-    func testAWindowOnSevenShowsSevenWithoutSix() throws {
-        XCTAssertEqual(try XCTUnwrap(rows(windowOn: 7, focused: 1)).spaces.map(\.id), [1, 2, 3, 4, 5, 7])
+    func testAWindowOnSevenShowsEveryWorkspaceUpToSeven() throws {
+        let st = try XCTUnwrap(rows(windowOn: 7, focused: 1))
+        XCTAssertEqual(st.spaces.map(\.id), Array(1...7))
+        XCTAssertEqual(st.spaces.map(\.windows), [0, 0, 0, 0, 0, 0, 1])      // six is a dim bead between, not a gap
     }
 
-    func testFocusOnEightShowsEightWithoutSixAndSeven() throws {
-        XCTAssertEqual(try XCTUnwrap(rows(windowOn: nil, focused: 8)).spaces.map(\.id), [1, 2, 3, 4, 5, 8])
+    func testFocusOnEightShowsEveryWorkspaceUpToEight() throws {
+        XCTAssertEqual(try XCTUnwrap(rows(windowOn: nil, focused: 8)).spaces.map(\.id), Array(1...8))
+    }
+
+    func testTheCapsuleGoesOneBeadAtATimeThroughEmptyWorkspaces() throws {
+        // the capsule sits on the focused bead: through the empty workspaces 5 to 9 it must step by one, and the rail may only grow at its end
+        var previous = 0
+        for focused in 1...9 {
+            let st = try XCTUnwrap(rows(windowOn: nil, focused: focused))
+            XCTAssertEqual(st.spaces.map(\.id), Array(1...max(5, focused)), "focus on \(focused)")
+            XCTAssertEqual(st.spaces.firstIndex { $0.focused }, focused - 1, "focus on \(focused)")
+            XCTAssertGreaterThanOrEqual(st.spaces.count, previous - 4)
+            previous = st.spaces.count
+        }
+    }
+
+    func testTheNextWorkspaceIsOfferedOnlyWhenEveryOneOnTheRailIsInUse() throws {
+        // windows on 1 to 7 and nothing else: the rail ends at an empty eighth; with a gap at four it does not
+        func rail(_ spaces: [Int]) throws -> [Int] {
+            let ws = (1...9).map { #"{"workspace":"\#($0)","workspace-is-focused":\#($0 == 1),"workspace-is-visible":\#($0 == 1)}"# }
+            let wins = spaces.enumerated().map { #"{"window-id":\#($0.offset + 1),"workspace":"\#($0.element)"}"# }
+            return try XCTUnwrap(AeroSpace.parse(workspaceRows: "[" + ws.joined(separator: ",") + "]",
+                                                 windowRows: "[" + wins.joined(separator: ",") + "]")).spaces.map(\.id)
+        }
+        XCTAssertEqual(try rail(Array(1...7)), Array(1...8))
+        XCTAssertEqual(try rail([1, 2, 3, 5, 6, 7]), Array(1...7))
+        XCTAssertEqual(try rail(Array(1...9)), Array(1...9))
     }
 
     func testWindowsKeepTheirFieldsAndNeverCarryFocus() throws {
