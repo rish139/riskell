@@ -1,1 +1,1 @@
-  ✓  sync  the lock's Swift files are regenerated
+  ✓  sync  the Swift files generated from both records are updated

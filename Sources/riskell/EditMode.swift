@@ -369,7 +369,7 @@ struct SettingsView: View {
 
     /// Only when an installed extension declares settings; nothing is drawn (and no space taken) otherwise.
     @ViewBuilder private var extensionsCard: some View {
-        if !installedSettings.isEmpty {
+        if !InstalledSettings.all.isEmpty {
             CollapsibleCard(title: "EXTENSIONS", open: bound($extOpen), summary: { Text(ExtensionsCard.summary()).font(T.sub) }) { ExtensionsCard() }
         }
     }

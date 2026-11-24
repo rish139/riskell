@@ -8,6 +8,9 @@
 set -e
 root=${0:A:h:h}
 self=$0      # $0 is the script here; inside a function zsh makes it the function's name
+# SwiftPM caches a manifest by its own text, and Package.swift reads extensions.local.json: without this a package installed for this
+# checkout alone would not reach the build until a tracked file changed.
+mcache=(--manifest-cache none)
 label=com.rish.riskell
 plist=$HOME/Library/LaunchAgents/$label.plist
 dom=gui/$(id -u)
@@ -78,13 +81,13 @@ IP
   codesign -f -s $id --identifier com.rish.riskell $app/Contents/MacOS/libnowplaying.dylib 2>/dev/null || true
   codesign -f -s $id --identifier com.rish.riskell $app 2>/dev/null || echo "unsigned (codesign failed)"
 }
-build() { (cd $root && swift build -c release 2>&1 | grep -E "error|Build complete" && bundle) }
+build() { (cd $root && swift build -c release ${mcache[@]} 2>&1 | grep -E "error|Build complete" && bundle) }
 
 # --- internal steps: `risk __step <name>`, called by riskell-ext (Sources/riskell-ext/Lifecycle.swift), never listed as a command ---
 # A step is quiet when it works and prints its diagnostics when it does not; its exit code is the failure. Swift owns the screen.
 step_build() {
   local log=$(mktemp) rc=0
-  (cd $root && swift build -c release) >$log 2>&1 || rc=$?
+  (cd $root && swift build -c release ${mcache[@]}) >$log 2>&1 || rc=$?
   if (( rc == 0 )); then bundle >>$log 2>&1 || rc=$?; fi
   (( rc == 0 )) || cat $log >&2
   rm -f $log
@@ -172,7 +175,7 @@ ext_tool() {
   # Built when missing and again when its sources are newer, so `risk dev` never runs a tool older than the checkout it is rebuilding.
   # Only in a git checkout: an installed copy (Homebrew's keg) has no .git, is not rebuilt, and must never write into itself.
   if [[ ! -x $tool || ( -e $root/.git && -n $(find $root/Sources/riskell-ext $root/Sources/RiskellTTY $root/Package.swift -newer $tool -print -quit 2>/dev/null) ) ]]; then
-    swift build -c release --product riskell-ext --package-path $root >/dev/null 2>&1 || return 1
+    swift build -c release --product riskell-ext --package-path $root ${mcache[@]} >/dev/null 2>&1 || return 1
   fi
   print -r -- $tool
 }
@@ -214,13 +217,13 @@ lifecycle() {
 setup_tool() {
   local tool=$root/.build/release/riskell-setup
   if [[ ! -x $tool || ( -e $root/.git && -n $(find $root/Sources/riskell-setup $root/Sources/RiskellTTY $root/Package.swift -newer $tool -print -quit 2>/dev/null) ) ]]; then
-    swift build -c release --product riskell-setup --package-path $root >/dev/null 2>&1 || return 1
+    swift build -c release --product riskell-setup --package-path $root ${mcache[@]} >/dev/null 2>&1 || return 1
   fi
   print -r -- $tool
 }
 app_tool() {
   local tool=$root/.build/release/riskell
-  [[ -x $tool ]] || swift build -c release --product riskell --package-path $root >/dev/null 2>&1 || return 1
+  [[ -x $tool ]] || swift build -c release --product riskell --package-path $root ${mcache[@]} >/dev/null 2>&1 || return 1
   print -r -- $tool
 }
 
@@ -266,13 +269,17 @@ case ${1:-} in
                          | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
                 fi
               fi
-              if [[ -f $root/extensions.lock.json ]]; then
+              # the compiled extensions in the build: what ships with riskell and what this checkout installed for itself, when that file is there
+              vlock=0
+              for lock in $root/extensions.lock.json $root/extensions.local.json; do
+                [[ -f $lock ]] || continue
                 if [[ -n ${JQ:-} && -x $JQ ]]; then
-                  vlock=$($JQ 'length' $root/extensions.lock.json 2>/dev/null || echo 0)
+                  n=$($JQ 'length' $lock 2>/dev/null || echo 0)
                 else
-                  vlock=$(grep -c '"entry"[[:space:]]*:' $root/extensions.lock.json 2>/dev/null || true)
+                  n=$(grep -c '"entry"[[:space:]]*:' $lock 2>/dev/null || true)
                 fi
-              fi
+                vlock=$(( vlock + ${n:-0} ))
+              done
               printf '{"riskell":"%s","kit":"%s","lock":%s}\n' "$vv" "$vkit" "${vlock:-0}"
               exit 0
             fi
@@ -314,18 +321,18 @@ case ${1:-} in
   log)      with_ext log "${@:2}" ;;   # the last few lines of the agent's log, or follow it: --follow, --json
   ctl)      with_ext ctl "${@:2}" ;;   # the socket words as commands, so scripting does not start with nc -U: ctl --list
   ext)      tool=$root/.build/release/riskell-ext      # validate | new | add | remove | list | sync: see docs/WRITING-EXTENSIONS.md
-            [[ -x $tool ]] || swift build -c release --product riskell-ext --package-path $root >/dev/null || exit 1
+            [[ -x $tool ]] || swift build -c release --product riskell-ext --package-path $root ${mcache[@]} >/dev/null || exit 1
             RISKELL_ROOT=$root $tool "${@:2}" && exit 0 || rc=$?
             [[ $rc == 10 ]] && exec $0 dev      # 10: a compiled extension was added, removed or updated, so the build changed
             exit $rc ;;
   tty)      tool=$root/.build/release/riskell      # the active theme's tokens: hex, json, or ansi for the terminal
-            [[ -x $tool ]] || swift build -c release --product riskell --package-path $root >/dev/null || exit 1
+            [[ -x $tool ]] || swift build -c release --product riskell --package-path $root ${mcache[@]} >/dev/null || exit 1
             exec $tool --palette "${@:2}" ;;
   status|doctor)   if [[ $2 == --launchctl ]]; then        # the raw launchctl lines, as this used to print them
                      launchctl print $dom/$label 2>/dev/null | grep -E "state|pid|last exit" || echo "not loaded"; exit 0
                    fi
                    tool=$root/.build/release/riskell-setup   # the report, its sections and --json live in the installer's binary
-                   [[ -x $tool ]] || swift build -c release --product riskell-setup --package-path $root >/dev/null || exit 1
+                   [[ -x $tool ]] || swift build -c release --product riskell-setup --package-path $root ${mcache[@]} >/dev/null || exit 1
                    exec $tool --doctor "${@:2}" ;;    # `--check` stays the installer's checklist; --doctor is the report
   wm)       [[ ${2:-} == use ]] && with_ext "$@"   # riskell-ext switches the backend; the rest below are the OmniWM helpers
             [[ $2 == omniwm || $2 == export || $2 == import ]] && ! -x ${JQ:-/nonexistent} && \

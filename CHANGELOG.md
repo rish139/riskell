@@ -5,6 +5,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [Unreleased]
 
 ### Added
+- `risk ext add --ship` and `risk ext remove --ship` write the tracked `extensions.lock.json`: the way a maintainer adds a package that ships
+  with riskell, or takes one out.
 - AeroSpace backend is a native socket client. One connection receives focus, workspace and window events, another sends commands, and
   no process starts per event, so the `exec-on-workspace-change` and `on-focus-changed` callbacks are no longer needed. Gestures under
   AeroSpace work too: AeroSpace has no swipe, so riskell sends the workspace switch and holds it until AeroSpace confirms.
@@ -21,6 +23,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   floating, as one of its own queries reports it. A window riskell moves itself is announced in the same request as the move.
 
 ### Changed
+- `risk ext add` and `risk ext remove` no longer touch a tracked file. A compiled package installed for local use goes into
+  `extensions.local.json` and the generated module `Local/Sources/RiskellLocal/`, both git-ignored; `Package.swift` reads the local record,
+  so a build passes `--manifest-cache none` (`scripts/risk` does), and the app links that module only when it is there, so a clean clone
+  builds exactly as before. `risk ext sync` regenerates the tracked files and `Local/`; with nothing local, the folder goes.
 - `risk status` follows the window manager that `wm` selects, not only OmniWM.
 - AeroSpace backend asks it less. A refresh is one request instead of two, a command and the queries that read back what it did are one
   request too, and an event that already names what changed (a focus change, a workspace switch, a navigation keybinding, a volume or

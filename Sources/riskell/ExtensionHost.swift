@@ -3,6 +3,10 @@ import Combine
 import RiskellKit
 import RiskellTTY
 
+#if canImport(RiskellLocal)
+import RiskellLocal       // the packages this checkout installed for itself (Local/, written by `risk ext sync`); absent on a clean clone
+#endif
+
 /// The app's side of RiskellKit (docs/EXTENSION-KIT.md): the hooks the kit calls, the feeds it offers, and the atoms of installed packages
 /// registered like any other. Nothing here runs when no package is installed.
 
@@ -195,6 +199,35 @@ struct ExtSetting: Identifiable {
     var id: String { ext + "." + key }
 }
 
+/// Every compiled package in the build: the ones that ship with riskell (Generated/InstalledPackages.swift) and, in a checkout that installed
+/// local packages, the ones in Local/Sources/RiskellLocal/LocalPackages.swift. A clone with neither compiles without that module, hence the
+/// `canImport`.
+enum InstalledPackages {
+    #if canImport(RiskellLocal)
+    static let all: [(id: String, package: any RiskellPackage.Type)] = installedPackages + localPackages
+    #else
+    static let all: [(id: String, package: any RiskellPackage.Type)] = installedPackages
+    #endif
+}
+
+/// The same two records for the settings the EXTENSIONS card shows. The local module is not the app, so it declares the same three kinds under
+/// its own name (`LocalSetting`) and they are mapped here, once, at the type boundary.
+enum InstalledSettings {
+    #if canImport(RiskellLocal)
+    static let all: [ExtSetting] = installedSettings + localSettings.map { s in
+        let kind: ExtSetting.Kind
+        switch s.kind {
+        case let .number(min, max, step, def): kind = .number(min: min, max: max, step: step, def: def)
+        case let .bool(def): kind = .bool(def: def)
+        case let .choice(options, def): kind = .choice(options, def: def)
+        }
+        return ExtSetting(ext: s.ext, key: s.key, label: s.label, kind: kind)
+    }
+    #else
+    static let all: [ExtSetting] = installedSettings
+    #endif
+}
+
 /// An id an extension may take: letters, digits, `-` and `_`, and nothing else.
 func plainExtensionID(_ id: String) -> Bool { !id.isEmpty && id.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" } }
 
@@ -222,7 +255,8 @@ enum ExtPrefs {
     }
 }
 
-/// The atoms of the packages in `installedPackages` (Generated/InstalledPackages.swift), as `AtomDef`s with the id `ext:<id>`.
+/// The atoms of every package in the build (`InstalledPackages`, i.e. Generated/InstalledPackages.swift and any local one), as `AtomDef`s
+/// with the id `ext:<id>`.
 enum PackageAtoms {
     private(set) static var all: [AtomDef] = build()
     /// Fresh atoms, which read the preferences again (after a setting changed).
@@ -237,7 +271,7 @@ enum PackageAtoms {
             return true
         }
         let off = Set(AppConfig.shared.disabledExtensions ?? [])
-        for p in installedPackages {
+        for p in InstalledPackages.all {
             if off.contains(p.id) { print("extensions: \"\(p.id)\" is disabled in config.json"); fflush(stdout); continue }
             for t in p.package.readings where ok(t.meta) { out.append(reading(t)) }
             for t in p.package.atoms where ok(t.meta) { out.append(custom(t)) }
@@ -284,7 +318,7 @@ enum ExtSelfTest {
             print(tty.tone(ok ? "PASS" : "FAIL", ok ? .ok : .crit) + " " + tty.tone(name, .text1))
             if !ok { bad += 1 }
         }
-        guard let s = installedSettings.first(where: { if case .number = $0.kind { return true } else { return false } }), case let .number(lo, hi, step, def) = s.kind else {
+        guard let s = InstalledSettings.all.first(where: { if case .number = $0.kind { return true } else { return false } }), case let .number(lo, hi, step, def) = s.kind else {
             let lines = tty.errorBlock(title: "no extension with a number setting is installed", detail: nil,
                                        tries: [("risk ext add Examples/load-ext", "install the working example")])
             FileHandle.standardError.write(Data((lines.joined(separator: "\n") + "\n").utf8))

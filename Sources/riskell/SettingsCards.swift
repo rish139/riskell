@@ -91,7 +91,7 @@ struct SpacingCard: View {
 struct ExtensionsCard: View {
     @ObservedObject private var theme = ThemeState.shared      // a write bumps the epoch, which redraws the values here
 
-    static var exts: [String] { var seen = Set<String>(); return installedSettings.map(\.ext).filter { seen.insert($0).inserted } }
+    static var exts: [String] { var seen = Set<String>(); return InstalledSettings.all.map(\.ext).filter { seen.insert($0).inserted } }
     static func summary() -> String { "\(exts.count) with settings" }
 
     var body: some View {
@@ -99,7 +99,7 @@ struct ExtensionsCard: View {
             ForEach(Self.exts, id: \.self) { e in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(e).font(T.sub).foregroundStyle(Pal.text4)
-                    ForEach(installedSettings.filter { $0.ext == e }) { row($0) }
+                    ForEach(InstalledSettings.all.filter { $0.ext == e }) { row($0) }
                 }
             }
         }

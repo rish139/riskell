@@ -1,2 +1,2 @@
-  ✓  load-ext  removed · the lock and the import list are updated
+  ✓  load-ext  removed · the local record and Local/ are updated
   next  risk dev  a compiled extension changed the build

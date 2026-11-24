@@ -401,7 +401,12 @@ fi
 want_version=$(cat VERSION)
 want_kit=$(awk '/"riskell-kit"/ { pin = 1 } pin && /"version"/ { print; exit }' Package.resolved \
              | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-want_lock=$(grep -c '"entry"[[:space:]]*:' extensions.lock.json || true)
+lock_entries() {   # the compiled extensions one record holds: what ships, and what this checkout installed for itself
+  local n=0
+  [ -f "$1" ] && n=$(grep -c '"entry"[[:space:]]*:' "$1" || true)
+  echo "${n:-0}"
+}
+want_lock=$(( $(lock_entries extensions.lock.json) + $(lock_entries extensions.local.json) ))
 want_json=$(printf '{"riskell":"%s","kit":"%s","lock":%s}' "$want_version" "$want_kit" "${want_lock:-0}")
 
 set +e
@@ -610,7 +615,20 @@ cp -R "$ext_root" "$T/ext-work"
 cp -R Examples/load-ext "$T/ext-work/load-ext"
 ext_work=(env "RISKELL_ROOT=$T/ext-work" "RISKELL_CONFIG=$ext_cfg/config.json" "RISKELL_REGISTRY=$T/ext-registry/index.json")
 ext_golden ext-add 10 'riskell-ext add <dir> (exit 10 rebuilds)' "${ext_work[@]}" "$X" add "$T/ext-work/load-ext"
+# An install is the checkout's own business: the local record and Local/ take it, and every file of the scratch checkout is as it was.
+if diff -q "$ext_root/extensions.lock.json" "$T/ext-work/extensions.lock.json" > /dev/null \
+   && grep -q '"id" : "load-ext"' "$T/ext-work/extensions.local.json" \
+   && grep -q '("load-ext", LoadExt.LoadPackage.self)' "$T/ext-work/Local/Sources/RiskellLocal/LocalPackages.swift"; then
+  pass ext-local 'an install writes extensions.local.json and Local/, and changes no tracked file'
+else
+  fail ext-local 'an install touched the scratch checkout: the lock, the local record or Local/ is not what it should be'
+fi
 ext_golden ext-remove 10 'riskell-ext remove (exit 10 rebuilds)' "${ext_work[@]}" "$X" remove load-ext
+if [ ! -e "$T/ext-work/extensions.local.json" ] && [ ! -e "$T/ext-work/Local" ]; then
+  pass ext-local 'the last remove takes the local record and Local/ with it'
+else
+  fail ext-local 'the last remove left extensions.local.json or Local/ behind'
+fi
 ext_golden ext-sync 0 'riskell-ext sync' "${ext_work[@]}" "$X" sync
 
 # The gestures screens. `--gestures-test` draws from fixed data, and `--status --json` reads throwaway domains named by the suffix, so

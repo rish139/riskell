@@ -91,7 +91,7 @@ func registry() -> [Listing] {
 }
 
 func installedIDs() -> Set<String> {
-    Set(loadLock(root()).map(\.id)).union(loadInstalled().map { $0["id"] as? String ?? "" })
+    Set(loadAllLocked(root()).map(\.id)).union(loadInstalled().map { $0["id"] as? String ?? "" })
 }
 
 /// `list`'s columns, in the table's own order: the name, the kind, the version and what it does. When a narrow terminal must lose a
@@ -134,7 +134,7 @@ func fileExtensionInUse(_ id: String, kind: String) -> Bool {
 /// What `risk ext list` prints: the compiled extensions from the lock, then the pill and theme files from the config folder.
 func installedRows(_ r: String) -> [InstalledRow] {
     var out: [InstalledRow] = []
-    for e in loadLock(r) {
+    for e in loadAllLocked(r) {
         // A lock written before the manifest's name, kind and summary were recorded still has its folder here, so read it there.
         let manifest = e.path.map { $0.hasPrefix("/") ? $0 : r + "/" + $0 }
             .flatMap { read($0 + "/riskell.json") }
@@ -305,7 +305,7 @@ func removeFiles(_ id: String) -> Bool {
 // MARK: add by name
 
 /// `risk ext add <name>`: the name is looked up in the registry and installed at the commit the listing pins.
-func addByName(_ name: String, yes: Bool = false) {
+func addByName(_ name: String, yes: Bool = false, ship: Bool = false) {
     guard let l = registry().first(where: { $0.id == name }) else {
         failBlock("\"\(name)\" is not in the registry", tries: [(cmd: "risk ext search <words>", note: "look at what is listed")])
     }
@@ -319,13 +319,13 @@ func addByName(_ name: String, yes: Bool = false) {
         guard let p = l.path, fm.fileExists(atPath: r + "/" + p) else {
             failBlock("\(l.id) ships with riskell but its folder is not in this checkout", tries: [(cmd: "git pull", note: "get the folder from the checkout")])
         }
-        add(r + "/" + p, rev: nil, version: l.version, expectID: l.id)
+        add(r + "/" + p, rev: nil, version: l.version, expectID: l.id, ship: ship)
         exit(needsRebuild)
     }
     switch l.kind {
     case "pill", "theme": installFiles(l, yes: yes)
     case "atom", "reading", "behaviour":
-        add(l.repo, rev: l.rev, version: l.version, expectID: l.id, yes: yes)
+        add(l.repo, rev: l.rev, version: l.version, expectID: l.id, yes: yes, ship: ship)
         exit(needsRebuild)
     default: fail("risk ext: kind \"\(l.kind)\" cannot be installed yet")
     }
@@ -338,13 +338,18 @@ func addByName(_ name: String, yes: Bool = false) {
 func update(_ args: [String]) {
     let yes = args.contains("--yes"), only = args.first(where: { !$0.hasPrefix("--") })
     let reg = registry(), r = root()
-    struct Item { let l: Listing; let from: String; let compiled: Bool }
+    struct Item { let l: Listing; let from: String; let compiled: Bool; let ship: Bool }
     var items: [Item] = []
-    for e in loadLock(r) where e.url != nil {
-        if let l = reg.first(where: { $0.id == e.id }), !l.bundled, l.rev != e.revision, only == nil || only == l.id { items.append(Item(l: l, from: e.revision ?? "", compiled: true)) }
+    // Each record is updated in its own place: one that ships stays in the tracked lock, one this checkout installed stays local.
+    for (ship, locked) in [(true, loadLock(r)), (false, loadLocalLock(r))] {
+        for e in locked where e.url != nil {
+            if let l = reg.first(where: { $0.id == e.id }), !l.bundled, l.rev != e.revision, only == nil || only == l.id {
+                items.append(Item(l: l, from: e.revision ?? "", compiled: true, ship: ship))
+            }
+        }
     }
     for e in loadInstalled() {
-        if let id = e["id"] as? String, let l = reg.first(where: { $0.id == id }), l.rev != e["rev"] as? String, only == nil || only == id { items.append(Item(l: l, from: e["rev"] as? String ?? "", compiled: false)) }
+        if let id = e["id"] as? String, let l = reg.first(where: { $0.id == id }), l.rev != e["rev"] as? String, only == nil || only == id { items.append(Item(l: l, from: e["rev"] as? String ?? "", compiled: false, ship: false)) }
     }
     let t = screen()
     if items.isEmpty {
@@ -358,7 +363,7 @@ func update(_ args: [String]) {
             requireValid(it.l)
             printAll(t.checks([(.ok, it.l.id, "updated · \(it.from.prefix(8)) -> \(it.l.rev.prefix(8)) · v\(it.l.version)", nil)]))
             if it.compiled {
-                add(it.l.repo, rev: it.l.rev, version: it.l.version, expectID: it.l.id, yes: true, next: false, announce: false)
+                add(it.l.repo, rev: it.l.rev, version: it.l.version, expectID: it.l.id, yes: true, next: false, announce: false, ship: it.ship)
                 rebuild = true
             } else { installFiles(it.l, yes: true, announce: false) }
         }

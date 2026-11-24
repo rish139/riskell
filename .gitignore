@@ -4,5 +4,8 @@
 *.png
 !docs/images/*.png
 !docs/images/store/*.png
+# what `risk ext add` writes for this checkout alone: a local install never changes a tracked file
+/extensions.local.json
+/Local/
 __pycache__/
 *.pyc

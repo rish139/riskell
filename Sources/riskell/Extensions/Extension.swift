@@ -114,7 +114,7 @@ enum Extensions {
     private static func installedBehaviours() -> [Installed] {
         let off = Set(AppConfig.shared.disabledExtensions ?? [])
         var seen = Set(available.map { $0.id }), out: [Installed] = []
-        for p in installedPackages where !off.contains(p.id) {
+        for p in InstalledPackages.all where !off.contains(p.id) {
             for t in p.package.behaviours {
                 guard plainExtensionID(t.id), seen.insert(t.id).inserted else {
                     print("extensions: ignoring behaviour \"\(t.id)\" (needs a unique plain id)"); fflush(stdout)

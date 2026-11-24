@@ -43,7 +43,8 @@ ok "search finds by keyword" "[[ \$($X search mytheme) == *mytheme* ]]"
 ok "info shows the pin" "[[ \$($X info load-ext) == *'pinned to'* ]]"
 $X add load-ext --yes >/dev/null 2>&1; rc=$?
 ok "a compiled add asks for a rebuild (exit 10)" "[[ $rc == 10 ]]"
-ok "the lock has it, with its version" "grep -q '\"version\" : \"1.0.0\"' $T/root/extensions.lock.json"
+# A compiled install is the scratch checkout's own: it goes to the git-ignored local record, and the tracked lock is untouched.
+ok "the local record has it, with its version" "grep -q '\"version\" : \"1.0.0\"' $T/root/extensions.local.json && ! grep -q load-ext $T/root/extensions.lock.json"
 ok "a pill is installed as a file" "$X add upinfo --yes >/dev/null 2>&1 && [[ -f $T/cfg/pills/upinfo.json ]]"
 ok "a theme is installed as a file" "$X add mytheme >/dev/null 2>&1 && [[ -f $T/cfg/themes/mytheme.yaml ]]"
 ok "list shows all three" "[[ \$($X list | grep -cE '^  .+  (load-ext|upinfo|mytheme) ') == 3 ]]"
