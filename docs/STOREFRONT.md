@@ -48,7 +48,7 @@ risk ext update [name] [--yes]      risk ext publish [dir]      risk ext list | 
 ```
 
 A name is looked up in the registry (`RISKELL_REGISTRY` points at another index: a URL, a file or a folder) and installed at the pinned commit. The
-manifest must agree with the listing or nothing is installed. Compiled kinds go into `extensions.lock.json` and need a rebuild (`risk` does it:
+manifest must agree with the listing or nothing is installed. Compiled kinds go into `extensions.local.json` and need a rebuild (`risk` does it:
 `riskell-ext` exits with status 10 to ask for it). Pills and themes are files copied into `~/.config/riskell/pills/` and `themes/`, applied live, and
 recorded in `~/.config/riskell/extensions.json`. `update` compares what the registry pins now with what is installed, shows the change between the two
 commits, and applies it only with `--yes`; nothing ever updates by itself. The index is cached, so `search` still works offline.

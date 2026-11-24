@@ -30,6 +30,13 @@ jobs:
           .build/release/riskell-ext validate Examples/load-ext
           (cd Examples/load-ext && swift build)
 
+      # an optional first-party extension, checked with the validator any extension author runs and with its own tests (a model of AeroSpace's
+      # tiling tree: no window manager runs here)
+      - name: The dwindle-aerospace extension
+        run: |
+          .build/release/riskell-ext validate Packages/dwindle-aerospace
+          (cd Packages/dwindle-aerospace && swift test)
+
       - name: Installer self-test and the checks that need no window
         run: |
           swift build -c release --product riskell-setup

@@ -1,0 +1,69 @@
+# The two binding modes dwindle-aerospace works with. Put both blocks in your aerospace.toml and keep your own keys in both of them: AeroSpace
+# cannot share bindings between modes. ctrl-alt is only the example's modifier; use yours, and the same names in dwindle-aerospace.json.
+#
+# 'main' is the plain set, and the mode AeroSpace is in whenever riskell is not running. 'riskell' is the same keys with the five that the
+# extension acts on bound to `true` (which does nothing; riskell reads the key). riskell puts AeroSpace in 'riskell' while it runs and back
+# in 'main' when it quits; `aerospace mode main` does it by hand if riskell ever dies.
+
+[mode.main.binding]
+    ctrl-alt-1 = 'workspace 1'
+    ctrl-alt-2 = 'workspace 2'
+    ctrl-alt-3 = 'workspace 3'
+    ctrl-alt-4 = 'workspace 4'
+    ctrl-alt-5 = 'workspace 5'
+    ctrl-alt-6 = 'workspace 6'
+    ctrl-alt-7 = 'workspace 7'
+    ctrl-alt-8 = 'workspace 8'
+    ctrl-alt-9 = 'workspace 9'
+
+    # walking the workspaces without riskell (in the riskell mode the focus arrows do it, past the edge of a workspace)
+    ctrl-left = 'workspace prev'
+    ctrl-right = 'workspace next'
+
+    ctrl-alt-left = 'focus left'
+    ctrl-alt-down = 'focus down'
+    ctrl-alt-up = 'focus up'
+    ctrl-alt-right = 'focus right'
+
+    # the keys the extension acts on, as AeroSpace's own commands here
+    ctrl-alt-shift-left = 'move left'
+    ctrl-alt-shift-down = 'move down'
+    ctrl-alt-shift-up = 'move up'
+    ctrl-alt-shift-right = 'move right'
+    ctrl-alt-r = 'balance-sizes'
+
+    ctrl-alt-f = 'fullscreen'
+    ctrl-alt-shift-f = 'layout floating tiling'
+    ctrl-alt-period = 'layout tiles horizontal vertical'
+    ctrl-alt-equal = 'resize smart +50'
+    ctrl-alt-minus = 'resize smart -50'
+
+[mode.riskell.binding]
+    ctrl-alt-1 = 'workspace 1'
+    ctrl-alt-2 = 'workspace 2'
+    ctrl-alt-3 = 'workspace 3'
+    ctrl-alt-4 = 'workspace 4'
+    ctrl-alt-5 = 'workspace 5'
+    ctrl-alt-6 = 'workspace 6'
+    ctrl-alt-7 = 'workspace 7'
+    ctrl-alt-8 = 'workspace 8'
+    ctrl-alt-9 = 'workspace 9'
+
+    # unchanged: the extension adds the edge of the workspace to these
+    ctrl-alt-left = 'focus left'
+    ctrl-alt-down = 'focus down'
+    ctrl-alt-up = 'focus up'
+    ctrl-alt-right = 'focus right'
+
+    # the keys the extension acts on: `true` does nothing, and the extension reads the key
+    ctrl-alt-shift-left = 'true'
+    ctrl-alt-shift-down = 'true'
+    ctrl-alt-shift-up = 'true'
+    ctrl-alt-shift-right = 'true'
+    ctrl-alt-r = 'true'
+
+    ctrl-alt-f = 'fullscreen'
+    ctrl-alt-shift-f = 'layout floating tiling'
+    ctrl-alt-period = 'layout tiles horizontal vertical'
+    ctrl-alt-equal = 'resize smart +50'
+    ctrl-alt-minus = 'resize smart -50'

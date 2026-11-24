@@ -13,7 +13,7 @@ An extension is a git repo with a `riskell.json` manifest. Pick the smallest kin
 | new colours | `theme` | no | `risk ext new theme <name>` |
 | a figure, gauge and hover card from Swift code | `reading` | yes | `risk ext new reading <name>` |
 | your own drawing (both bar forms) | `atom` | yes | `risk ext new atom <name>` |
-| a background capability (input, automation) | `behaviour` | yes | built; not scaffolded, and waits for a review policy |
+| a background capability (input, automation) | `behaviour` | yes | built; not scaffolded, and waits for a review policy (`Packages/dwindle-aerospace` is the worked example) |
 
 Publishing an extension needs no agreement: it lives in its own repository under its author's license.
 

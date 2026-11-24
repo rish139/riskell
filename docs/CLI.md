@@ -112,14 +112,14 @@ add, update, remove, validate and publish extensions
 - subcommands:
   - `search`: search what the registry lists
   - `info`: show one listing by name
-  - `add`: install one by name, folder or git url
+  - `add`: install one by name, folder or git url; --ship writes the tracked lock
   - `update`: install what the registry pins now
   - `publish`: check it is ready to be listed
-  - `remove`: take it out again
+  - `remove`: take it out again; --ship takes a shipped one out of the tracked lock
   - `list`: list what is installed
   - `validate`: check a folder against the rules
   - `new`: scaffold a reading, atom, pill or theme
-  - `sync`: regenerate the lock's Swift files
+  - `sync`: regenerate the Swift files the two records produce
 
 ### `risk completions <zsh|fish|bash>`
 

@@ -22,10 +22,15 @@ runtime: no Qt, no QML, no web view. Ports are mechanical or algorithmic first; 
 
 ## Before a wider release
 
-- Verification on other Apple-silicon Macs and window managers ([`UNVERIFIED.md`](UNVERIFIED.md)): yabai, AeroSpace, command actions, other
-  displays, macOS 14 and 15, a clean-machine install.
+- Verification on other Apple-silicon Macs and window managers ([`UNVERIFIED.md`](UNVERIFIED.md)): yabai, command actions, AeroSpace on several
+  monitors, other displays, macOS 14 and 15, a clean-machine install.
 - `behaviour` extensions from outside the application: the kind is built and `risk ext add` installs one, but scaffolding (`risk ext
   new behaviour`) and listing wait for a review policy.
+- **The first behaviour listed from a repository of its own.** [`Packages/dwindle-aerospace`](../Packages/dwindle-aerospace/README.md) is a
+  first-party package today. It imports only `RiskellKit` and passes the same validator as an outside extension, so moving it is a subtree
+  split and a listing, and it would show the extension model carrying a real behaviour. Three things come first: a compiled extension installed
+  from a real repository and built (the `UNVERIFIED.md` row on registry installs), the review policy, and a way for an extension to say which
+  riskell version it needs (today the kit version it requires is the only gate).
 - A CI step that builds `riskell-ext` from a pinned commit, instead of the registry's current unpinned `main`.
 
 ## Later

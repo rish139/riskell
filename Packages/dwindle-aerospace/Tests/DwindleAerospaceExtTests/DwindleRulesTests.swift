@@ -3,7 +3,7 @@
 
 import XCTest
 import RiskellKit
-@testable import DwindleExt
+@testable import DwindleAerospaceExt
 
 private func state(_ windows: [(id: Int, workspace: String, floating: Bool)],
                    focused: String? = "1",

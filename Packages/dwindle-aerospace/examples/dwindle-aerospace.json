@@ -1,0 +1,9 @@
+{
+  "moveLeftKey": "ctrl-alt-shift-left",
+  "moveRightKey": "ctrl-alt-shift-right",
+  "moveUpKey": "ctrl-alt-shift-up",
+  "moveDownKey": "ctrl-alt-shift-down",
+  "focusLeftKey": "ctrl-alt-left",
+  "focusRightKey": "ctrl-alt-right",
+  "tidyKey": "ctrl-alt-r"
+}

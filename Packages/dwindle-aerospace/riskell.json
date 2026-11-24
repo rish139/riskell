@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/rish139/riskell/main/schemas/riskell-extension.schema.json",
+  "id": "dwindle-aerospace",
+  "kind": "behaviour",
+  "name": "Dwindle (AeroSpace)",
+  "version": "1.0.0",
+  "kit": "^0.8",
+  "license": "FSL-1.1-MIT",
+  "summary": "Dwindle-style tiling for AeroSpace: windows split, merge and leave rows and columns by key, and hop to the next workspace.",
+  "module": "DwindleAerospaceExt",
+  "entry": "DwindleAerospacePackage"
+}

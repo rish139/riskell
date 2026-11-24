@@ -13,7 +13,7 @@ next is `docs/ROADMAP.md`; what has not been tested on real hardware is `docs/UN
 - `Services/`: data and system access. `AppConfig.swift` (`~/.config/riskell/config.json`), `ConfigWatcher.swift` (live reload of config, pill
   files, theme files), window-manager backends (`Omni`, `Yabai`, `AeroSpace` (a socket client; its wire format is in `RiskellWM/AeroSpaceSocket.swift`), `CommandWM`, `NoWM` behind `WindowManager`), `AeroGaps` with `WindowBook` for AeroSpace's frames and outer gaps, `RiskellWM/AeroSpaceHooks.swift` for what a manager hook is handed and for the requests its commands travel in, `Pills.swift`,
   `Sys` (battery and volume, for the feeds), `NowPlaying`, `Compat.swift` (version pill and checks).
-- `Packages/`: the atoms that have moved out of the app, each a package on the kit and installed by `extensions.lock.json`: `clock`, `weather`, `usage`, `system` (battery, CPU and fans, one package because their cards read each other's numbers), `volume`, `network` and `windows` (workspaces and the app icon). No atom is built into the application.
+- `Packages/`: the atoms that have moved out of the app, each a package on the kit and installed by `extensions.lock.json`: `clock`, `weather`, `usage`, `system` (battery, CPU and fans, one package because their cards read each other's numbers), `volume`, `network` and `windows` (workspaces and the app icon). No atom is built into the application. `dwindle-aerospace` is there too, a behaviour that is installed with `risk ext add` and is not in the lock.
 - `Extensions/`: optional extensions with a start/stop lifecycle. `Gestures/` (Touch, ScrollGuard) is off by default and starts nothing
   when off. `Extension.swift` also runs the behaviours of the installed packages (`RiskellPackage.behaviours`): one starts while its
   package is installed, not disabled, and riskell runs the window manager it names, and it is stopped when any of that changes.
@@ -22,8 +22,9 @@ next is `docs/ROADMAP.md`; what has not been tested on real hardware is `docs/UN
   popout hook, `ReadingAtom`/`CustomAtom`/`Env`/feeds. The app depends on it by URL (`Package.swift`); so does every extension. To change the
   kit and the app together, check the kit out next to this repository and run `swift package edit riskell-kit --path ../riskell-kit`
   (`swift package unedit riskell-kit` to go back).
-- `Sources/riskell-ext/`: the extension CLI, run as `risk ext` (`validate`, `new`, `add`, `remove`, `list`, `search`, `info`, `update`, `publish`, `sync`). `extensions.lock.json` and a generated block in
-  `Package.swift` link installed extensions into the binary; `Sources/riskell/Generated/` holds the generated import list.
+- `Sources/riskell-ext/`: the extension CLI, run as `risk ext` (`validate`, `new`, `add`, `remove`, `list`, `search`, `info`, `update`, `publish`, `sync`). `extensions.lock.json` (what ships) and
+  `extensions.local.json` (what this checkout installed, git-ignored) with a generated block in `Package.swift` link installed extensions into the binary;
+  `Sources/riskell/Generated/` holds the generated import list and `Local/` the generated one for local packages.
   `Examples/load-ext` is the working example; `schemas/` holds the manifest schema.
 - `Sources/riskell-setup/`: the guided terminal installer, a second small executable (Foundation only).
 - `scripts/`: `risk` (control script: install, dev, restart, log, status, wm, ext), `idle-cpu`, `scrub-check.sh`, `try-installer`, generators.

@@ -11,6 +11,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   runs, again after the manager restarts, and back in `main` when the behaviour stops or riskell quits. dwindle-aerospace's keys (the move keys and the
   tidy key, bound to `true` for it to act on) are in a `riskell` mode, and `main` keeps the plain keys, so AeroSpace is usable whenever riskell is not
   running; `aerospace mode main` restores them by hand. Reloading the AeroSpace config keeps the mode and moves no window.
+- dwindle's move keys (kit 0.8.0): a move is two steps in one direction. A window in a group running across the direction first leaves it and
+  becomes a row or column of its own; the next press merges it with what is beside it (stacking it with a single window, or entering a group
+  next to the member level with it); at the edge of the workspace nothing happens. AeroSpace's own `move` swaps with a single window and, at the
+  edge, wraps the layout in a new container. The layout is read from the windows' rectangles on screen and is never rebuilt. A hook asks for the
+  rectangles per event (`ManagerHook.needsFrames(for:)`), and riskell reads them (one window-server call) only then, so only the move keys cost
+  anything.
+- dwindle: a column of its own at the left or right edge of a workspace goes to the next workspace that way when it is moved further, and the focus
+  goes with it (the first column there when it went right, the last when it went left). With the two focus keys set, focusing past the edge of a
+  workspace moves the focus to the next workspace's window nearest that edge, or to the workspace when it is empty; AeroSpace's own `focus` keeps
+  doing the move everywhere else.
+- The dwindle package is `dwindle-aerospace` (display name "Dwindle (AeroSpace)", module `DwindleAerospaceExt`, settings file `~/.config/riskell/ext/dwindle-aerospace.json`).
 - AeroSpace backend is a native socket client. One connection receives focus, workspace and window events, another sends commands, and
   no process starts per event, so the `exec-on-workspace-change` and `on-focus-changed` callbacks are no longer needed. Gestures under
   AeroSpace work too: AeroSpace has no swipe, so riskell sends the workspace switch and holds it until AeroSpace confirms.

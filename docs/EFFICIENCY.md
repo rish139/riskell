@@ -84,3 +84,12 @@ Splitting the design tokens, primitives and reading renderer into RiskellKit, an
   bar and on a switched-off right bar, 9 s runs. On the top bar: 9 readings, 5 runs. On the switched-off bar before the fix: 9 and 5 (a
   bar that is off is a window at alpha 0 with live views, so `onAppear` fired anyway). After the fix (`BarActivity`: an atom attaches only
   while its bar shows; a fade-out is waited out, 0.3 s): 0 and 0. Fullscreen Spaces hide the bars the same way and now stop them too.
+- **AeroSpace backend and the dwindle keys:** measured by running the built riskell against a stand-in for AeroSpace's socket (it answers from a
+  snapshot of a real session and logs every request) with a counter on the window-server calls, over nine scenarios. Idle: 0 requests, 0 calls.
+  A focus change, a workspace-switch key and a key that is not the behaviour's own: 0 requests. Each dwindle key, the tidy key and a new window:
+  exactly one request, with the commands and the two state queries in the same `eval`. Findings and what they led to: every focus event made two
+  window-server calls that each listed all ninety-five windows on the system (3.2 ms a call, 20 focus events in 0.6 s took 91 ms of waiting); they
+  now describe only riskell's own windows (1.1 ms a call, 30 ms for the same burst; 0.25 ms against 2.4 ms for one call alone). A held resize key
+  sent 19 requests a second, each making AeroSpace lay out the windows, although sizes and the fullscreen flag are in no row riskell reads; `resize`,
+  `balance-sizes` and `fullscreen` now ask for nothing (0 a second). Riskell's own CPU did not move in either case: it waits on the window server,
+  and the saving is that wait and the window server's work. The window server's CPU was not measured.

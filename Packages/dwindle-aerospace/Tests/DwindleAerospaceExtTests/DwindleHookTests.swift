@@ -3,7 +3,7 @@
 
 import XCTest
 import RiskellKit
-@testable import DwindleExt
+@testable import DwindleAerospaceExt
 
 final class DwindleHookTests: XCTestCase {
     /// A workspace holding three tiling windows: 1 and 2 are there, 9 has just arrived.
@@ -15,20 +15,21 @@ final class DwindleHookTests: XCTestCase {
         focusedWindow: 9,
         focusedWorkspace: "1")
 
-    private func dwindle(_ settings: [String: Any] = [:]) -> Dwindle {
-        let d = Dwindle()
-        _ = d.start(Env(id: "dwindle", prefs: Prefs(json: settings)))
+    private func dwindle(_ settings: [String: Any] = [:]) -> DwindleAerospace {
+        let d = DwindleAerospace()
+        _ = d.start(Env(id: "dwindle-aerospace", prefs: Prefs(json: settings)))
         return d
     }
 
     func testItIsDwindleAndWorksWithAeroSpaceOnly() {
-        XCTAssertEqual(Dwindle.id, "dwindle")
-        XCTAssertEqual(Dwindle.manager, "aerospace")
-        XCTAssertEqual(DwindlePackage.behaviours.map { $0.id }, ["dwindle"])
+        XCTAssertEqual(DwindleAerospace.id, "dwindle-aerospace")
+        XCTAssertEqual(DwindleAerospace.manager, "aerospace")
+        XCTAssertEqual(DwindleAerospace().bindingMode, "riskell")
+        XCTAssertEqual(DwindleAerospacePackage.behaviours.map { $0.id }, ["dwindle-aerospace"])
     }
 
     func testItAsksForArrivalsAndTheTidyBinding() {
-        let events = Dwindle().events
+        let events = DwindleAerospace().events
         XCTAssertEqual(events, ["window-detected", "window-arrived", "binding-triggered"])
     }
 
@@ -67,13 +68,13 @@ final class DwindleHookTests: XCTestCase {
 
     func testNothingHappensBeforeItStarts() {
         // riskell starts a behaviour before it registers it as a hook, so this is only the state it never runs in
-        XCTAssertEqual(Dwindle().commands(for: ManagerEvent(name: "binding-triggered", fields: ["binding": "alt-shift-t"]), in: state), [])
+        XCTAssertEqual(DwindleAerospace().commands(for: ManagerEvent(name: "binding-triggered", fields: ["binding": "alt-shift-t"]), in: state), [])
     }
 
     func testTheKeyIsReadAgainWhenItStartsAgain() {
         let d = dwindle(["tidyKey": "alt-ctrl-t"])
         XCTAssertEqual(d.commands(for: ManagerEvent(name: "binding-triggered", fields: ["binding": "alt-ctrl-t"]), in: state).count, 1)
-        _ = d.start(Env(id: "dwindle", prefs: Prefs(json: ["tidyKey": "alt-shift-t"])))
+        _ = d.start(Env(id: "dwindle-aerospace", prefs: Prefs(json: ["tidyKey": "alt-shift-t"])))
         XCTAssertEqual(d.commands(for: ManagerEvent(name: "binding-triggered", fields: ["binding": "alt-shift-t"]), in: state).count, 1)
         XCTAssertEqual(d.commands(for: ManagerEvent(name: "binding-triggered", fields: ["binding": "alt-ctrl-t"]), in: state), [])
     }

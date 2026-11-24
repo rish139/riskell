@@ -20,12 +20,12 @@ with an extension kit: four ways to add your own, checked by a validator.
 <a href="#what-is-tested">What's tested</a> ·
 <a href="#documentation">Docs</a>
 
-<sub><code>v0.1.2</code> &nbsp;·&nbsp; early release, in daily use on one Mac &nbsp;·&nbsp; macOS 14+ &nbsp;·&nbsp; Apple silicon &nbsp;·&nbsp; FSL-1.1-MIT</sub>
+<sub><code>v0.3.1</code> &nbsp;·&nbsp; early release, in daily use on one Mac &nbsp;·&nbsp; macOS 14+ &nbsp;·&nbsp; Apple silicon &nbsp;·&nbsp; FSL-1.1-MIT</sub>
 
 </div>
 
-> **Early release.** riskell runs as the real bar on the author's Mac every day. Other Macs, window managers and macOS versions are
-> untested, and the extension system is new. [What is tested and what is not](#what-is-tested) lists every case, and
+> **Early release.** riskell runs as the real bar on the author's Mac every day, on top of AeroSpace. Other Macs, macOS versions and
+> several of the window-manager paths are untested, and the extension system is new. [What is tested and what is not](#what-is-tested) lists every case, and
 > [docs/UNVERIFIED.md](docs/UNVERIFIED.md) gives the steps to try each one. Reports from other setups are the most useful contribution
 > right now.
 
@@ -51,7 +51,8 @@ rejects the three ways that usually break: a hard-coded colour, a fixed pixel si
 | Quickshell, AGS | The same idea as riskell, on Wayland | QML, TypeScript |
 
 It is not a window manager and does not tile windows; it works alongside one. It is not a launcher, and it is not a fixed set of widgets.
-[OmniWM](https://github.com/OmniNull/OmniWM) is the reference integration; yabai, AeroSpace and your own scripts work too, and
+[AeroSpace](https://github.com/nikitabobko/AeroSpace) is the window manager riskell is run on and tested with;
+[OmniWM](https://github.com/OmniNull/OmniWM), which it was run on before, is still supported; yabai and your own scripts work too, and
 [each is marked with what it is worth](#window-managers).
 
 ---
@@ -188,12 +189,14 @@ space, so they do not slide when the Space changes, and they hide on native full
 **A notch-aware top bar.** One wing on each side that shrinks, then drops its least important islands, to fit. On a Mac without a notch the
 bar sits under the menu bar with a stand-in gap. Now-playing media lives in the wings: the application icon on the left, play and pause on
 the right, shown while media plays and for up to 15 minutes after it pauses.
+With the menu bar set to hide itself, the top bar steps under it when the pointer touches the top edge, and stays there while a menu
+(File, the Apple menu, the Control Center) is open, however far down the pointer goes into it.
 
 **Windows stay clear of the bars.** A bar cannot reserve screen space on macOS — only the window manager can — so riskell writes the gaps instead of
 moving your windows itself, after backing up the settings file the first time. When the number drifts (a second instance, a WM update, a
 settings reset) the top bar says `FIX` and names the value it found.
 
-**Version tracking.** riskell records the macOS and OmniWM versions it was last checked against. Anything else gets one pill
+**Version tracking.** riskell records the macOS version, and the version of the window manager in use (AeroSpace or OmniWM), it was last checked against. Anything else gets one pill
 in the top bar, only while it differs: `UPDATE DUE · macOS 27.3`, or `FIX · OmniWM workspaceSwipeEnabled = true` for a setting that an
 OmniWM update reset. Nothing is drawn when all is as verified.
 
@@ -217,7 +220,7 @@ about a third of a second. `wm`, `scale` and `disabledExtensions` are read at la
 
 **Workspaces and windows.** An overview with live window pictures, the focused workspace outlined, a slot for a new workspace,
 find-as-you-type, drag-and-drop of windows between workspaces and middle-click to close one. riskell's own bars are drawn inside each tile.
-OmniWM is read over its IPC socket with no polling. Optional three-finger gestures: sideways to switch workspace with the rail following the
+AeroSpace and OmniWM are read over their sockets with no polling and no process started per event. Optional three-finger gestures: sideways to switch workspace with the rail following the
 fingers, up for the overview, plus a scroll guard so the window under the pointer does not move. Gestures that conflict with macOS's own are
 detected and reported, one `FIX` pill each.
 
@@ -265,8 +268,13 @@ Four kinds are open today, from no code to custom drawing:
 | a figure, gauge and hover card in Swift | a **reading** atom | yes | an hour |
 | your own drawing, in both bar forms | an **atom** | yes | an afternoon |
 
-A **preset** (layout + pills + theme + extensions in one bundle) and a **behaviour** (a background capability) are designed; neither is open
-to outsiders yet. [docs/EXTENSION-KIT.md](docs/EXTENSION-KIT.md) has the details.
+A **preset** (layout + pills + theme + extensions in one bundle) is designed and not open yet. A **behaviour** (a background capability, with the
+window manager's own commands) is built and one ships as an optional package, [dwindle-aerospace](Packages/dwindle-aerospace/README.md); behaviours
+from outside wait for a review policy. [docs/EXTENSION-KIT.md](docs/EXTENSION-KIT.md) has the details.
+
+`risk ext add <name or folder>` installs a compiled extension for your checkout alone: it is written to two git-ignored files (`extensions.local.json`
+and the generated `Local/` module), never to a file the repository tracks, so a local install cannot be committed by accident. What ships with
+riskell is `extensions.lock.json`, written only by `risk ext add --ship`.
 
 ![An extension: a reading atom, a hand-drawn atom, their cards, and both on a strip](docs/images/extension.png)
 
@@ -385,9 +393,9 @@ each one still enabled. The installer can turn the macOS gestures off, and `risk
 
 | `wm` | Status |
 |---|---|
-| `omniwm` (or `auto` when OmniWM is installed) | In daily use. Workspaces, windows and focus over its IPC. riskell keeps its `gaps.outer` in step with the bars that are on, after a backup on the first change. |
+| `aerospace` | The one riskell is run on. Workspaces, windows and focus from its socket events, the overview, the outer gaps written into `aerospace.toml` (after a backup, reloaded for you), and hooks for extensions ([dwindle-aerospace](Packages/dwindle-aerospace/README.md) is one). Tested with AeroSpace 0.21.3-Beta on one display; several monitors, named workspaces and the swipe are still open ([docs/UNVERIFIED.md](docs/UNVERIFIED.md)). |
+| `omniwm` (or `auto` when OmniWM is installed) | Tested with OmniWM 0.8.0 (IPC protocol 22), the one riskell was run on before AeroSpace. Workspaces, windows and focus over its IPC. riskell keeps its `gaps.outer` in step with the bars that are on, after a backup on the first change. |
 | `yabai` | Written from yabai's documentation. **Not tested.** |
-| `aerospace` | Written from AeroSpace's documentation. **Not tested.** |
 | `command` | Your own scripts: one prints the state as JSON, others handle focus, move and close ([docs/WM-COMMAND.md](docs/WM-COMMAND.md)). The state side is tested; the actions are not. |
 | `none` | Bars without workspaces. |
 
@@ -420,9 +428,10 @@ or commands you ran. Your settings stay in `~/.config/riskell/` and are never pa
 
 | Level | Detail |
 |---|---|
-| **In daily use** | One Apple-silicon MacBook Pro 14-inch (M1 Max), macOS 27.2 (26B123), OmniWM 0.8.0 (IPC protocol 22): bars, atoms and cards, the editor, themes, pills, the overview, OmniWM integration and the three-finger swipe. |
+| **In daily use** | One Apple-silicon MacBook Pro 14-inch (M1 Max), macOS 27.2 (26B123), AeroSpace 0.21.3-Beta (socket protocol 1): bars, atoms and cards, the editor, themes, pills, the overview, the AeroSpace integration with its workspace rail, and the dwindle-aerospace extension. |
+| **Tested earlier, not run now** | OmniWM 0.8.0 (IPC protocol 22): its integration and the three-finger swipe. |
 | **Checked numerically and by rendered pictures** | Other screen sizes and scales, and screens without a notch, using fake displays (`riskell --check-fit`, `--check-panel`). |
-| **Written, not tested** | The yabai, AeroSpace and command backends; macOS 14 and 15; a clean-machine install; connecting or disconnecting a monitor while running; dragging windows in the overview at other scales. |
+| **Written, not tested** | The yabai and command backends; AeroSpace on several monitors, with named workspaces and with the swipe; macOS 14 and 15; a clean-machine install; connecting or disconnecting a monitor while running; dragging windows in the overview at other scales. |
 
 [docs/UNVERIFIED.md](docs/UNVERIFIED.md) lists each one with the steps to try it.
 
@@ -442,7 +451,7 @@ Nothing here is a commitment and the order is not fixed; [docs/ROADMAP.md](docs/
   ([docs/ROADMAP.md](docs/ROADMAP.md)).
 
 **Before a wider release**
-- [ ] Testing on other Apple-silicon Macs and macOS versions (14 and 15), and with yabai and AeroSpace.
+- [ ] Testing on other Apple-silicon Macs and macOS versions (14 and 15), and with yabai.
 - [x] A Homebrew tap: `brew tap rish139/riskell && brew install riskell`, then `risk install`.
 
 **Framework**
@@ -508,6 +517,15 @@ the Accessibility permission, and until it is granted riskell retries every 3 se
 
 </details>
 
+<details>
+<summary><b>The move arrows or the tidy key do nothing (dwindle-aerospace)</b></summary>
+
+Those keys are bound to `true` in AeroSpace's `riskell` binding mode, and the extension acts on them; riskell puts AeroSpace in that mode while it
+runs. If riskell has died, AeroSpace stays in the mode and the keys do nothing until riskell is back. `aerospace mode main` puts the plain keys
+back at once. [The extension's README](Packages/dwindle-aerospace/README.md) has the rest, including how to keep the two key sets in step.
+
+</details>
+
 ---
 
 ## Documentation
@@ -516,7 +534,7 @@ the Accessibility permission, and until it is granted riskell retries every 3 se
 |---|---|
 | Using it | [BARS](docs/BARS.md) (bars, layout, editor, snapshots) · [CONFIG](docs/CONFIG.md) · [PILLS](docs/PILLS.md) · [THEMES](docs/THEMES.md) · [GESTURES](docs/GESTURES.md) · [INSTALL](docs/INSTALL.md) |
 | Window managers and compatibility | [COMPATIBILITY](docs/COMPATIBILITY.md) · [WM-COMMAND](docs/WM-COMMAND.md) · [UNVERIFIED](docs/UNVERIFIED.md) |
-| Extending | [AGENTS](AGENTS.md) · [WRITING-EXTENSIONS](docs/WRITING-EXTENSIONS.md) · [KIT-API](https://github.com/rish139/riskell-kit/blob/main/docs/KIT-API.md) · [EXTENSION-KIT](docs/EXTENSION-KIT.md) · [STOREFRONT](docs/STOREFRONT.md) |
+| Extending | [AGENTS](AGENTS.md) · [WRITING-EXTENSIONS](docs/WRITING-EXTENSIONS.md) · [dwindle-aerospace](Packages/dwindle-aerospace/README.md) · [KIT-API](https://github.com/rish139/riskell-kit/blob/main/docs/KIT-API.md) · [EXTENSION-KIT](docs/EXTENSION-KIT.md) · [STOREFRONT](docs/STOREFRONT.md) |
 | Working on it | [ARCHITECTURE](docs/ARCHITECTURE.md) · [EFFICIENCY](docs/EFFICIENCY.md) · [ROADMAP](docs/ROADMAP.md) · [CONTRIBUTING](CONTRIBUTING.md) |
 
 The pictures in this document are produced by `scripts/make-screenshots` from fake data, so they can be regenerated after a change.

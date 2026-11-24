@@ -18,7 +18,7 @@ result the only easy one (the API has no way to say "wrong"), not from reviewing
 | RiskellKit, in [its own repository](https://github.com/rish139/riskell-kit) (tokens, primitives, reading renderer, popout hook, extension API, feeds) | built; the app depends on it by URL |
 | the app draws pills and extension readings with the same kit code | built; snapshots identical to before the split |
 | `reading` and `atom` extensions, linked through `extensions.lock.json` | built, tested end to end (`Examples/load-ext`) |
-| built-in atoms moved out: every atom that ships with riskell is a package in `Packages/` (kit 0.2.0 `PopState`, 0.3.0 `env.config` and `env.cache`, 0.4.0 `Demo` and `onRightClick`, 0.5.0 `onScrollSteps` and `AppHooks`, 0.6.0 `WindowsModel`, `RailState` and `WindowActions`, 0.7.0 `Behaviour` and `ManagerHook`) | built; placed as `ext:clock`, an older layout.json's `clock` is read as it |
+| built-in atoms moved out: every atom that ships with riskell is a package in `Packages/` (kit 0.2.0 `PopState`, 0.3.0 `env.config` and `env.cache`, 0.4.0 `Demo` and `onRightClick`, 0.5.0 `onScrollSteps` and `AppHooks`, 0.6.0 `WindowsModel`, `RailState` and `WindowActions`, 0.7.0 `Behaviour` and `ManagerHook`, 0.8.0 `ManagedWindow.frame`) | built; placed as `ext:clock`, an older layout.json's `clock` is read as it |
 | `risk ext` (`validate`, `new`, `add`, `remove`, `list`, `search`, `info`, `update`, `publish`, `sync`) | built |
 | `schemas/riskell-extension.schema.json`, `AGENTS.md`, `docs/WRITING-EXTENSIONS.md` | written |
 | settings card in riskell preferences (EXTENSIONS) | built: `settings` in the manifest, written to `~/.config/riskell/ext/<id>.json`, applies at once; `riskell --ext-selftest` |
@@ -51,10 +51,18 @@ validation, notarization) and not separate processes (a process and IPC per exte
 
 - The kit is **its own repository** so the app can depend on extensions and extensions on the kit with no cycle. Both the app and every
   extension depend on it by URL and version (`.upToNextMinor(from: "0.6.0")`); they must use the same URL, or SwiftPM would see two `RiskellKit` modules.
-- `extensions.lock.json` records what is installed (module, entry type, path or URL + commit). `risk ext sync` turns it into
-  `Sources/riskell/Generated/InstalledPackages.swift` (the `import`s and the list of entry types) and into a literal block inside
-  `Package.swift`. The literal is needed because SwiftPM caches a manifest by its own text: a manifest that reads the lock file at evaluation
-  time works (verified), but is not re-evaluated when only the lock changes (verified, and it failed silently).
+- Two records of compiled packages. `extensions.lock.json` is what ships with riskell: committed, and written only by `risk ext add|remove
+  --ship`, the maintainer's path. `extensions.local.json` is what this checkout installed for itself: git-ignored, written by `risk ext add`,
+  recreated on a clean clone by nothing (it is simply absent). So a package added for local use cannot appear as a change in a tracked file.
+- `risk ext sync` regenerates both: from the shipped record `Sources/riskell/Generated/InstalledPackages.swift` (the `import`s and the list of
+  entry types) and a literal block inside `Package.swift`; from the local one the git-ignored module `Local/Sources/RiskellLocal/`
+  (`LocalPackages.swift`, `LocalSettings.swift`). With no local package the folder goes and the manifest declares no such target. A record that
+  did not change is written back byte for byte, so running `sync` in a checkout with nothing local leaves git nothing to show.
+- `Package.swift` reads `extensions.local.json` with Foundation, adding its packages as dependencies and the `RiskellLocal` target, which only
+  the local file being non-empty makes the app depend on. A build that reads it passes `--manifest-cache none` (`scripts/risk` does) because
+  SwiftPM caches a manifest by its own text: a manifest that reads a file at evaluation time works (verified), but is not re-evaluated when
+  that file alone changes (verified, and it failed silently).
+- The app concatenates the two lists in `ExtensionHost.swift` under `#if canImport(RiskellLocal)`, so a clean clone compiles without the module.
 - A clean build with an extension takes about 35 s.
 
 ## 3. The API
@@ -85,9 +93,15 @@ multiplies by one scale factor where a number becomes a window frame.
   returns stops it again. A behaviour that also conforms to `ManagerHook` is called for each event it lists (AeroSpace's own names, plus
   `window-arrived`, which riskell adds) with `ManagerState`: windows in id order, each with its workspace and `floating` when it is outside
   the tiling tree (a window the manager floats, and also a minimised one, a native-fullscreen one, a hidden app's and a popup); workspaces
-  with `rootLayout` and `landscape`; the focused window and workspace. It returns `ManagerCommand`s, and the backend sends them in the
+  with `rootLayout` and `landscape`; the focused window and workspace; and, for an event the hook names in `needsFrames(for:)`, each showing window's
+  `frame` (its live rectangle on screen, one window-server call that is made only then). It returns `ManagerCommand`s, and the backend sends them in the
   request it was about to make, one `eval` per window they act on, with its queries after them: the manager lays the windows out once.
-  `commands(for:in:)` must return at once, reading and sending nothing. Only the AeroSpace backend carries hooks today.
+  `commands(for:in:)` must return at once, reading and sending nothing. A workspace also carries its `monitor`. Before any state is built a
+  hook is asked `wants(_:)` for the event, so a hook that acts on a few key bindings among the many that fire costs nothing for the rest; and it may
+  name a `bindingMode`, the manager's mode that its keys are bound in. riskell puts the manager in it while the behaviour runs (again after the
+  manager restarts) and back in `main` when it stops or riskell quits, so the keys that do nothing without the hook never replace the plain ones
+  when riskell is not running. The mode itself, and its keys, are in the manager's own config. Only the AeroSpace backend carries hooks today;
+  [`Packages/dwindle-aerospace`](../Packages/dwindle-aerospace/README.md) is the worked example.
 
 ## 4. Robustness
 

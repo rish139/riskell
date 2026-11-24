@@ -9,8 +9,9 @@ risk ext validate <dir>        check it             risk ext remove <id> | list 
 ```
 
 `risk` is the control script of riskell; the installer puts it on the PATH (from a checkout that has not been installed, run it as
-`scripts/risk`). `risk ext` runs a small tool that is built with the app on first use. `add` and `remove` change `extensions.lock.json`,
-regenerate the import list, rebuild and restart riskell. A clean build takes about 35 seconds.
+`scripts/risk`). `risk ext` runs a small tool that is built with the app on first use. `add` and `remove` change `extensions.local.json` and the
+generated module under `Local/` (both git-ignored, so your install is not a change in the repository), rebuild and restart riskell. A clean
+build takes about 35 seconds. `--ship` writes the tracked `extensions.lock.json` instead: that is the maintainer adding a package that ships.
 
 **Contents:** [Which kind](#which-kind) · [A reading](#a-reading) ·
  [An atom that draws itself](#an-atom-that-draws-itself) ·
@@ -25,7 +26,7 @@ regenerate the import list, rebuild and restart riskell. A clean build takes abo
 | colours | **theme** (`docs/THEMES.md`) | none, live |
 | a figure, gauge and hover card from Swift | **reading** | yes |
 | your own drawing | **atom** | yes |
-| a background capability | **behaviour** | yes, but `risk ext new` does not scaffold one: community behaviours wait for a review policy |
+| a background capability | **behaviour** | yes, but `risk ext new` does not scaffold one: community behaviours wait for a review policy; [`Packages/dwindle-aerospace`](../Packages/dwindle-aerospace/README.md) is the worked example |
 
 Choose the first one that fits. A `reading` looks exactly like a built-in atom with no layout code to get wrong; an `atom` is for the
 cases that need their own drawing.
