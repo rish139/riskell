@@ -38,13 +38,40 @@ final class AeroSpaceHooksTests: XCTestCase {
         XCTAssertNil(state.focusedWindow)
     }
 
+    func testAWindowCarriesItsFrameOnlyWhenOneWasRead() {
+        let frames = [10: CGRect(x: 58, y: 8, width: 700, height: 840), 30: CGRect(x: 765, y: 8, width: 700, height: 840)]
+        let state = AeroSpace.managerState(rows: rows([window(30, "1"), window(10, "1"), window(20, "2")]),
+                                           focusedWindow: 10, landscape: [:], gone: [], frames: frames)
+        XCTAssertEqual(state.windows.map(\.id), [10, 20, 30])
+        XCTAssertEqual(state.windows.map(\.frame), [frames[10], nil, frames[30]])
+        // no frames asked for: none on any window
+        let bare = AeroSpace.managerState(rows: rows([window(10, "1")]), focusedWindow: 10, landscape: [:], gone: [])
+        XCTAssertNil(bare.windows[0].frame)
+    }
+
+    func testTheBindingModeFollowsWhatTheBehavioursWant() {
+        XCTAssertEqual(AeroSpace.modeStep(wanted: "riskell", applied: nil), "riskell")      // a behaviour started
+        XCTAssertNil(AeroSpace.modeStep(wanted: "riskell", applied: "riskell"))             // nothing to say twice
+        XCTAssertEqual(AeroSpace.modeStep(wanted: nil, applied: "riskell"), "main")         // the behaviour stopped
+        XCTAssertNil(AeroSpace.modeStep(wanted: nil, applied: nil))                         // no behaviour wants a mode: leave the manager alone
+        XCTAssertEqual(AeroSpace.modeStep(wanted: "other", applied: "riskell"), "other")
+    }
+
+    func testANewConnectionAsksAgainForWhatIsWantedAndLeavesAMagersOwnModeAlone() {
+        // the manager may have restarted into main since: say it again
+        XCTAssertEqual(AeroSpace.modeStep(wanted: "riskell", applied: "riskell", force: true), "riskell")
+        XCTAssertEqual(AeroSpace.modeStep(wanted: nil, applied: "riskell", force: true), "main")
+        // riskell never put it in a mode: whatever mode its owner chose is not touched
+        XCTAssertNil(AeroSpace.modeStep(wanted: nil, applied: nil, force: true))
+    }
+
     func testAWorkspaceCarriesItsRootLayoutAndItsScreenOrientation() {
         let state = AeroSpace.managerState(rows: rows([window(10, "1")],
                                                       workspaces: [AeroSpace.WorkspaceRow(workspace: "1", focused: true, visible: true, monitor: 2, rootLayout: "v_tiles"),
                                                                    AeroSpace.WorkspaceRow(workspace: "2", monitor: 3, rootLayout: "h_accordion")]),
                                            focusedWindow: nil, landscape: [2: false, 3: true], gone: [])
-        XCTAssertEqual(state.workspaces, [ManagedWorkspace(name: "1", rootLayout: "v_tiles", landscape: false),
-                                          ManagedWorkspace(name: "2", rootLayout: "h_accordion", landscape: true)])
+        XCTAssertEqual(state.workspaces, [ManagedWorkspace(name: "1", rootLayout: "v_tiles", landscape: false, monitor: 2),
+                                          ManagedWorkspace(name: "2", rootLayout: "h_accordion", landscape: true, monitor: 3)])
         XCTAssertEqual(state.focusedWorkspace, "1")
     }
 

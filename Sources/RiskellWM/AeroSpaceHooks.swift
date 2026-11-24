@@ -11,11 +11,15 @@ extension AeroSpace {
     /// A window is `floating` when it is outside the tiling tree: a window the manager floats, and also a minimised one, a native-fullscreen
     /// one, a window of a hidden app and a popup. None of them takes part in a layout, so a hook that counts a workspace's windows must not
     /// see them.
-    public static func managerState(rows: Rows, focusedWindow: Int?, landscape: [Int: Bool], gone: Set<Int>) -> ManagerState {
+    ///
+    /// `frames` are the live rectangles of the windows that are showing, read only when a hook asks for them; a window with none (a hidden
+    /// workspace's) has no `frame`.
+    public static func managerState(rows: Rows, focusedWindow: Int?, landscape: [Int: Bool], gone: Set<Int>,
+                                    frames: [Int: CGRect] = [:]) -> ManagerState {
         let windows = rows.windows.filter { !gone.contains($0.windowId) }.sorted { $0.windowId < $1.windowId }
-            .map { ManagedWindow(id: $0.windowId, workspace: $0.workspace, floating: !$0.tiling) }
+            .map { ManagedWindow(id: $0.windowId, workspace: $0.workspace, floating: !$0.tiling, frame: frames[$0.windowId]) }
         let workspaces = rows.workspaces.map { row in
-            ManagedWorkspace(name: row.workspace, rootLayout: row.rootLayout, landscape: row.monitor.flatMap { landscape[$0] })
+            ManagedWorkspace(name: row.workspace, rootLayout: row.rootLayout, landscape: row.monitor.flatMap { landscape[$0] }, monitor: row.monitor)
         }
         let focus = focusedWindow.flatMap { gone.contains($0) ? nil : $0 }
         return ManagerState(windows: windows, workspaces: workspaces, focusedWindow: focus,
@@ -70,6 +74,15 @@ extension AeroSpace {
             if i == order.count - 1 { parts += queries.map { $0.map(quoted).joined(separator: " ") } }
             return HookRequest(window: window, args: ["eval", parts.joined(separator: "; ")])
         }
+    }
+
+    /// The binding mode to ask the manager for so that it matches what the running behaviours want, or nil when nothing is to be sent. `wanted` is
+    /// the mode a behaviour's hook names (nil: none does), `applied` the mode riskell last put the manager in (nil: it has not). Leaving is a
+    /// return to `main`. `force` is a new connection, where the manager may have restarted into `main`: what is wanted is sent again, and
+    /// nothing is sent when nothing was ever asked for, so a manager that is in a mode of its owner's choosing is never touched.
+    public static func modeStep(wanted: String?, applied: String?, force: Bool = false) -> String? {
+        if force { return wanted ?? (applied == nil ? nil : "main") }
+        return wanted == applied ? nil : (wanted ?? "main")
     }
 
     /// Which monitor id each of `frames` is, by the rule AeroSpace numbers them with: the 1-based place of the screen in `sortedMonitors`,

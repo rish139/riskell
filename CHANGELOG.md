@@ -7,6 +7,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ### Added
 - `risk ext add --ship` and `risk ext remove --ship` write the tracked `extensions.lock.json`: the way a maintainer adds a package that ships
   with riskell, or takes one out.
+- A behaviour's hook can name a binding mode (kit 0.8.0 `ManagerHook.bindingMode`), and the AeroSpace backend puts the manager in it while the behaviour
+  runs, again after the manager restarts, and back in `main` when the behaviour stops or riskell quits. dwindle-aerospace's keys (the move keys and the
+  tidy key, bound to `true` for it to act on) are in a `riskell` mode, and `main` keeps the plain keys, so AeroSpace is usable whenever riskell is not
+  running; `aerospace mode main` restores them by hand. Reloading the AeroSpace config keeps the mode and moves no window.
 - AeroSpace backend is a native socket client. One connection receives focus, workspace and window events, another sends commands, and
   no process starts per event, so the `exec-on-workspace-change` and `on-focus-changed` callbacks are no longer needed. Gestures under
   AeroSpace work too: AeroSpace has no swipe, so riskell sends the workspace switch and holds it until AeroSpace confirms.
@@ -27,6 +31,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   `extensions.local.json` and the generated module `Local/Sources/RiskellLocal/`, both git-ignored; `Package.swift` reads the local record,
   so a build passes `--manifest-cache none` (`scripts/risk` does), and the app links that module only when it is there, so a clean clone
   builds exactly as before. `risk ext sync` regenerates the tracked files and `Local/`; with nothing local, the folder goes.
+- The AeroSpace backend asks less. The window server is asked about riskell's own windows (`CGWindowListCreateDescriptionFromArray`) and no longer
+  lists every window on the system for each focus event: a call costs 1.1 ms instead of 3.2 ms here, and 20 focus events took 30 ms of waiting
+  instead of 91. A binding of `resize`, `balance-sizes` or `fullscreen` no longer makes riskell query AeroSpace afterwards (a held resize key
+  sent 19 requests a second, each making AeroSpace lay out the windows, for rows that hold neither sizes nor the fullscreen flag).
 - `risk status` follows the window manager that `wm` selects, not only OmniWM.
 - AeroSpace backend asks it less. A refresh is one request instead of two, a command and the queries that read back what it did are one
   request too, and an event that already names what changed (a focus change, a workspace switch, a navigation keybinding, a volume or

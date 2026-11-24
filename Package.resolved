@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/rish139/riskell-kit",
       "state" : {
-        "revision" : "32a7ab1e35e8a30af47bff783ad60680ba40b854",
-        "version" : "0.7.0"
+        "revision" : "bdb73d2f73b9cf8c081362e87a21592cf05f2f45",
+        "version" : "0.8.0"
       }
     }
   ],

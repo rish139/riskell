@@ -14,8 +14,12 @@ extension AeroSpace {
 
     /// The commands that cannot move a window or a workspace: they change nothing the rows could be older than, so the events that follow
     /// their binding say whatever did change. `reload-config`, `trigger-binding` and `enable` are not here: they run something else that
-    /// can move a window, so a binding of theirs still asks for the rows.
-    public static let quietCommands: Set<String> = ["volume", "echo", "move-mouse", "test", "true", "false", "exec-and-forget"]
+    /// can move a window, so a binding of theirs still asks for the rows. `resize`, `balance-sizes` and `fullscreen` are: they change how
+    /// big a window is or whether it fills its workspace, and the rows hold neither (the field AeroSpace prints for a fullscreen window is
+    /// decoded and read nowhere). Asking after them would put a query to the manager behind every repeat of a held resize key, and each one
+    /// makes it lay out the windows.
+    public static let quietCommands: Set<String> = ["volume", "echo", "move-mouse", "test", "true", "false", "exec-and-forget",
+                                                    "resize", "balance-sizes", "fullscreen"]
 
     /// What riskell learned. Only the first two carry enough to edit the rows; `activation` says an app came forward, which can mean
     /// nothing at all, and the rest has to be asked for.

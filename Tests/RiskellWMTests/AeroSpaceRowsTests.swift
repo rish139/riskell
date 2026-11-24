@@ -143,9 +143,17 @@ final class AeroSpaceRowsTests: XCTestCase {
     }
 
     func testANonNavigationBindingMarksTheRowsStale() {
-        // a resize changes the frames the rows do not hold, so the next answer has to be asked for
-        XCTAssertEqual(AeroSpace.decide(.binding(mode: "resize", binding: "h"), rows: oneMonitor(), bindings: navigationTable, stale: false),
+        // a window made floating is in the rows (as floating), so the next answer has to be asked for
+        let table: AeroSpace.Bindings = ["main": ["alt-f": "layout floating tiling"]]
+        XCTAssertEqual(AeroSpace.decide(.binding(mode: "main", binding: "alt-f"), rows: oneMonitor(), bindings: table, stale: false),
                        .staleRefresh)
+    }
+
+    func testAResizeBindingAppliesTheRowsItAlreadyHas() {
+        // sizes are in no row, and the frames the overview draws come from the window server when it opens, not from a query: asking the manager
+        // after a resize would only make it lay the windows out again, once for every repeat of a held key
+        XCTAssertEqual(AeroSpace.decide(.binding(mode: "resize", binding: "h"), rows: oneMonitor(), bindings: navigationTable, stale: false),
+                       .apply(oneMonitor()))
     }
 
     func testABindingNotInTheTableReadsTheTableAgain() {
@@ -203,15 +211,23 @@ final class AeroSpaceRowsTests: XCTestCase {
 
     func testBindingsThatCannotMoveAWindowOrAWorkspaceAskForNothing() {
         for script in ["volume up", "volume --gui set 40", "echo hello", "move-mouse window-lazy-center", "test %{workspace} = 1",
-                       "true", "false", "exec-and-forget open -a Safari", "volume up; echo hello", "focus left; volume down"] {
+                       "true", "false", "exec-and-forget open -a Safari", "volume up; echo hello", "focus left; volume down",
+                       // sizes and the fullscreen flag are in no row: a held resize key must not put a query behind every repeat
+                       "resize smart +50", "resize smart -50", "resize width +20", "balance-sizes", "fullscreen",
+                       "resize smart +50; focus left"] {
             XCTAssertTrue(AeroSpace.changesNothing(script), script)
         }
     }
 
+    func testAResizeThatSitsBesideACommandThatCanMoveAWindowStillAsks() {
+        XCTAssertFalse(AeroSpace.changesNothing("resize smart +50; move-node-to-workspace 3"))
+        XCTAssertFalse(AeroSpace.changesNothing("fullscreen && layout floating"))
+    }
+
     func testBindingsThatCanChangeTheRailStillAsk() {
         // reload-config and trigger-binding run something else that can move a window; enable changes what the manager does
-        for script in ["reload-config", "trigger-binding alt-h", "enable off", "resize smart +50", "fullscreen",
-                       "move-node-to-workspace 3", "layout tiles horizontal vertical", "move --window-id 10 --monitor 2",
+        for script in ["reload-config", "trigger-binding alt-h", "enable off",
+                       "move-node-to-workspace 3", "layout floating tiling", "layout tiles horizontal vertical", "move --window-id 10 --monitor 2",
                        "exec-and-forget echo x && focus left", "flatset smart", ""] {
             XCTAssertFalse(AeroSpace.changesNothing(script), script)
         }

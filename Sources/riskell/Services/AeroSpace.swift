@@ -46,6 +46,8 @@ final class AeroSpace: WindowManager {
     private var hooks: [any ManagerHook] = []             // what the running behaviours asked for; set from main, read here
     private var landscape: [Int: Bool] = [:]              // monitor id to its screen being wider than tall; built on main, read here
     private var deferred: [ArrivedEvent] = []             // events handed to the hooks only after the rows were asked for again
+    private var appliedMode: String?                       // the binding mode riskell put the manager in; nil while it has left it alone
+    private var modeWarned = false
 
     init(store: Store) { self.store = store }
 
@@ -77,6 +79,12 @@ final class AeroSpace: WindowManager {
         let nc = NSWorkspace.shared.notificationCenter
         for o in observers { nc.removeObserver(o) }
         observers = []
+        // back to the plain keys before anything closes, and now: the process exits straight after `stop`, so a queued block would never run
+        io.sync { [weak self] in
+            guard let self, self.appliedMode != nil, self.sub != nil || self.cmd != nil else { return }
+            self.run(["mode", "main"], quiet: true)
+            self.appliedMode = nil
+        }
         io.async { [weak self] in
             guard let self else { return }
             self.running = false
@@ -97,7 +105,7 @@ final class AeroSpace: WindowManager {
     /// behaviours are only ever called there.
     func setHooks(_ hooks: [any ManagerHook]) {
         let copy = hooks
-        io.async { [weak self] in self?.hooks = copy }
+        io.async { [weak self] in self?.hooks = copy; self?.syncMode() }
     }
 
     /// Screens are read on main; the map goes over to the queue that reads it, so nothing crosses queues by itself.
@@ -147,6 +155,19 @@ final class AeroSpace: WindowManager {
         print("aerospace: subscribed"); fflush(stdout)
         DispatchQueue.main.async { Compat.shared.check() }      // AeroSpace (re)started: it may have been updated
         refresh(seed: true)
+        syncMode(force: true)       // the manager may have restarted since, into `main`
+    }
+
+    /// Puts the manager in the binding mode the running behaviours' keys are bound in (or back in `main` when none wants one), so that the
+    /// plain keys of `main` are what is there whenever riskell is not. A mode the manager does not have is reported once.
+    private func syncMode(force: Bool = false) {
+        guard running, let mode = RiskellWM.AeroSpace.modeStep(wanted: hooks.compactMap(\.bindingMode).first, applied: appliedMode, force: force) else { return }
+        if run(["mode", mode], quiet: true) != nil {
+            appliedMode = mode == "main" ? nil : mode
+        } else if !modeWarned {
+            modeWarned = true
+            print("aerospace: could not enter the binding mode \(mode) (is it in aerospace.toml?)"); fflush(stdout)
+        }
     }
 
     private func retry() {
@@ -195,7 +216,7 @@ final class AeroSpace: WindowManager {
             let event = ArrivedEvent(fields: fields, change: change)
             // the rows are older than the event (a binding riskell does not understand may have changed what they cannot say): ask for
             // them first, and hand the event to the hooks with the fresh answer
-            if stale, hooksWant(fields.name) {
+            if stale, hooksWant(ManagerEvent(name: fields.name, fields: fields.fields)) {
                 deferred.append(event)
                 schedule(after: 0.04)
                 continue
@@ -281,16 +302,21 @@ final class AeroSpace: WindowManager {
     // MARK: hooks (io)
     /// True when a running behaviour wants this event (by AeroSpace's name).
     private func hooksWant(_ name: String) -> Bool { hooks.contains { $0.events.contains(name) } }
+    /// True when a running behaviour wants this very event: it lists its name and, among the many variants of a frequent one (a key binding), it
+    /// wants this one. A key that no hook cares about then costs nothing, not even a refresh of the rows.
+    private func hooksWant(_ event: ManagerEvent) -> Bool { hooks.contains { $0.events.contains(event.name) && $0.wants(event) } }
 
     /// Calls the hooks that want `event`, and sends what they return at once (not on the next coalesced refresh): one `eval` per window
     /// they act on, the queries at the end of the last one. true when they sent something, so the event needs nothing more from the
     /// backend's own handling. A hook that returns nothing changes nothing, and the event is handled as it always was.
     private func runHooks(_ event: ManagerEvent) -> Bool {
-        let wanting = hooks.filter { $0.events.contains(event.name) }
+        // a hook that acts on a few of the many key bindings says so here, before anything is asked of the window server
+        let wanting = hooks.filter { $0.events.contains(event.name) && $0.wants(event) }
         guard !wanting.isEmpty, let rows else { return false }
-        // a window can close without AeroSpace saying so (Cmd-W, an app closing its own window): the window server is the only word
+        // one window-server call answers both questions: which windows are gone, and where the ones that show are (only for a hook that asked)
+        let seen = WindowBook.look(at: Set(rows.windows.map(\.windowId)), frames: wanting.contains { $0.needsFrames(for: event) })
         let state = RiskellWM.AeroSpace.managerState(rows: rows, focusedWindow: focused, landscape: landscape,
-                                                      gone: WindowBook.gone(Set(rows.windows.map(\.windowId))))
+                                                      gone: seen.gone, frames: seen.frames)
         let commands = wanting.flatMap { $0.commands(for: event, in: state) }
         guard !commands.isEmpty else { return false }
         send(commands, first: nil)
