@@ -41,6 +41,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   island around a vertical rail is given that spring for a change in the number of spaces. SwiftUI animates each view's size with the animation in
   force at that view, so the rail's own animation never reached the island: it jumped to its new size at once and, on the way back in, cut across
   the capsule that was still moving.
+- The top bar waits for a menu of the menu bar. With the menu bar set to hide itself, a menu opened from it (File, the Apple menu) or the panel
+  of one of its extras (the Control Center) keeps the menu bar out however far down the pointer goes, and the top bar used to come back on top of
+  it as soon as the pointer left the notch-height stripe. The top bar and the strips' top widgets now stay down while such a menu is open, and until
+  the menu bar has slid away after it closed. The window server says when: the menu bar's own window is on screen, and a pop-up window is open on
+  this display. It is asked every 0.1 s only while a menu is open, so nothing runs otherwise. A panel that opens at another window level than a
+  menu's is not seen, and the top bar comes back as it did before.
 - `risk status` follows the window manager that `wm` selects, not only OmniWM.
 - AeroSpace backend asks it less. A refresh is one request instead of two, a command and the queries that read back what it did are one
   request too, and an event that already names what changed (a focus change, a workspace switch, a navigation keybinding, a volume or

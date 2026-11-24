@@ -4,6 +4,7 @@ import SwiftUI
 import Combine
 import RiskellKit
 import RiskellTTY
+import RiskellWM
 import WeatherExt
 import UsageExt
 import SystemExt
@@ -289,8 +290,13 @@ let underMenu = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.mainMenuWindow
 /// The pointer touched the top edge, so the auto-hidden menu bar is out: the top bar sits under it (the menu bar overlays it exactly) and the
 /// strips' top widgets step down clear of it. This holds until the pointer leaves the menu bar's stripe (the notch's height), then a short
 /// hold-off lets the menu bar slide away before the top bar comes back on top. Without a touch of the edge nothing here ever changes.
+///
+/// A menu of the menu bar (File, the Apple menu) or the panel of one of its extras (the Control Center) keeps the menu bar out however far down the
+/// pointer goes into it, so the pointer leaving the stripe says nothing then. While one is open, and until the menu bar has slid away after it
+/// closed, the top bar and the strips' top widgets stay where they are (`menuLetGo`).
 var menuOut = false
 var menuHold: DispatchWorkItem?
+var menuSeen = false      // a menu of the menu bar was open during this stay of the menu bar
 /// Whether the menu bar hides itself (System Settings > Control Center > Automatically hide and show the menu bar). Read when the pointer
 /// first touches the top edge: one preferences lookup, and it follows a change of the setting.
 func menuBarAutoHides() -> Bool {
@@ -305,12 +311,44 @@ func menuEdge(_ e: NSEvent?) {
         menuHold?.cancel(); menuHold = nil
         if !menuOut { menuOut = true; Config.shared.menuDrop = max(0, stripe / Real.k - G.sideMargin + 10) }
     } else if menuOut, y < f.maxY - stripe || !here, menuHold == nil {
-        let w = DispatchWorkItem { menuHold = nil; menuOut = false; Config.shared.menuDrop = 0; menuEdge(nil) }
+        let w = DispatchWorkItem { menuHold = nil; menuLetGo() }
         menuHold = w
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: w)
     } else if menuOut, here, y >= f.maxY - stripe { menuHold?.cancel(); menuHold = nil }
     let want = menuOut ? underMenu : pipOver.contains(top) && !barsLifted ? pipLevel : barLevel
     if top.level != want { top.level = want }
+}
+/// The pointer is below the stripe and the hold-off is over: the menu bar goes and the top bar comes back, unless a menu of the menu bar is open
+/// (it is the menu that keeps the menu bar out, not the pointer) or one has just closed and the menu bar is still on its way up. Then the
+/// window server is asked again every 0.1 s, for as long as that holds and no longer: nothing runs when no menu was opened. The pointer coming back
+/// to the stripe cancels the wait, as it cancels the hold-off.
+func menuLetGo() {
+    let d = Display.current, stripe = max(d.menuBar, d.notchH)
+    let r = MenuBar.mustWait(menuBarSamples(), on: windowServerFrame(), stripe: stripe, menuSeen: menuSeen)
+    menuSeen = r.menuSeen
+    if r.wait {
+        let w = DispatchWorkItem { menuHold = nil; menuLetGo() }
+        menuHold = w
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: w)
+        return
+    }
+    menuOut = false; Config.shared.menuDrop = 0; menuEdge(nil)
+}
+/// The bars' display in the window server's coordinates (the origin at the top left of the main display).
+func windowServerFrame() -> CGRect {
+    CGRect(x: f.minX, y: (NSScreen.screens.first?.frame.height ?? f.height) - f.maxY, width: f.width, height: f.height)
+}
+/// The menu bar's own window and the pop-up menus on screen, out of the window server's list (one call, 17 windows of 95 on screen only).
+func menuBarSamples() -> [MenuBar.Sample] {
+    var out: [MenuBar.Sample] = []
+    for w in (CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]]) ?? [] {
+        let layer = w[kCGWindowLayer as String] as? Int ?? 0
+        guard layer == MenuBar.menuBarLayer || layer == MenuBar.popUpMenuLayer,
+              let b = w[kCGWindowBounds as String] as? NSDictionary, let r = CGRect(dictionaryRepresentation: b) else { continue }
+        out.append(MenuBar.Sample(layer: layer, owner: w[kCGWindowOwnerName as String] as? String ?? "", name: w[kCGWindowName as String] as? String ?? "",
+                                  bounds: r, onScreen: true, alpha: w[kCGWindowAlpha as String] as? Double ?? 1))
+    }
+    return out
 }
 /// A Picture-in-Picture window (layer 19) sits under the bars (layer 23+). A bar it overlaps drops to just under it, so the PiP floats over
 /// the bar there; bars it does not touch stay where they are (the top bar must stay above MenuBarAgent's layer-25 window for hover).
